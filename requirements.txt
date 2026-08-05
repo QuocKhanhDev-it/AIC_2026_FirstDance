@@ -1,0 +1,15 @@
+# Giai đoạn 0 — chỉ cần đọc file và ghép bảng.
+# Không GPU, không PyTorch, không CLIP, không Supabase, không Docker.
+#
+# Đã chạy thật trên Python 3.13.5 / Windows 11.
+# Pin version để 6 máy trong nhóm ra cùng một kết quả.
+
+pandas==3.0.5
+pyarrow==25.0.0
+numpy==2.5.1
+duckdb==1.5.5
+pillow==12.3.0
+
+# Ngoài pip còn cần ffmpeg trong PATH (chỉ cho 02_verify.py):
+#   winget install Gyan.FFmpeg
+# rồi MỞ CỬA SỔ TERMINAL MỚI, kiểm tra: ffmpeg -version

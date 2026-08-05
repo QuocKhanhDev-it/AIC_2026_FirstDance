@@ -1,0 +1,39 @@
+# ---- môi trường Python ----
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+
+# ---- OUTPUT của Giai đoạn 0 ----
+# index/ ~395 MB (riêng clip.npy đã 346 MB) -> KHÔNG đẩy lên git.
+# Đồng bộ giữa 6 người bằng Google Drive.
+# Phải là `index/*` chứ không phải `index/` — git không cho `!` moi file
+# ra lại nếu cả thư mục cha đã bị loại.
+index/*
+
+# ...nhưng vẫn giữ 3 file báo cáo dạng text để soi lại lịch sử: nhẹ, và là
+# bằng chứng bảng cái đã được kiểm chứng.
+!index/discover_report.txt
+!index/build_report.txt
+!index/verify_report.csv
+
+# ---- dữ liệu thô ----
+# Bình thường nằm ngoài repo (C:\Code\aic_data). Chặn sẵn phòng ai đó
+# lỡ giải nén vào trong dự án — một cái Videos_L21_a là 3 GB.
+aic_data/
+data/
+*.mp4
+*.npy
+*.parquet
+
+# ---- file tạm ----
+cache/
+*.log
+.ipynb_checkpoints/
+
+# ---- IDE / OS ----
+.vscode/
+.idea/
+Thumbs.db
+desktop.ini
