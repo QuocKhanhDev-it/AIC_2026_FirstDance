@@ -102,6 +102,18 @@ Xem mục cuối [01_cai_dat.md](01_cai_dat.md) để sửa.
 Đúng. Script chỉ lấy dòng có **cả** `kf_path` lẫn `video_path`, mà hiện chỉ
 29 video L21 có đủ hai thứ. Tải thêm nhóm L nào thì số mẫu tự tăng.
 
+Muốn kiểm chứng các nhóm chưa có ảnh keyframe thì dùng `03_verify_CLIP.py`.
+Nó trích frame rồi encode lại bằng CLIP ViT-B/32 và so cosine với vector đã
+lưu, nên chỉ cần file `.mp4`:
+
+```powershell
+pip install torch torchvision open_clip_torch    # ~2,5 GB, chỉ cài nếu cần
+python scripts\03_verify_CLIP.py --out .\index --n 40 --group L26
+```
+
+Hai script kiểm hai liên kết khác nhau: `02` kiểm **ảnh keyframe ↔ dòng CSV**,
+`03` kiểm **vector CLIP ↔ dòng CSV**. Chạy cả hai mới phủ hết bảng cái.
+
 ## `git push` báo `could not read Username`
 
 Chưa đăng nhập GitHub. Chạy `git push` trong terminal **của bạn** (không
