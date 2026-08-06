@@ -1,0 +1,19 @@
+# Giai đoạn 0 — chỉ cần đọc file và ghép bảng.
+# Không GPU, không PyTorch, không CLIP, không Supabase, không Docker.
+#
+# Đã chạy thật trên Python 3.13.5 / Windows 11.
+# Pin version để 6 máy trong nhóm ra cùng một kết quả.
+
+pandas==3.0.5
+pyarrow==25.0.0
+numpy==2.5.1
+duckdb==1.5.5
+pillow==12.3.0
+
+# Ngoài pip còn cần ffmpeg trong PATH (cho 02_verify.py và 03_verify_CLIP.py):
+#   winget install Gyan.FFmpeg
+# rồi MỞ CỬA SỔ TERMINAL MỚI, kiểm tra: ffmpeg -version
+
+# ---- TÙY CHỌN: chỉ cần nếu chạy scripts/03_verify_CLIP.py ----
+# Nặng (~2,5 GB), đừng cài nếu không dùng tới. CPU chạy được, ~1-2 giây/ảnh.
+#   pip install torch torchvision open_clip_torch
