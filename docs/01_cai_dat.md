@@ -35,6 +35,27 @@ Nếu PowerShell báo "cannot be loaded because running scripts is disabled":
 Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
 ```
 
+### Thư viện tùy chọn — chỉ cài nếu cần
+
+`requirements.txt` (~50 MB) đủ cho hầu hết mọi người: truy vấn bảng cái,
+viết code xếp hạng, thử ý tưởng.
+
+Riêng `scripts/03_verify_CLIP.py` cần thêm torch + open_clip, **~2,5 GB**:
+
+```powershell
+pip install -r requirements-clip.txt
+```
+
+| Bạn làm gì | Cài gì |
+| --- | --- |
+| Truy vấn bảng cái, code xếp hạng, phân tích | `requirements.txt` |
+| Chạy `02_verify.py` (cần ảnh keyframe + video) | `requirements.txt` + ffmpeg |
+| Chạy `03_verify_CLIP.py` (kiểm chứng vector CLIP) | thêm `requirements-clip.txt` |
+
+Bản `torch` trên PyPI là **CPU-only** — chạy được, ~1–2 giây/ảnh. Có GPU
+NVIDIA và muốn dùng thì cài theo hướng dẫn ở <https://pytorch.org/get-started/locally/>,
+script tự nhận `cuda`.
+
 ## Bước 3 — ffmpeg
 
 **Chỉ cần nếu bạn tải video** (để chạy `02_verify.py` hoặc cắt clip). Không

@@ -107,12 +107,42 @@ Nó trích frame rồi encode lại bằng CLIP ViT-B/32 và so cosine với vec
 lưu, nên chỉ cần file `.mp4`:
 
 ```powershell
-pip install torch torchvision open_clip_torch    # ~2,5 GB, chỉ cài nếu cần
+pip install -r requirements-clip.txt    # ~2,5 GB, chỉ cài nếu cần
 python scripts\03_verify_CLIP.py --out .\index --n 40 --group L26
 ```
 
 Hai script kiểm hai liên kết khác nhau: `02` kiểm **ảnh keyframe ↔ dòng CSV**,
 `03` kiểm **vector CLIP ↔ dòng CSV**. Chạy cả hai mới phủ hết bảng cái.
+
+## `03_verify_CLIP.py` báo NGHI_NGO/LỆCH hàng loạt
+
+Gần như chắc chắn là **sai tag model**, không phải sai dữ liệu. Phải dùng
+`ViT-B-32-quickgelu`, không phải `ViT-B-32`.
+
+OpenAI CLIP dùng hàm kích hoạt QuickGELU. Nạp bản thường thì open_clip chỉ
+in một dòng cảnh báo lẫn trong đống log rồi vẫn chạy — nhưng embedding lệch
+đủ để mọi mẫu trượt ngưỡng. Đo trên L21 (nhóm đã biết chắc đúng):
+
+| Tag model | Cosine trung bình | Thấp nhất |
+| --- | --- | --- |
+| `ViT-B-32` | 0,9513 | 0,9417 |
+| `ViT-B-32-quickgelu` | **0,9913** | 0,9293 |
+
+Cảnh báo cần để ý trong log:
+
+```text
+UserWarning: QuickGELU mismatch between final model config (quick_gelu=False)
+and pretrained tag 'openai' (quick_gelu=True)
+```
+
+**Đừng tin cosine tuyệt đối, hãy nhìn cột `hang`.** Cosine nhạy với tiền xử
+lý (JPEG vs PNG, cách resize, phiên bản model). Cột `hang` mới là bằng chứng:
+nó hỏi vector vừa encode có giống dòng `row_id` của nó hơn *mọi* keyframe
+khác trong cùng video không. Trên L21: **29/29 đúng hạng 1**, cách ứng viên
+nhì trung bình **+0,15** — dù có một mẫu cosine chỉ 0,9293.
+
+Hạng 1 mà cosine thấp là chuyện tiền xử lý. Hạng khác 1 mới là lệch chỉ số
+thật.
 
 ## `git push` báo `could not read Username`
 

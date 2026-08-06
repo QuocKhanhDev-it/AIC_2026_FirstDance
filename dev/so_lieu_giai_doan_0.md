@@ -33,9 +33,20 @@ L22–L30 hiện chỉ có csv/clip/objects/media-info.
    *Lưu ý:* chỉ kiểm được trên L21 vì các nhóm L khác chưa có video gốc.
    Tải thêm nhóm L nào thì chạy lại `02_verify.py` cho nhóm đó.
 
+5. **Liên kết CSV ↔ clip.npy cũng ĐÚNG.** `03_verify_CLIP.py` encode lại
+   frame bằng CLIP ViT-B/32 rồi so với vector đã lưu. Trên 29 video L21:
+   **29/29 đúng hạng 1**, cosine trung bình 0,9913, cách ứng viên nhì
+   trung bình +0,15. Nghĩa là vector thứ i trong `clip.npy` thật sự là
+   vector của keyframe thứ i — không lệch hàng.
+
+   Bẫy khi chạy script này: phải dùng tag `ViT-B-32-quickgelu`. Nạp
+   `ViT-B-32` thường làm cosine tụt từ 0,9913 xuống 0,9513 và mọi mẫu
+   trượt ngưỡng dù dữ liệu hoàn toàn đúng. Ngưỡng gốc 0,98 cũng quá gắt,
+   đã hiệu chuẩn lại còn 0,95.
+
 ## Quy ước tên file (đã xác minh)
 
-```
+```text
 csv:  n=1, pts_time=0.0,    fps=30.0, frame_idx=0
       n=2, pts_time=3.0,    fps=30.0, frame_idx=90
       ...

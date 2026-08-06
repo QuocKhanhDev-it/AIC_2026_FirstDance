@@ -22,6 +22,17 @@ Câu hỏi này quyết định bạn tốn 5 phút hay 3 tiếng.
 **Chỉ MỘT người trong nhóm cần tải video.** Nói rõ điều này trước khi cả
 nhóm mỗi người tải 300 GB.
 
+## Bạn cần cài thư viện gì?
+
+| Bạn làm gì | Cài gì | Nặng |
+| --- | --- | --- |
+| Truy vấn bảng cái, code xếp hạng, phân tích | `requirements.txt` | ~50 MB |
+| Chạy `02_verify.py` | thêm ffmpeg | ~150 MB |
+| Chạy `03_verify_CLIP.py` | thêm `requirements-clip.txt` | **~2,5 GB** |
+
+Lệnh cụ thể ở [01_cai_dat.md](01_cai_dat.md). Đừng cài gói CLIP nếu không
+chạy tới script đó.
+
 ## Trạng thái hiện tại
 
 Giai đoạn 0 đã xong: bảng cái dựng từ 873 video, 177.321 keyframe, và đã
