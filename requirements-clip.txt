@@ -1,0 +1,17 @@
+# Phụ thuộc TÙY CHỌN — chỉ cần cho scripts/03_verify_CLIP.py
+#
+# Nặng ~2,5 GB. Đừng cài nếu bạn không chạy script đó.
+# Ai chỉ truy vấn bảng cái, viết code xếp hạng, thử ý tưởng thì
+# requirements.txt là đủ.
+#
+# Cài:  pip install -r requirements-clip.txt
+#
+# Chạy được trên CPU (~1-2 giây/ảnh). Có GPU NVIDIA thì script tự dùng cuda,
+# nhưng bản torch trên PyPI là CPU-only — muốn GPU phải cài từ
+# https://pytorch.org/get-started/locally/
+#
+# Đã chạy thật trên Python 3.13.5 / Windows 11.
+
+torch==2.13.0
+torchvision==0.28.0
+open_clip_torch==3.3.0

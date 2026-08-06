@@ -104,6 +104,17 @@ python scripts\02_verify.py     --out .\index --n 60
 
 Điều kiện qua Giai đoạn 0: `verify_report.csv` cho ≥ 95% kết luận `KHOP`.
 
+Có thêm bước kiểm chứng tùy chọn cho nhóm L **chưa tải ảnh keyframe** —
+`02_verify.py` bó tay ở đó vì cần ảnh, còn script này chỉ cần file `.mp4`:
+
+```powershell
+pip install -r requirements-clip.txt        # ~2,5 GB, chỉ cài nếu chạy bước này
+python scripts\03_verify_CLIP.py --out .\index --n 40 --group L26
+```
+
+`02` kiểm **ảnh keyframe ↔ dòng CSV**, `03` kiểm **vector CLIP ↔ dòng CSV**.
+Trên L21 cả hai đều sạch: 29/29 KHỚP và 29/29 đúng hạng 1.
+
 Thời gian thực tế trên máy Windows đã đo:
 
 | Bước | Thời gian |
