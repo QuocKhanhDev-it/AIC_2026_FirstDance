@@ -5,6 +5,9 @@
 **Trạng thái: ĐÃ XONG.** Chạy đủ 3 bước ngày 2026-08-05, `02_verify.py` cho
 **29/29 KHỚP (100%)** — vượt ngưỡng 95%. Được phép sang Giai đoạn 1.
 
+**Mới vào nhóm? Đọc [docs/01_cai_dat.md](docs/01_cai_dat.md) trước.**
+Toàn bộ tài liệu ở [docs/](docs/).
+
 Số liệu đầy đủ: [dev/so_lieu_giai_doan_0.md](dev/so_lieu_giai_doan_0.md)
 
 | Chỉ số | Giá trị |
