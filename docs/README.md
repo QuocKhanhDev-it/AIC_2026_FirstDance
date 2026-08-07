@@ -4,6 +4,7 @@
 
 | File | Dành cho ai | Nội dung |
 | --- | --- | --- |
+| [Ke_hoach_AIC2026_v4.md](Ke_hoach_AIC2026_v4.md) | **cả nhóm** | **Kế hoạch hiện hành.** Thay thế v3 — PHẦN A đo lại trên toàn bộ dữ liệu |
 | [01_cai_dat.md](01_cai_dat.md) | **mọi người, đọc trước tiên** | Từ `git clone` tới chạy được lệnh đầu tiên |
 | [02_bang_cai.md](02_bang_cai.md) | ai đụng tới dữ liệu | Bảng cái có gì, truy vấn thế nào, cột nào nghĩa gì |
 | [03_quy_uoc_git.md](03_quy_uoc_git.md) | mọi người | Nhánh, commit, PR — để 6 người không giẫm chân nhau |
