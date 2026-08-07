@@ -430,6 +430,71 @@ hay được nhắc tới:
 tài liệu cũ. Lấy ID trực tiếp từ danh sách model của nhà cung cấp tại thời
 điểm chạy.
 
+#### Kết quả đợt 2 — đo trực tiếp qua Google API, `--runs 3`
+
+Harness: `scripts/05_bench_vlm.py`. 10 câu hỏi đếm trên keyframe thật, mỗi
+model 3 lượt. **Không đo độ đúng** (lý do ở phần đính chính D1.6 — bộ nhận
+diện đếm thiếu nên không làm đáp án được). Đo ba thứ khách quan:
+
+| Model | temp | Format | **Đồng thuận** | p50 | p95 |
+| --- | --- | --- | --- | --- | --- |
+| **`gemini-3.1-flash-lite`** | **0** | **100%** | **100%** | **1,7s** | 3,7s |
+| `gemini-3.1-flash-lite` | 1,0 | 100% | 50% | 2,8s | 6,2s |
+| `gemini-3.5-flash-lite` | **0** | 100% | **30%** | 1,3s | 1,9s |
+| `gemini-3.5-flash-lite` | 1,0 | 100% | 40% | 1,4s | 1,7s |
+| `gemini-3.6-flash` | 1,0 | 94,7% | 70% | 7,0s | 11,4s |
+| `gemma-4-31b-it` | 0 | **0%** | 90% | 12,3s | 19,8s |
+
+**Bốn kết luận, theo thứ tự quan trọng:**
+
+**1. `temperature = 0` là bắt buộc.** API mặc định `temperature = 1,0` — đó là
+lý do đồng thuận thấp trong mọi đợt test trước, không phải model kém.
+`gemini-3.1-flash-lite` nhảy từ **50% lên 100%** khi hạ về 0, và nhanh hơn.
+Chi phí sửa: một dòng `generationConfig`.
+
+**2. `gemini-3.5-flash-lite` KHÔNG tái lập được, kể cả ở `temperature = 0`.**
+Đây là phát hiện quyết định. Cùng ảnh, cùng câu hỏi, 3 lượt:
+
+```text
+                    lượt 1  lượt 2  lượt 3
+gemini-3.1-flash-lite (temp 0)          gemini-3.5-flash-lite (temp 0)
+  Bicycle      12    12    12             Bicycle      10    12    11
+  Chair         8     8     8             Chair        14    14    11
+  Man          13    13    13             Man          10    13    13
+  Motorcycle   13    13    13             Motorcycle   16    15    17
+  Person        4     4     4             Person        4     5     4
+  -> 10/10 giống hệt                      -> 7/10 câu đổi đáp án
+```
+
+Bài thi nộp file rồi chấm — pipeline cho kết quả khác nhau mỗi lần chạy thì
+không gỡ lỗi được, không tin được, và không tái lập được điểm dev.
+**Chọn `gemini-3.1-flash-lite`.**
+
+Lưu ý: bảng của đợt 1 (OpenRouter) cho `3.5` gần bằng `3.1` về độ đúng và
+nhanh hơn — nhìn vào đó dễ chọn `3.5`. Chỉ số đồng thuận mới lộ ra khác biệt
+thật, và nó ngược chiều.
+
+**3. Gemma bị loại vì format, không phải vì độ đúng.** `gemma-4-31b-it` tuân
+thủ format **0%** — nó nhả nguyên chuỗi suy luận bằng tiếng Anh:
+
+```text
+"Okay, let's count the cars in the image.  1. Scanning the road from left to
+ right: there's a white car here: `{"point": [410, 414], "label"...
+```
+
+Theo PHẦN C, `answer` sai định dạng = 0 điểm bất kể frame đúng. Chậm gấp 7
+lần cũng không giúp gì. Vẫn có thể cứu bằng prompt ép format chặt hơn, nhưng
+đó là công sức đổ vào model đang thua ở mọi mặt khác.
+
+**4. `gemma-4-31b` chạy tốt qua Google API** — trong khi qua OpenRouter nó
+thất bại 0/20 vì *"temporarily rate-limited upstream"*. **Model không tệ, nó
+chưa từng được đánh giá.** Bài học chung: lỗi hạ tầng của nhà trung gian dễ
+bị đọc nhầm thành model kém.
+
+**Và một phát hiện về hạ tầng:** gọi thẳng Google nhanh hơn OpenRouter **4–5
+lần** (`3.5-flash-lite`: 7,5s → 1,4s). Với 100 câu × nhiều vòng thử nghiệm
+trong 4 tuần, đây là hàng giờ đồng hồ.
+
 **Việc tiếp theo cho 0.c** — theo thứ tự:
 
 1. **Tăng cỡ mẫu lên ≥ 50 câu** trước khi so sánh model. Dùng chính tập dev
@@ -577,8 +642,22 @@ mà không thuật toán nào cứu lại được.
 | BM25 OCR + ASR | TV4 | chữ trên hình, lời dẫn, con số |
 | **Objects + IDF** | **TV2** | **vật thể cụ thể, đếm số lượng** |
 
-Objects đặc biệt mạnh cho câu hỏi Q&A dạng **đếm** ("có mấy chiếc thuyền") —
-kênh duy nhất trong bốn kênh cho biết *số lượng*.
+> ⚠️ **Đính chính — objects KHÔNG trả lời được câu hỏi đếm.**
+>
+> Bản đầu của mục này viết "objects là kênh duy nhất cho biết số lượng, đặc
+> biệt mạnh cho câu hỏi đếm". **Sai.** Kiểm bằng cách mở ảnh ra nhìn:
+>
+> | Ảnh | Detector (≥0,7) | VLM | Thực tế |
+> | --- | --- | --- | --- |
+> | `L21_V001/073.jpg` | 1 người | 4 | ≥ 4 |
+> | `L21_V031/086.jpg` | 4 người | 13 | > 20 |
+>
+> Bộ nhận diện chỉ bắt vật nổi bật nhất nên **đếm thiếu nghiêm trọng**, và
+> càng đông càng thiếu — đúng loại cảnh mà câu hỏi đếm hay rơi vào.
+>
+> Số hộp vẫn dùng được làm **tín hiệu tương đối để xếp hạng** (5 hộp `Boat`
+> gần như chắc chắn nhiều thuyền hơn 1 hộp), nhưng **câu hỏi đếm phải để VLM
+> nhìn ảnh trả lời**. Xem cảnh báo trong `src/objects.py::dem_nhan()`.
 
 #### 6. Đo trên tập dev, giữ hay bỏ theo số
 

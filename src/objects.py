@@ -70,10 +70,21 @@ def object_score(row_ids, labels_yeu_cau, channel: dict) -> np.ndarray:
 
 
 def dem_nhan(row_ids, label, channel: dict) -> np.ndarray:
-    """Số lượng vật thể `label` trong từng keyframe.
+    """Số HỘP nhận diện của `label` trong từng keyframe.
 
-    Kênh objects là kênh DUY NHẤT trong 4 kênh cho biết SỐ LƯỢNG — dùng cho
-    câu hỏi Q&A dạng đếm ("có mấy chiếc thuyền").
+    ⚠️ ĐỪNG DÙNG LÀM CÂU TRẢ LỜI CHO CÂU HỎI ĐẾM. Con số này ĐẾM THIẾU
+    NGHIÊM TRỌNG — bộ nhận diện chỉ bắt vật nổi bật nhất. Đã kiểm bằng cách
+    mở ảnh ra nhìn:
+
+        L21_V001/073.jpg   detector: 1 người    thực tế: >= 4
+        L21_V031/086.jpg   detector: 4 người    thực tế: > 20
+
+    Càng đông càng thiếu, mà câu hỏi đếm của đề thi thường rơi vào cảnh đông.
+    Câu hỏi đếm phải để VLM nhìn ảnh trả lời.
+
+    Chỉ dùng làm TÍN HIỆU TƯƠNG ĐỐI: keyframe có 5 hộp `Boat` gần như chắc
+    chắn nhiều thuyền hơn keyframe có 1 hộp — dù cả hai con số đều thấp hơn
+    thực tế. Hữu ích để xếp hạng, vô dụng để trả lời.
     """
     o = channel["objects"]
     row_ids = np.asarray(row_ids)
