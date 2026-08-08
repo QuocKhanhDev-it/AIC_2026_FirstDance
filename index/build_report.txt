@@ -3,7 +3,7 @@ BẢNG CÁI
   keyframe            177,321
   video               873
   ma trận CLIP        (177321, 512)   (363 MB RAM)
-  có ảnh keyframe       4.4%
+  có ảnh keyframe       9.5%
   có object JSON      100.0%   <-- KIỂM TRA KỸ
   có metadata         100.0%
   có vector CLIP      100.0%
@@ -21,7 +21,8 @@ OBJECTS  (ngưỡng >= 0.3)
 FPS xuất hiện: [np.float64(25.0), np.float64(26.44), np.float64(29.97), np.float64(30.0)]
 Độ dài video (giây): min=30  trung vị=317  max=2735
 
-(chế độ --objects-only: giữ nguyên index/problems.csv của lần chạy đầy đủ)
+!! 813 vấn đề -> index/problems.csv
+   lech_so_keyframe: 813
 
 BƯỚC TIẾP: python 02_verify.py --out ./index --n 60
 ================================================================

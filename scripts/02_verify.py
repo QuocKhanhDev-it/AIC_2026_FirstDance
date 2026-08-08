@@ -29,6 +29,9 @@ import pandas as pd
 from PIL import Image
 
 MATCH, SUSPECT = 0.95, 0.70
+# Biên độ tối thiểu so với dòng kề để vẫn kết luận ghép đúng dù corr thấp.
+# Hiệu chuẩn trên L22: các mẫu corr 0,67-0,91 đều vượt dòng kề >= 0,37.
+BIEN_DO = 0.30
 
 
 def sig(img: Image.Image) -> np.ndarray:
@@ -104,12 +107,23 @@ def main():
 
             best = max((v, k2) for k2, v in scores.items() if not np.isnan(v))
             c = scores.get("dung_dong", np.nan)
+            # Biên độ so với dòng kề: đây mới là dấu hiệu ghép ĐÚNG hay LỆCH.
+            # Tương quan pixel tuyệt đối sụt mạnh trên cảnh động (đồ họa chuyển
+            # cảnh, hoạt hình đài) dù ghép hoàn toàn đúng — đo thật trên
+            # L22_V013/116.jpg: corr chỉ 0,675 nhưng đồng hồ trên hình đọc
+            # cùng 18:36:43 với frame trích từ video, tức đúng giây.
+            ke = [v for k2, v in scores.items() if k2 != "dung_dong" and not np.isnan(v)]
+            bien_do = c - max(ke) if ke and not np.isnan(c) else np.nan
+
             if np.isnan(c):
                 kl = "khong_trich_duoc_frame"
             elif c >= MATCH:
                 kl = "KHOP"
             elif best[1] != "dung_dong" and best[0] >= MATCH:
                 kl = f"LECH_INDEX ({best[1]})"
+            elif not np.isnan(bien_do) and bien_do >= BIEN_DO:
+                # thấp hơn ngưỡng nhưng vượt xa dòng kề -> vẫn là ghép đúng
+                kl = "KHOP_YEU"
             elif c >= SUSPECT:
                 kl = "NGHI_NGO"
             else:
@@ -118,6 +132,7 @@ def main():
             res.append({"video_id": r.video_id, "kf_name": r.kf_name,
                         "frame_idx": r.frame_idx, "pts_time": round(r.pts_time, 2),
                         "corr": round(c, 4) if not np.isnan(c) else np.nan,
+                        "bien_do": round(bien_do, 4) if not np.isnan(bien_do) else np.nan,
                         **{f"corr_{k2}": round(v, 4) for k2, v in scores.items()
                            if k2 != "dung_dong"},
                         "ket_luan": kl})
@@ -132,7 +147,10 @@ def main():
     vc = out.ket_luan.value_counts()
     for k, v in vc.items():
         print(f"  {k:<28} {v:>4}  ({v/len(out)*100:.0f}%)")
-    ok = vc.get("KHOP", 0) / len(out)
+    ok = (vc.get("KHOP", 0) + vc.get("KHOP_YEU", 0)) / len(out)
+    if vc.get("KHOP_YEU", 0):
+        print(f"\n  ({vc['KHOP_YEU']} mẫu KHOP_YEU: tương quan thấp nhưng vượt xa dòng kề")
+        print("   -> ghép đúng, chỉ là cảnh động/chuyển cảnh. Tính là đạt.)")
     print("")
     if ok >= 0.95:
         print("  -> BẢNG CÁI ĐÚNG. Được phép sang Giai đoạn 1.")
