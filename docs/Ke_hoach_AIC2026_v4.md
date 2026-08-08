@@ -144,6 +144,21 @@ v3 ghi "25 và 30 lẫn lộn" — thiếu `26.44` và `29.97`. Cả hai đều 
 đổi giây↔frame **phải nhận `fps` làm tham số, cấm hardcode**. Khác biệt tồn
 tại ngay trong cùng nhóm L21 (`V001` = 30,0; `V003` = 25,0).
 
+**31 video có fps lạ, và CHƯA MÁY NÀO tải video gốc của chúng:**
+
+```text
+fps 26.44: 1 video -> L24_V044
+fps 29.97: 30 video -> L25_V004, L25_V005, L25_V008, L25_V013, L25_V014, L25_V017, L25_V021, L25_V022, L25_V025, L25_V030, L25_V031, L25_V034, L25_V039, L25_V040, L25_V043, L25_V048, L25_V049, L25_V052, L25_V057, L25_V058, L25_V061, L25_V066, L25_V067, L25_V070, L25_V074, L25_V077, L25_V078, L25_V084, L25_V085, L25_V088
+```
+
+`26.44` gần như chắc chắn là **variable frame rate**. Với VFR thì
+`pts_time × fps` có thể không ra đúng cách BTC đánh số frame, mà `frame_idx`
+lại là giá trị nộp bài. Chưa kiểm được vì chưa có `.mp4` nào trong số này.
+
+> **Việc phải giao:** đảm bảo 31 video trên nằm trong phần tải của một máy
+> nào đó, rồi chạy `02_verify.py` riêng cho chúng. Đây là nhóm rủi ro cao
+> nhất còn lại của bảng cái. Xem PHẦN H mục 8.
+
 **4. ~~Tên file object JSON không liên tục~~ — SAI, đã bác bỏ.**
 
 v3 viết *"tên file object không liên tục (001, 005, 008, 009, 011, 015...)
@@ -152,8 +167,20 @@ v3 viết *"tên file object không liên tục (001, 005, 008, 009, 011, 015...
 003... Cái "001, 005, 008" mà v3 thấy là số hiệu **video** (`L21_V004` không
 tồn tại), không phải số hiệu keyframe.
 
-Vẫn nên khớp theo **tên file** thay vì chỉ số cho an toàn — nhưng không còn
-phải "xử lý thiếu một cách êm", vì không thiếu.
+**"Đếm khớp" không đủ để kết luận — đã kiểm cả TÊN.** Số lượng bằng nhau vẫn
+có thể là ghép lệch. Ba phép kiểm bổ sung:
+
+| Phép kiểm | Kết quả |
+| --- | --- |
+| Video có tên JSON không liên tục `001..n` | **0 / 873** |
+| Lệch tên giữa ảnh keyframe và object JSON (L21+L22) | **0 / 16.896** |
+| Lệch giữa tên JSON và cột `n` (toàn bộ) | **0 / 177.321** |
+
+Kiểm thẳng trên đĩa với chính `L26_V383` — video mà v3 trích dẫn: **157 file,
+tên `001.json` → `157.json`, liên tục hoàn toàn**.
+
+Vẫn khớp theo **tên file** thay vì chỉ số cho an toàn — nhưng không còn phải
+"xử lý thiếu một cách êm", vì không thiếu.
 
 **5. MỚI — đường dẫn trong `master.parquet` là TUYỆT ĐỐI.**
 
@@ -180,7 +207,7 @@ UserWarning: QuickGELU mismatch between final model config (quick_gelu=False)
 and pretrained tag 'openai' (quick_gelu=True)
 ```
 
-Đo trên 29 video L21 (đã biết chắc bảng cái đúng):
+Đo trên 29 video L21 (nhóm đã biết chắc bảng cái đúng):
 
 | Tag | Cosine với vector BTC |
 | --- | --- |
@@ -199,19 +226,25 @@ Nếu không có, phương án dự phòng ở PHẦN F vẫn là tự encode l�
 
 v3 lấy ví dụ xuyên suốt là bản tin và giao thông. Thống kê nhãn thật:
 
-| Nhãn | Số lần |
-| --- | --- |
-| Đồ ăn (Food) | 75.635 |
-| Bàn (Table) | 23.792 |
-| **Cà chua (Tomato)** | **10.909** |
-| Rau củ (Vegetable) | 10.820 |
-| Thuyền (Boat) | 9.255 |
-| Xe đạp (Bicycle) | 4.434 |
-| **Ô tô (Car)** | **4.252** |
-| Chảo (Wok) | 3.161 |
-| Đũa (Chopsticks) | 2.909 |
+Đo theo **số keyframe chứa nhãn** (ngưỡng ≥ 0,5), không phải số detection —
+một khung hình chợ rau sinh ra hàng chục hộp `Tomato` nên đếm detection sẽ
+thổi phồng:
 
-**Cà chua nhiều gấp 2,5 lần ô tô.** Chảo, đũa, salad, bông cải đều lọt top 60.
+| Nhãn | Số keyframe | % kho |
+| --- | --- | --- |
+| **Đồ ăn (Food)** | **26.519** | **14,96%** |
+| Bàn (Table) | 10.798 | 6,09% |
+| Rau củ (Vegetable) | 3.482 | 1,96% |
+| Thuyền (Boat) | 2.596 | 1,46% |
+| **Cà chua (Tomato)** | **2.533** | **1,43%** |
+| Xe đạp (Bicycle) | 1.147 | 0,65% |
+| **Ô tô (Car)** | **1.593** | **0,90%** |
+| Chảo (Wok) | 1.452 | 0,82% |
+| Đũa (Chopsticks) | 1.857 | 1,05% |
+
+**`Food` xuất hiện ở 15% toàn kho, `Car` chỉ 0,9% — gấp 16 lần.** Cà chua vẫn
+nhiều hơn ô tô nhưng chỉ 1,6 lần, không phải 2,5 lần như bản đầu tính theo số
+detection. Chảo, đũa, salad, bông cải đều lọt top 60.
 
 > **Hệ quả:** Khánh phải **xem trước vài video của nhiều nhóm L** trước khi
 > viết 30–50 truy vấn dev. Soạn theo giả định "tin tức giao thông" sẽ ra tập
@@ -255,13 +288,28 @@ aic2026/
 
 **Đã chốt:** mỗi máy tải và xử lý một tập video + keyframe tương ứng.
 
-Ước tính từ L21 (29 video = 3,15 GB video + 1,35 GB keyframes):
+**Ước lượng theo THỜI LƯỢNG, không theo số video.** L21 và L22 là bản tin HTV
+dài 1095–1178s/video, gấp **2,05–2,20 lần** trung bình kho (535s). Ngoại suy
+theo số video phóng đại đúng chừng đó — bản đầu của mục này ghi 136 GB, sai
+gần gấp đôi.
+
+Đo trên 60 video đã tải: video **110 KB/giây**, keyframe **187 KB/ảnh**.
+Toàn kho có **129,8 giờ** video và 177.321 keyframe:
 
 | Thành phần | Cả 873 video |
 | --- | --- |
-| Videos | **~95 GB** |
-| Keyframes | **~41 GB** |
+| Videos | **~52 GB** |
+| Keyframes | **~33 GB** |
 | csv + clip + objects + media-info | ~2 GB (đã có đủ trên mọi máy) |
+| **Tổng** | **~85 GB** |
+
+> **85 GB vừa một ổ ngoài 1 TB.** Nếu chỉ vì dung lượng thì **không cần chia
+> 5 máy** — và bỏ được mô hình chia sẽ loại luôn hai rủi ro kèm theo: đường
+> dẫn tuyệt đối đứt (A5.5) và "không ai chạy verify phần mình" (PHẦN F).
+>
+> Nhưng dung lượng không phải lý do duy nhất. Trích dày và OCR trên 129,8 giờ
+> video là khối lượng CPU lớn; chia máy là chia **thời gian tính toán**, không
+> chỉ chia chỗ chứa. Cân nhắc lại theo thực tế phần cứng của nhóm.
 
 Gợi ý chia theo nhóm L, cân bằng số video:
 
@@ -326,7 +374,7 @@ Bốn hệ quả bắt buộc code theo:
 
 | Câu hỏi phải trả lời | Trạng thái |
 | --- | --- |
-| Ảnh keyframe thứ *i* có đúng dòng thứ *i* CSV? | ✅ **Đúng** — 29/29, tương quan 0,990–1,000 |
+| Ảnh keyframe thứ *i* có đúng dòng thứ *i* CSV? | ✅ **Đúng** — 60/60 trên L21+L22 |
 | Bao nhiêu % keyframe có object JSON? | ✅ **100%** |
 | Mật độ keyframe toàn bộ có ~109 frame? | ✅ **Không — 55 frame** |
 
@@ -453,7 +501,12 @@ lý do đồng thuận thấp trong mọi đợt test trước, không phải mo
 Chi phí sửa: một dòng `generationConfig`.
 
 **2. `gemini-3.5-flash-lite` KHÔNG tái lập được, kể cả ở `temperature = 0`.**
-Đây là phát hiện quyết định. Cùng ảnh, cùng câu hỏi, 3 lượt:
+Đây là phát hiện quyết định.
+
+*Về nguyên nhân:* nhiều khả năng là hạ tầng phía nhà cung cấp (gộp lô, định
+tuyến MoE) chứ **không phải bản thân model kém hơn**. Ghi rõ điều này để sau
+này nếu cần `3.5` thì biết là đi **thử lại**, không phải đã loại vĩnh viễn.
+Quyết định không đổi — tính tái lập là yêu cầu thật của bài thi. Cùng ảnh, cùng câu hỏi, 3 lượt:
 
 ```text
                     lượt 1  lượt 2  lượt 3
@@ -603,8 +656,20 @@ def build_label_idf(objects: pd.DataFrame, n_keyframe: int) -> pd.Series:
     return np.log(n_keyframe / (df + 1))
 ```
 
-Kết quả kỳ vọng: `Person` ≈ 0,1 (gần như không đóng góp), `Wok` ≈ 4,0 (rất
-phân biệt). Lưu ra `index/label_idf.parquet`.
+Giá trị thật đã tính (`index/label_idf.parquet`, 514 nhãn):
+
+| Nhãn | Số keyframe chứa | IDF |
+| --- | --- | --- |
+| Clothing | 86.819 | **0,714** |
+| Person | 82.431 | **0,766** |
+| Boat | 3.497 | 3,926 |
+| Wok | 2.531 | 4,249 |
+| Car | 2.371 | 4,314 |
+| Chopsticks | 1.857 | **4,558** |
+
+Chênh **6 lần** giữa nhãn phổ biến và nhãn hiếm. Lưu ý IDF của `Person` là
+**0,77 chứ không phải ~0,1** — `log(177321/82432)` không thể nhỏ hơn thế. Nhãn
+người vẫn đóng góp một chút, chỉ là ít hơn nhãn hiếm nhiều lần.
 
 #### 3. Bảng ánh xạ Việt → Anh
 
@@ -751,7 +816,7 @@ chưa từng nhìn.
 | OCR ticker sai nhiều | kết quả 0.b < 80% | Chỉ OCR vùng tiêu đề tĩnh, bỏ ticker chạy |
 | Batch 2 định dạng khác batch 1 | BTC công bố | Chạy lại `00`+`01` là biết ngay |
 | CLIP ViT-B/32 quá yếu | điểm dev KIS thấp | Tự encode lại 177k ảnh bằng model mạnh hơn (cần GPU) |
-| ~~Ảnh keyframe không khớp thứ tự CSV~~ | — | ✅ **đã loại trừ** — 29/29 khớp |
+| ~~Ảnh keyframe không khớp thứ tự CSV~~ | — | ✅ **đã loại trừ** — 60/60 khớp |
 
 ---
 
@@ -793,6 +858,10 @@ chưa từng nhìn.
 6. **TV1 — dựng ma trận CLIP + text encoder** với tag `ViT-B-32-quickgelu` và
    assert kiểm tra. Cũng **không chờ tải dữ liệu**.
 7. **Cả nhóm — chốt một bảng tên thành viên duy nhất** (TV1..TV5 + Khánh).
+8. **Giao 31 video fps lạ cho một máy cụ thể** (A5.3) và chạy `02_verify.py`
+   riêng cho chúng. Nhóm rủi ro cao nhất còn lại của bảng cái — nếu `26.44`
+   là variable frame rate thì `frame_idx` của những video đó có thể lệch, mà
+   đó chính là giá trị nộp bài.
 
 > Mục 5 và 6 là hai việc **làm được ngay hôm nay** trong khi chờ tải dữ liệu.
 > Đừng để cả nhóm ngồi chờ băng thông.
