@@ -1,9 +1,12 @@
 # Số liệu Giai đoạn 0 — đo thật trên dữ liệu
 
-*Cập nhật 2026-08-08 sau khi tải thêm L22.*
+*Cập nhật 2026-08-08: thêm L22 (máy này) và L29 (do thành viên khác gửi).*
 
-Dữ liệu tại `C:\Code\aic_data`. **Đã tải L21 + L22** (keyframes + video);
-L23–L30 hiện chỉ có csv/clip/objects/media-info.
+Dữ liệu tại `C:\Code\aic_data`. **Máy này đã tải L21 + L22** (keyframes +
+video); L23–L30 hiện chỉ có csv/clip/objects/media-info.
+
+Kiểm chứng thì gộp được từ nhiều máy: xem [verify/](verify/) và chạy
+`python scripts/07_gop_kiem_chung.py`.
 
 ## Bốn con số phải nhớ
 
@@ -29,18 +32,30 @@ L23–L30 hiện chỉ có csv/clip/objects/media-info.
 3. **fps 26.44 là cái bẫy.** Mọi hàm quy đổi giây ↔ frame phải nhận `fps`
    làm tham số, đọc từ cột `fps` của `master.parquet`.
 
-4. **Bảng cái ĐÚNG.** `02_verify.py` chạy trên 60 video L21+L22:
-   **60/60 đạt** (59 KHỚP + 1 KHOP_YEU), tương quan 0,675–1,000. Cách ghép dòng CSV thứ i ↔ ảnh
-   keyframe thứ i ↔ `frame_idx` là chính xác.
-   *Lưu ý:* chỉ kiểm được trên L21+L22 vì các nhóm khác chưa có video gốc.
-   Tải thêm nhóm L nào thì chạy lại `02_verify.py` cho nhóm đó.
+4. **Bảng cái ĐÚNG.** `02_verify.py` chạy trên 83 video của ba nhóm L
+   (L21+L22 máy này, L29 do thành viên khác gửi): **83/83 đạt**
+   (82 KHỚP + 1 KHOP_YEU), tương quan 0,675–1,000. Cách ghép dòng CSV thứ i
+   ↔ ảnh keyframe thứ i ↔ `frame_idx` là chính xác.
+   L29 sạch nhất từ trước tới nay — toàn bộ 23 mẫu ≥ 0,9979.
+   *Lưu ý:* chỉ kiểm được nhóm nào đã có video gốc. Tải thêm nhóm L nào thì
+   chạy lại `02_verify.py` cho nhóm đó.
 
 5. **Liên kết CSV ↔ clip.npy cũng ĐÚNG.** `03_verify_CLIP.py` encode lại
-   frame bằng CLIP ViT-B/32 rồi so với vector đã lưu. Trên 60 video L21+L22:
-   **59/60 đúng hạng 1**, cosine trung bình 0,986, cách ứng viên nhì
-   trung bình +0,13. Mẫu duy nhất ở hạng 2 là keyframe TRÙNG LẶP — hai
-   frame của cùng một đoạn đồ họa chuyển cảnh, cosine giữa chúng 0,9787 —
-   không phải lệch chỉ số.
+   frame bằng CLIP ViT-B/32 rồi so với vector đã lưu. Trên 83 video:
+   **82/83 đúng hạng 1**, cosine 0,9506–0,9985. Mẫu duy nhất ở hạng 2
+   (`L22_V013` kf 116) là keyframe TRÙNG LẶP — hai frame của cùng một đoạn
+   đồ họa chuyển cảnh, cosine giữa chúng 0,9787 — không phải lệch chỉ số.
+
+6. **`row_id` giống nhau trên mọi máy.** `00_discover.py` duyệt theo
+   `sorted(video_id)` và `01_build_index.py` đánh `row_id` tuần tự, nên
+   `row_id ↔ (video_id, kf_n)` là như nhau ở bất kỳ ai có đủ 873 file CSV.
+   Đã **đo thật**, không phải suy từ code: đối chiếu 23 dòng L29 trong
+   `verify_clip.csv` của máy khác với `master.parquet` của máy này —
+   **23/23 trùng khít** cả `kf_n` lẫn `frame_idx`.
+
+   Hệ quả: kết quả kiểm chứng của 6 người gộp được bằng `row_id`, và
+   **không cần gửi `master.parquet`/`clip.npy` cho nhau** (395 MB, giống hệt
+   nhau trừ ba cột đường dẫn tuyệt đối).
 
    Nghĩa là vector thứ i trong `clip.npy` thật sự là vector của keyframe
    thứ i, không lệch hàng.
@@ -67,11 +82,20 @@ Tức `n` ↔ `f"{n:03d}.jpg"` ↔ `f"{n:03d}.json"`.
 | | Số video | Ghi chú |
 | --- | --- | --- |
 | csv / clip / objects / media-info | 873 / 873 (100%) | đủ cả 10 nhóm L21–L30 |
-| keyframes / video mp4 | **60 / 873 (6,9%)** | L21 + L22 |
+| keyframes / video mp4 **trên máy này** | **60 / 873 (6,9%)** | L21 + L22 |
+| **đã kiểm chứng — toàn nhóm** | **83 / 873 (9,5%)** | L21, L22, L29 — 3/10 nhóm |
+
+Còn thiếu người kiểm: **L23, L24, L25, L26, L27, L28, L30**. Riêng hai chỗ
+sau là bắt buộc vì fps lạ, sai một chỗ là hỏng mọi phép quy đổi giây ↔ frame:
+
+| Nhóm | fps | Số video | Đã kiểm |
+| --- | --- | --- | --- |
+| L24 | 26.44 | 1 (`L24_V044`) | **0 — chưa ai** |
+| L25 | 29.97 | 30 | **0 — chưa ai** |
 
 `index/problems.csv` có 813 dòng `lech_so_keyframe` — đó là **chưa tải**,
 không phải lỗi ghép. Không có dòng `lech_so_vector` nào (đây mới là lỗi
-nghiêm trọng).
+nghiêm trọng). Máy giữ L29 cũng báo y hệt: 850 dòng, toàn `lech_so_keyframe`.
 
 Độ dài video: min 30s, trung vị 317s, max 2735s.
 

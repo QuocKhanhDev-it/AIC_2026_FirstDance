@@ -2,8 +2,10 @@
 
 ## Giai đoạn 0: Bảng cái
 
-**Trạng thái: ĐÃ XONG.** Chạy đủ 3 bước ngày 2026-08-05, `02_verify.py` cho
-**60/60 KHỚP (100%)** trên L21+L22 — vượt ngưỡng 95%. Được phép sang Giai đoạn 1.
+**Trạng thái: ĐÃ XONG.** `02_verify.py` cho **83/83 KHỚP (100%)** trên
+L21+L22+L29 — vượt ngưỡng 95%. Được phép sang Giai đoạn 1.
+Độ phủ kiểm chứng hiện **83/873 video (9,5%)**, 3/10 nhóm L —
+xem `python scripts/07_gop_kiem_chung.py`.
 
 **Kế hoạch hiện hành: [docs/Ke_hoach_AIC2026_v4.md](docs/Ke_hoach_AIC2026_v4.md)** (thay thế v3).
 **Mới vào nhóm? Đọc [docs/01_cai_dat.md](docs/01_cai_dat.md) trước.**
@@ -17,7 +19,8 @@ Số liệu đầy đủ: [dev/so_lieu_giai_doan_0.md](dev/so_lieu_giai_doan_0.m
 | keyframe trong bảng cái | **177.321** |
 | ma trận CLIP | `(177321, 512)` float32, chuẩn hóa L2 |
 | detection objects (≥ 0,3) | **1.122.384** — 6,3 / keyframe |
-| kiểm chứng bằng ffmpeg | **60/60 KHỚP** (59 KHOP + 1 KHOP_YEU) |
+| kiểm chứng bằng ffmpeg | **83/83 KHỚP** (82 KHOP + 1 KHOP_YEU) |
+| kiểm chứng vector CLIP | **82/83 đúng hạng 1** |
 
 ## Bốn con số phải nhớ
 
@@ -64,17 +67,39 @@ cũng nhận ra.
 
 Chỉ `index/` cần đồng bộ giữa 6 người. Không ai phải copy video cho nhau.
 
-## Độ phủ hiện tại — MỚI TẢI L21
+## Độ phủ hiện tại
 
 | Tài sản | Số video | Ghi chú |
 | --- | --- | --- |
 | csv / clip / objects / media-info | 873 / 873 (100%) | đủ cả L21–L30 |
-| keyframes / video mp4 | **60 / 873 (6,9%)** | L21 + L22 |
+| keyframes / video mp4 **trên máy này** | **60 / 873 (6,9%)** | L21 + L22 |
+| **đã kiểm chứng — toàn nhóm** | **83 / 873 (9,5%)** | L21, L22, L29 |
 
 `problems.csv` có 813 dòng `lech_so_keyframe` — đó là **chưa tải**, không phải
 lỗi ghép. Không có dòng `lech_so_vector` nào (đây mới là lỗi nghiêm trọng).
 
 Tải thêm nhóm L nào thì chạy lại cả 3 bước rồi `02_verify.py` cho nhóm đó.
+
+### Gửi kết quả kiểm chứng cho cả nhóm
+
+Chỉ cần **hai file**, mỗi file vài KB:
+
+```text
+index/verify_report.csv      <- script 02   (ảnh keyframe ↔ dòng CSV)
+index/verify_clip*.csv       <- script 03   (vector CLIP ↔ dòng CSV)
+```
+
+Bỏ vào `dev/verify/<nhóm_L>/`, đổi tên thành `verify_report.csv` và
+`verify_clip.csv`, rồi:
+
+```powershell
+python scripts\07_gop_kiem_chung.py
+```
+
+**Đừng gửi `master.parquet` / `clip.npy` / `objects.parquet`** — mỗi bộ
+395 MB và giống hệt nhau trên mọi máy trừ ba cột đường dẫn tuyệt đối.
+`row_id` là như nhau ở mọi máy (đã đối chiếu thật 23/23 dòng L29 giữa hai
+máy), nên gộp bằng `row_id` là an toàn.
 
 ## Setup từ đầu
 
@@ -114,7 +139,7 @@ python scripts\03_verify_CLIP.py --out .\index --n 40 --group L26
 ```
 
 `02` kiểm **ảnh keyframe ↔ dòng CSV**, `03` kiểm **vector CLIP ↔ dòng CSV**.
-Trên L21+L22 cả hai đều sạch: 60/60 KHỚP và 59/60 đúng hạng 1.
+Trên L21+L22+L29 cả hai đều sạch: 83/83 KHỚP và 82/83 đúng hạng 1.
 
 Thời gian thực tế trên máy Windows đã đo:
 

@@ -7,7 +7,7 @@ Theo PHẦN 6 của `HUONG_DAN_GIAI_DOAN_0.md`. Đủ 8 gạch mới mở Giai �
 | 1 | `paths.parquet` phủ ≥ 99% video ở `csv`, `clip`, `keyframe_dir` | ⚠️ **một phần** |
 | 2 | `master.parquet` dựng xong, không còn lỗi `lech_so_vector` | ✅ **đạt** |
 | 3 | `clip.npy` shape `(N, 512)`, `N` = số dòng `master` | ✅ **đạt** |
-| 4 | `verify_report.csv` cho ≥ 95% `KHOP` | ✅ **đạt — 60/60** |
+| 4 | `verify_report.csv` cho ≥ 95% `KHOP` | ✅ **đạt — 83/83** |
 | 5 | Ghi lại 4 con số vào tài liệu nhóm | ✅ **đạt** |
 | 6 | `index/` đã lên Drive, cả 6 người tải được | ⬜ **chưa** |
 | 7 | Câu hỏi về cửa sổ `[s,e]` đã gửi BTC | ⬜ **chưa** |
@@ -15,9 +15,14 @@ Theo PHẦN 6 của `HUONG_DAN_GIAI_DOAN_0.md`. Đủ 8 gạch mới mở Giai �
 
 ## Chi tiết
 
-**1 — một phần.** `csv` và `clip` phủ **100%** (873/873). `keyframe_dir` mới
-**6,9%** (60/873) vì mới tải `Keyframes_L21` + `Keyframes_L22`. Không phải lỗi, chỉ là chưa tải
-xong. Gạch này sẽ tự đạt khi tải hết các gói Keyframes.
+**1 — một phần.** `csv` và `clip` phủ **100%** (873/873). `keyframe_dir` trên
+máy này mới **6,9%** (60/873) vì mới tải `Keyframes_L21` + `Keyframes_L22`.
+Không phải lỗi, chỉ là chưa tải xong. Gạch này sẽ tự đạt khi tải hết các gói
+Keyframes.
+
+Tính cả kết quả thành viên khác gửi về thì **83/873 video (9,5%) đã được
+kiểm chứng**, thuộc 3/10 nhóm L. Chạy `python scripts/07_gop_kiem_chung.py`
+để xem bảng độ phủ mới nhất.
 
 **2 — đạt.** `problems.csv` có 844 dòng nhưng **toàn bộ là `lech_so_keyframe`**
 (chưa tải ảnh). **Không có dòng `lech_so_vector` nào** — đây mới là lỗi
@@ -26,7 +31,9 @@ nghiêm trọng mà hướng dẫn cảnh báo.
 **3 — đạt.** `clip.npy` = `(177321, 512)` float32 chuẩn L2. `master.parquet`
 = 177.321 dòng. Khớp chính xác.
 
-**4 — đạt.** 60/60 mẫu đạt trên L21+L22 (59 `KHOP` + 1 `KHOP_YEU`).
+**4 — đạt.** 83/83 mẫu đạt trên L21+L22+L29 (82 `KHOP` + 1 `KHOP_YEU`).
+L29 do máy khác chạy và gửi về; 23/23 mẫu đều ≥ 0,9979 — nhóm sạch nhất
+từ trước tới nay.
 
 `KHOP_YEU` là phán quyết mới: tương quan pixel thấp nhưng vượt xa dòng kề.
 Hiệu chuẩn trên L22 — mẫu tệ nhất `L22_V013/116.jpg` chỉ đạt corr 0,675

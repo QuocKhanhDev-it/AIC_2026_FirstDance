@@ -26,8 +26,8 @@ phải tin bằng mắt.
 
 | Chứng minh điều gì | Cách | Kết quả |
 | --- | --- | --- |
-| Ảnh keyframe thứ *i* ↔ dòng thứ *i* CSV | ffmpeg trích frame tại `pts_time`, so tương quan pixel + biên độ với dòng kề | **60/60 KHỚP** (L21+L22) |
-| Vector CLIP thứ *i* ↔ dòng thứ *i* CSV | encode lại frame, so cosine + xếp hạng trong video | **59/60 đúng hạng 1**, cách nhì +0,13 |
+| Ảnh keyframe thứ *i* ↔ dòng thứ *i* CSV | ffmpeg trích frame tại `pts_time`, so tương quan pixel + biên độ với dòng kề | **83/83 KHỚP** (L21+L22+L29) |
+| Vector CLIP thứ *i* ↔ dòng thứ *i* CSV | encode lại frame, so cosine + xếp hạng trong video | **82/83 đúng hạng 1**, cosine 0,951-0,999 |
 
 Phép thứ hai v3 không yêu cầu, nhưng cần thiết: vector CLIP nằm trong file
 `.npy` riêng, lệch hàng ở đó thì kiểm ảnh không phát hiện được — mà TV1 dùng
@@ -328,7 +328,19 @@ Gợi ý chia theo nhóm L, cân bằng số video:
    chỉ không mở được ảnh/video ngoài phần mình giữ.
 2. **Mỗi máy chạy `02_verify.py` + `03_verify_CLIP.py` trên phần mình giữ**
    rồi báo kết quả về. Bảng cái chỉ được coi là đúng khi đủ 873 video được
-   phủ, không phải chỉ 29.
+   phủ, không phải chỉ 29. Gửi đúng **hai file** — `index/verify_report.csv`
+   (script 02) và `index/verify_clip*.csv` (script 03) — bỏ vào
+   `dev/verify/<nhóm_L>/`, rồi `python scripts/07_gop_kiem_chung.py` ra bảng
+   độ phủ. **Không gửi `master.parquet`/`clip.npy`/`objects.parquet`:**
+   mỗi bộ 395 MB và giống hệt nhau trên mọi máy trừ ba cột đường dẫn.
+
+   *Vì sao gộp được:* `00_discover.py` duyệt theo `sorted(video_id)` và
+   `01_build_index.py` đánh `row_id` tuần tự, nên `row_id ↔ (video_id, kf_n)`
+   là như nhau ở mọi máy có đủ 873 file CSV. **Đã đo thật** — đối chiếu 23
+   dòng L29 trong `verify_clip.csv` của máy khác với `master.parquet` máy này:
+   23/23 trùng khít cả `kf_n` lẫn `frame_idx`. Đây là điều làm cho A5.5 (đường
+   dẫn tuyệt đối khác nhau) **không** phá được việc gộp kết quả: đường dẫn
+   khác máy, nhưng `row_id` thì không.
 3. **Ai giữ phần nào thì làm việc nặng phần đó.** Trích dày, OCR, decode video
    chạy trên máy giữ dữ liệu; kết quả xuất ra Parquet (`ocr.parquet`,
    `asr.parquet`, `dense_*.parquet`) rồi gộp qua Drive. Parquet nhẹ, video nặng
@@ -374,7 +386,7 @@ Bốn hệ quả bắt buộc code theo:
 
 | Câu hỏi phải trả lời | Trạng thái |
 | --- | --- |
-| Ảnh keyframe thứ *i* có đúng dòng thứ *i* CSV? | ✅ **Đúng** — 60/60 trên L21+L22 |
+| Ảnh keyframe thứ *i* có đúng dòng thứ *i* CSV? | ✅ **Đúng** — 83/83 trên L21+L22+L29 |
 | Bao nhiêu % keyframe có object JSON? | ✅ **100%** |
 | Mật độ keyframe toàn bộ có ~109 frame? | ✅ **Không — 55 frame** |
 
@@ -792,13 +804,13 @@ chưa từng nhìn.
 | 4 | TV3 (BM25 metadata) → Bước 2 TRAKE | sai video → 0 điểm | ✅ dữ liệu đã đủ (100%) |
 | 5 | 0.c (VLM) → Bước 4 Q&A | `answer` sai định dạng → 0 điểm | 🟡 đang test |
 | 6 | TV1 (ma trận CLIP) → cả 2 mũi nhọn | cả hai mũi nhọn tắc | ✅ dữ liệu đã đủ (100%) |
-| **7** | **MỚI — tải đủ video/keyframe → #2, #3** | **hai phụ thuộc quan trọng nhất đều tắc** | ⬜ **6,9%** |
+| **7** | **MỚI — tải đủ video/keyframe → #2, #3** | **hai phụ thuộc quan trọng nhất đều tắc** | ⬜ **9,5% đã kiểm chứng** |
 
 **Đường găng:**
 `Bảng cái ✅ → tải dữ liệu ⬜ → TV2 (trích dày) → Khánh (DP + tập dev) → GĐ3`
 
 > **Nút thắt đã dịch chuyển.** Ở v3, đường găng bắt đầu từ bảng cái. Bảng cái
-> nay đã xong và được chứng minh. Nút thắt mới là **tải dữ liệu**: chỉ 60/873
+> nay đã xong và được chứng minh. Nút thắt mới là **tải dữ liệu**: chỉ 83/873
 > video có keyframe và video gốc, mà cả #2 lẫn #3 — hai phụ thuộc nặng nhất —
 > đều cần chúng. Đây là việc cần dồn người vào ngay.
 
@@ -808,15 +820,15 @@ chưa từng nhìn.
 
 | Rủi ro | Dấu hiệu sớm | Phương án |
 | --- | --- | --- |
-| **Chia dữ liệu nhiều máy làm đứt đường dẫn tuyệt đối** | `kf_path` trỏ file không tồn tại | Thống nhất đường dẫn dữ liệu giống nhau trên mọi máy, hoặc remap (xem A5.5) |
-| **Không ai chạy verify cho nhóm L mình giữ** | chỉ có 60/873 video được kiểm chứng | Bắt buộc mỗi máy chạy `02`+`03` cho phần mình, báo kết quả |
+| **Chia dữ liệu nhiều máy làm đứt đường dẫn tuyệt đối** | `kf_path` trỏ file không tồn tại | Thống nhất đường dẫn dữ liệu giống nhau trên mọi máy, hoặc remap (xem A5.5). Riêng việc **gộp kết quả** thì an toàn: `row_id` như nhau trên mọi máy (đã đo 23/23 trên L29) |
+| **Không ai chạy verify cho nhóm L mình giữ** | mới 83/873 video được kiểm chứng, 3/10 nhóm L | Bắt buộc mỗi máy chạy `02`+`03` cho phần mình, báo kết quả |
 | BTC dùng cửa sổ `[s,e]` hẹp cho cả KIS | câu trả lời 0.a | Trích dày cho cả mũi nhọn 1 |
 | Tập dev lệch về L26 hoặc lệch chủ đề | Khánh soạn xong, kiểm phân bố | Lấy mẫu phân tầng theo nhóm L (A2), xem trước nội dung (A7) |
 | **Quota VLM free không đủ cho bài thi** | 3/6 model chết vì rate-limit ở đợt test 20 lượt | Chốt sớm: trả phí hay chạy model local |
 | OCR ticker sai nhiều | kết quả 0.b < 80% | Chỉ OCR vùng tiêu đề tĩnh, bỏ ticker chạy |
 | Batch 2 định dạng khác batch 1 | BTC công bố | Chạy lại `00`+`01` là biết ngay |
 | CLIP ViT-B/32 quá yếu | điểm dev KIS thấp | Tự encode lại 177k ảnh bằng model mạnh hơn (cần GPU) |
-| ~~Ảnh keyframe không khớp thứ tự CSV~~ | — | ✅ **đã loại trừ** — 60/60 khớp |
+| ~~Ảnh keyframe không khớp thứ tự CSV~~ | — | ✅ **đã loại trừ** — 83/83 khớp |
 
 ---
 
@@ -848,7 +860,7 @@ chưa từng nhìn.
    nhất hiện tại; hai phụ thuộc nặng nhất (#2, #3) đều chờ nó.
 2. **Mỗi máy — chạy `02_verify.py` + `03_verify_CLIP.py`** cho phần mình giữ
    ngay sau khi tải xong, báo kết quả về. Chưa đủ 873 video thì bảng cái mới
-   chỉ được chứng minh trên 6,9%.
+   chỉ được chứng minh trên 9,5%.
 3. **Khánh — xem trước video của ≥ 4 nhóm L khác nhau** trước khi viết tập dev
    (A7). Song song: chờ trả lời 0.a từ BTC.
 4. **TV5 — mở rộng harness VLM lên ≥ 50 câu, `--runs 3`**, và test với ngữ
