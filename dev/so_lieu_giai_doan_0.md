@@ -1,7 +1,9 @@
-# Số liệu Giai đoạn 0 — đo thật trên dữ liệu, ngày 2026-08-05
+# Số liệu Giai đoạn 0 — đo thật trên dữ liệu
 
-Dữ liệu tại `C:\Code\aic_data`. **Mới tải L21** (keyframes + video);
-L22–L30 hiện chỉ có csv/clip/objects/media-info.
+*Cập nhật 2026-08-08 sau khi tải thêm L22.*
+
+Dữ liệu tại `C:\Code\aic_data`. **Đã tải L21 + L22** (keyframes + video);
+L23–L30 hiện chỉ có csv/clip/objects/media-info.
 
 ## Bốn con số phải nhớ
 
@@ -27,17 +29,21 @@ L22–L30 hiện chỉ có csv/clip/objects/media-info.
 3. **fps 26.44 là cái bẫy.** Mọi hàm quy đổi giây ↔ frame phải nhận `fps`
    làm tham số, đọc từ cột `fps` của `master.parquet`.
 
-4. **Bảng cái ĐÚNG.** `02_verify.py` chạy 29 mẫu trên 29 video L21:
-   **29/29 KHỚP**, tương quan 0,990–1,000. Cách ghép dòng CSV thứ i ↔ ảnh
+4. **Bảng cái ĐÚNG.** `02_verify.py` chạy trên 60 video L21+L22:
+   **60/60 đạt** (59 KHỚP + 1 KHOP_YEU), tương quan 0,675–1,000. Cách ghép dòng CSV thứ i ↔ ảnh
    keyframe thứ i ↔ `frame_idx` là chính xác.
-   *Lưu ý:* chỉ kiểm được trên L21 vì các nhóm L khác chưa có video gốc.
+   *Lưu ý:* chỉ kiểm được trên L21+L22 vì các nhóm khác chưa có video gốc.
    Tải thêm nhóm L nào thì chạy lại `02_verify.py` cho nhóm đó.
 
 5. **Liên kết CSV ↔ clip.npy cũng ĐÚNG.** `03_verify_CLIP.py` encode lại
-   frame bằng CLIP ViT-B/32 rồi so với vector đã lưu. Trên 29 video L21:
-   **29/29 đúng hạng 1**, cosine trung bình 0,9913, cách ứng viên nhì
-   trung bình +0,15. Nghĩa là vector thứ i trong `clip.npy` thật sự là
-   vector của keyframe thứ i — không lệch hàng.
+   frame bằng CLIP ViT-B/32 rồi so với vector đã lưu. Trên 60 video L21+L22:
+   **59/60 đúng hạng 1**, cosine trung bình 0,986, cách ứng viên nhì
+   trung bình +0,13. Mẫu duy nhất ở hạng 2 là keyframe TRÙNG LẶP — hai
+   frame của cùng một đoạn đồ họa chuyển cảnh, cosine giữa chúng 0,9787 —
+   không phải lệch chỉ số.
+
+   Nghĩa là vector thứ i trong `clip.npy` thật sự là vector của keyframe
+   thứ i, không lệch hàng.
 
    Bẫy khi chạy script này: phải dùng tag `ViT-B-32-quickgelu`. Nạp
    `ViT-B-32` thường làm cosine tụt từ 0,9913 xuống 0,9513 và mọi mẫu
@@ -61,15 +67,15 @@ Tức `n` ↔ `f"{n:03d}.jpg"` ↔ `f"{n:03d}.json"`.
 | | Số video | Ghi chú |
 | --- | --- | --- |
 | csv / clip / objects / media-info | 873 / 873 (100%) | đủ cả 10 nhóm L21–L30 |
-| keyframes / video mp4 | 29 / 873 (3,3%) | chỉ L21, gói `Videos_L21_a` |
+| keyframes / video mp4 | **60 / 873 (6,9%)** | L21 + L22 |
 
-`index/problems.csv` có 844 dòng `lech_so_keyframe` — đó là **chưa tải**,
+`index/problems.csv` có 813 dòng `lech_so_keyframe` — đó là **chưa tải**,
 không phải lỗi ghép. Không có dòng `lech_so_vector` nào (đây mới là lỗi
 nghiêm trọng).
 
 Độ dài video: min 30s, trung vị 317s, max 2735s.
 
-## Hai chỗ đã sửa trong script
+## Bốn chỗ đã sửa trong script
 
 1. `01_build_index.py` — parquet trả ô trống thành `NaN` (float), mà `NaN`
    là truthy nên `if rec.keyframe_dir` lọt qua và crash. Đổi hết về `None`.
@@ -80,6 +86,12 @@ nghiêm trọng).
 
 3. `02_verify.py` — pandas 3.0 loại cột nhóm khỏi `groupby.apply`; đổi sang
    `groupby.sample`.
+
+4. `02_verify.py` — thêm phán quyết `KHOP_YEU`: tương quan pixel dưới 0,95
+   nhưng vượt dòng kề ≥ 0,30 thì vẫn là ghép đúng. Cần vì tương quan pixel
+   sụt mạnh trên cảnh động. Bằng chứng: `L22_V013/116.jpg` chỉ đạt corr
+   0,675 nhưng đồng hồ trên hình đọc cùng `18:36:43` với frame trích từ
+   video — đúng giây, chỉ là đoạn đồ họa chuyển cảnh chạy nhanh.
 
 ## Hiệu năng — đọc file nhỏ trên Windows
 

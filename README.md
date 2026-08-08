@@ -3,7 +3,7 @@
 ## Giai đoạn 0: Bảng cái
 
 **Trạng thái: ĐÃ XONG.** Chạy đủ 3 bước ngày 2026-08-05, `02_verify.py` cho
-**29/29 KHỚP (100%)** — vượt ngưỡng 95%. Được phép sang Giai đoạn 1.
+**60/60 KHỚP (100%)** trên L21+L22 — vượt ngưỡng 95%. Được phép sang Giai đoạn 1.
 
 **Kế hoạch hiện hành: [docs/Ke_hoach_AIC2026_v4.md](docs/Ke_hoach_AIC2026_v4.md)** (thay thế v3).
 **Mới vào nhóm? Đọc [docs/01_cai_dat.md](docs/01_cai_dat.md) trước.**
@@ -17,7 +17,7 @@ Số liệu đầy đủ: [dev/so_lieu_giai_doan_0.md](dev/so_lieu_giai_doan_0.m
 | keyframe trong bảng cái | **177.321** |
 | ma trận CLIP | `(177321, 512)` float32, chuẩn hóa L2 |
 | detection objects (≥ 0,3) | **1.122.384** — 6,3 / keyframe |
-| kiểm chứng bằng ffmpeg | 29/29 KHỚP, tương quan 0,990–1,000 |
+| kiểm chứng bằng ffmpeg | **60/60 KHỚP** (59 KHOP + 1 KHOP_YEU) |
 
 ## Bốn con số phải nhớ
 
@@ -57,7 +57,7 @@ cũng nhận ra.
 | `clip.npy` | 346 MB | `(177321, 512)` float32, chuẩn L2, cùng thứ tự `row_id` |
 | `objects.parquet` | 45 MB | 1.122.384 detection, nối với master bằng `row_id` |
 | `master.parquet` | 2,9 MB | **BẢNG CÁI** — một dòng = một keyframe |
-| `thieu_tai_san.csv` | 0,2 MB | 844 video chưa tải keyframe/video |
+| `thieu_tai_san.csv` | 0,2 MB | 813 video chưa tải keyframe/video |
 | `paths.parquet` | 36 KB | bản đồ video_id → đường dẫn tài sản |
 | `problems.csv` | 34 KB | video có vấn đề khi ghép |
 | `*_report.txt`, `verify_report.csv` | nhỏ | báo cáo 3 bước |
@@ -69,9 +69,9 @@ Chỉ `index/` cần đồng bộ giữa 6 người. Không ai phải copy video
 | Tài sản | Số video | Ghi chú |
 | --- | --- | --- |
 | csv / clip / objects / media-info | 873 / 873 (100%) | đủ cả L21–L30 |
-| keyframes / video mp4 | 29 / 873 (3,3%) | chỉ gói `Keyframes_L21` + `Videos_L21_a` |
+| keyframes / video mp4 | **60 / 873 (6,9%)** | L21 + L22 |
 
-`problems.csv` có 844 dòng `lech_so_keyframe` — đó là **chưa tải**, không phải
+`problems.csv` có 813 dòng `lech_so_keyframe` — đó là **chưa tải**, không phải
 lỗi ghép. Không có dòng `lech_so_vector` nào (đây mới là lỗi nghiêm trọng).
 
 Tải thêm nhóm L nào thì chạy lại cả 3 bước rồi `02_verify.py` cho nhóm đó.
@@ -114,7 +114,7 @@ python scripts\03_verify_CLIP.py --out .\index --n 40 --group L26
 ```
 
 `02` kiểm **ảnh keyframe ↔ dòng CSV**, `03` kiểm **vector CLIP ↔ dòng CSV**.
-Trên L21 cả hai đều sạch: 29/29 KHỚP và 29/29 đúng hạng 1.
+Trên L21+L22 cả hai đều sạch: 60/60 KHỚP và 59/60 đúng hạng 1.
 
 Thời gian thực tế trên máy Windows đã đo:
 

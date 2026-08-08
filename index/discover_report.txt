@@ -2,8 +2,8 @@
 Tìm thấy 873 video_id
 
 ĐỘ PHỦ TỪNG LOẠI TÀI SẢN
-  video              29 / 873   (  3.3%)
-  keyframe_dir       29 / 873   (  3.3%)
+  video              60 / 873   (  6.9%)
+  keyframe_dir       60 / 873   (  6.9%)
   csv               873 / 873   (100.0%)
   object_dir        873 / 873   (100.0%)
   media             873 / 873   (100.0%)
@@ -13,7 +13,7 @@ PHÂN BỐ THEO NHÓM L
         so_video  co_video  co_csv  co_clip  co_keyframe  co_object  co_media
 Lgroup                                                                       
 L21           29        29      29       29           29         29        29
-L22           31         0      31       31            0         31        31
+L22           31        31      31       31           31         31        31
 L23           25         0      25       25            0         25        25
 L24           43         0      43       43            0         43        43
 L25           88         0      88       88            0         88        88
@@ -23,7 +23,7 @@ L28           24         0      24       24            0         24        24
 L29           23         0      23       23            0         23        23
 L30           96         0      96       96            0         96        96
 
-!! 844 video THIẾU tài sản then chốt (csv/clip/keyframe).
+!! 813 video THIẾU tài sản then chốt (csv/clip/keyframe).
    Xem index/thieu_tai_san.csv
 
 GỢI Ý BƯỚC TIẾP: python 01_build_index.py --out ./index

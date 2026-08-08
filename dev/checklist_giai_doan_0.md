@@ -7,7 +7,7 @@ Theo PHẦN 6 của `HUONG_DAN_GIAI_DOAN_0.md`. Đủ 8 gạch mới mở Giai �
 | 1 | `paths.parquet` phủ ≥ 99% video ở `csv`, `clip`, `keyframe_dir` | ⚠️ **một phần** |
 | 2 | `master.parquet` dựng xong, không còn lỗi `lech_so_vector` | ✅ **đạt** |
 | 3 | `clip.npy` shape `(N, 512)`, `N` = số dòng `master` | ✅ **đạt** |
-| 4 | `verify_report.csv` cho ≥ 95% `KHOP` | ✅ **đạt — 100%** |
+| 4 | `verify_report.csv` cho ≥ 95% `KHOP` | ✅ **đạt — 60/60** |
 | 5 | Ghi lại 4 con số vào tài liệu nhóm | ✅ **đạt** |
 | 6 | `index/` đã lên Drive, cả 6 người tải được | ⬜ **chưa** |
 | 7 | Câu hỏi về cửa sổ `[s,e]` đã gửi BTC | ⬜ **chưa** |
@@ -16,7 +16,7 @@ Theo PHẦN 6 của `HUONG_DAN_GIAI_DOAN_0.md`. Đủ 8 gạch mới mở Giai �
 ## Chi tiết
 
 **1 — một phần.** `csv` và `clip` phủ **100%** (873/873). `keyframe_dir` mới
-**3,3%** (29/873) vì mới tải `Keyframes_L21`. Không phải lỗi, chỉ là chưa tải
+**6,9%** (60/873) vì mới tải `Keyframes_L21` + `Keyframes_L22`. Không phải lỗi, chỉ là chưa tải
 xong. Gạch này sẽ tự đạt khi tải hết các gói Keyframes.
 
 **2 — đạt.** `problems.csv` có 844 dòng nhưng **toàn bộ là `lech_so_keyframe`**
@@ -26,9 +26,13 @@ nghiêm trọng mà hướng dẫn cảnh báo.
 **3 — đạt.** `clip.npy` = `(177321, 512)` float32 chuẩn L2. `master.parquet`
 = 177.321 dòng. Khớp chính xác.
 
-**4 — đạt.** 29/29 mẫu `KHOP`, tương quan **0,990–1,000**. Ngưỡng chỉ cần
-0,95 nên biên an toàn rất rộng. Lưu ý chỉ chạy được 29 mẫu (không phải 60)
-vì chỉ 29 video có cả ảnh keyframe lẫn video gốc.
+**4 — đạt.** 60/60 mẫu đạt trên L21+L22 (59 `KHOP` + 1 `KHOP_YEU`).
+
+`KHOP_YEU` là phán quyết mới: tương quan pixel thấp nhưng vượt xa dòng kề.
+Hiệu chuẩn trên L22 — mẫu tệ nhất `L22_V013/116.jpg` chỉ đạt corr 0,675
+nhưng là đoạn đồ họa chuyển cảnh, và đồng hồ trên hình đọc cùng `18:36:43`
+với frame trích từ video, tức ghép đúng giây. Tương quan pixel tuyệt đối
+không chịu được cảnh động; biên độ so với dòng kề mới là dấu hiệu đáng tin.
 
 **5 — đạt.** Xem [so_lieu_giai_doan_0.md](so_lieu_giai_doan_0.md).
 

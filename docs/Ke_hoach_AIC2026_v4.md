@@ -26,14 +26,14 @@ phải tin bằng mắt.
 
 | Chứng minh điều gì | Cách | Kết quả |
 | --- | --- | --- |
-| Ảnh keyframe thứ *i* ↔ dòng thứ *i* CSV | ffmpeg trích frame tại `pts_time`, so tương quan pixel | **29/29 KHỚP**, 0,990–1,000 |
-| Vector CLIP thứ *i* ↔ dòng thứ *i* CSV | encode lại frame, so cosine + xếp hạng trong video | **29/29 đúng hạng 1**, cách nhì +0,15 |
+| Ảnh keyframe thứ *i* ↔ dòng thứ *i* CSV | ffmpeg trích frame tại `pts_time`, so tương quan pixel + biên độ với dòng kề | **60/60 KHỚP** (L21+L22) |
+| Vector CLIP thứ *i* ↔ dòng thứ *i* CSV | encode lại frame, so cosine + xếp hạng trong video | **59/60 đúng hạng 1**, cách nhì +0,13 |
 
 Phép thứ hai v3 không yêu cầu, nhưng cần thiết: vector CLIP nằm trong file
 `.npy` riêng, lệch hàng ở đó thì kiểm ảnh không phát hiện được — mà TV1 dùng
 trực tiếp vector này.
 
-*Giới hạn:* mới kiểm được trên 29 video L21 vì các nhóm khác chưa có video gốc.
+*Giới hạn:* mới kiểm được trên 60 video (L21+L22) vì các nhóm khác chưa có video gốc.
 Mỗi máy tải thêm nhóm L nào thì chạy lại hai script đó cho nhóm đó.
 
 ### A1. Mật độ keyframe — v3 sai gấp đôi, nhưng kết luận vẫn đứng
@@ -727,13 +727,13 @@ chưa từng nhìn.
 | 4 | TV3 (BM25 metadata) → Bước 2 TRAKE | sai video → 0 điểm | ✅ dữ liệu đã đủ (100%) |
 | 5 | 0.c (VLM) → Bước 4 Q&A | `answer` sai định dạng → 0 điểm | 🟡 đang test |
 | 6 | TV1 (ma trận CLIP) → cả 2 mũi nhọn | cả hai mũi nhọn tắc | ✅ dữ liệu đã đủ (100%) |
-| **7** | **MỚI — tải đủ video/keyframe → #2, #3** | **hai phụ thuộc quan trọng nhất đều tắc** | ⬜ **3,3%** |
+| **7** | **MỚI — tải đủ video/keyframe → #2, #3** | **hai phụ thuộc quan trọng nhất đều tắc** | ⬜ **6,9%** |
 
 **Đường găng:**
 `Bảng cái ✅ → tải dữ liệu ⬜ → TV2 (trích dày) → Khánh (DP + tập dev) → GĐ3`
 
 > **Nút thắt đã dịch chuyển.** Ở v3, đường găng bắt đầu từ bảng cái. Bảng cái
-> nay đã xong và được chứng minh. Nút thắt mới là **tải dữ liệu**: chỉ 29/873
+> nay đã xong và được chứng minh. Nút thắt mới là **tải dữ liệu**: chỉ 60/873
 > video có keyframe và video gốc, mà cả #2 lẫn #3 — hai phụ thuộc nặng nhất —
 > đều cần chúng. Đây là việc cần dồn người vào ngay.
 
@@ -744,7 +744,7 @@ chưa từng nhìn.
 | Rủi ro | Dấu hiệu sớm | Phương án |
 | --- | --- | --- |
 | **Chia dữ liệu nhiều máy làm đứt đường dẫn tuyệt đối** | `kf_path` trỏ file không tồn tại | Thống nhất đường dẫn dữ liệu giống nhau trên mọi máy, hoặc remap (xem A5.5) |
-| **Không ai chạy verify cho nhóm L mình giữ** | chỉ có 29/873 video được kiểm chứng | Bắt buộc mỗi máy chạy `02`+`03` cho phần mình, báo kết quả |
+| **Không ai chạy verify cho nhóm L mình giữ** | chỉ có 60/873 video được kiểm chứng | Bắt buộc mỗi máy chạy `02`+`03` cho phần mình, báo kết quả |
 | BTC dùng cửa sổ `[s,e]` hẹp cho cả KIS | câu trả lời 0.a | Trích dày cho cả mũi nhọn 1 |
 | Tập dev lệch về L26 hoặc lệch chủ đề | Khánh soạn xong, kiểm phân bố | Lấy mẫu phân tầng theo nhóm L (A2), xem trước nội dung (A7) |
 | **Quota VLM free không đủ cho bài thi** | 3/6 model chết vì rate-limit ở đợt test 20 lượt | Chốt sớm: trả phí hay chạy model local |
@@ -783,7 +783,7 @@ chưa từng nhìn.
    nhất hiện tại; hai phụ thuộc nặng nhất (#2, #3) đều chờ nó.
 2. **Mỗi máy — chạy `02_verify.py` + `03_verify_CLIP.py`** cho phần mình giữ
    ngay sau khi tải xong, báo kết quả về. Chưa đủ 873 video thì bảng cái mới
-   chỉ được chứng minh trên 3,3%.
+   chỉ được chứng minh trên 6,9%.
 3. **Khánh — xem trước video của ≥ 4 nhóm L khác nhau** trước khi viết tập dev
    (A7). Song song: chờ trả lời 0.a từ BTC.
 4. **TV5 — mở rộng harness VLM lên ≥ 50 câu, `--runs 3`**, và test với ngữ
