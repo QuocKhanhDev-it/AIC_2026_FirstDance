@@ -1,0 +1,61 @@
+sample_id,video_id,image_path,kf_n,frame_idx,pts_time,text_type,bbox_xyxy,text_raw,legibility,draft_confidence,selection_score,review_status
+ocr_L29_V001_01,L29_V001,eval_data/ocr/images/L29_V001_023.jpg,23,705,28.2,static_text,"[632.0, 330.0, 692.0, 360.0]","CÀ MAU",visual_draft,0.948821573073161,1.6678504214176657,approved
+ocr_L29_V001_02,L29_V001,eval_data/ocr/images/L29_V001_061.jpg,61,1200,48.0,static_text,"[133.0, 190.0, 190.0, 218.0]","PHÁT",visual_draft,0.2695732116699219,0.33612409830093387,approved
+ocr_L29_V001_03,L29_V001,eval_data/ocr/images/L29_V001_105.jpg,105,1331,53.24,no_text,"[0.0, 0.0, 1280.0, 720.0]","",no_text,0.0,0.0,approved
+ocr_L29_V001_04,L29_V001,eval_data/ocr/images/L29_V001_147.jpg,147,4350,174.0,no_text,"[0.0, 0.0, 1280.0, 720.0]","",no_text,0.0,0.0,approved
+ocr_L29_V001_05,L29_V001,eval_data/ocr/images/L29_V001_202.jpg,202,7492,299.68,dynamic_overlay,"[119.0, 607.0, 300.0, 664.0]","ĐÔI MẮT MÊ KÔNG",visual_draft,0.4873068010639961,2.9238408063839767,approved
+ocr_L29_V001_06,L29_V001,eval_data/ocr/images/L29_V001_226.jpg,226,8850,354.0,dynamic_overlay,"[117.0, 601.0, 306.0, 667.0]","ĐÔI MẮT MÊ KÔNG",visual_draft,0.6043528568942086,3.6261171413652518,approved
+ocr_L29_V001_07,L29_V001,eval_data/ocr/images/L29_V001_283.jpg,283,12188,487.52,dynamic_overlay,"[805.0, 583.0, 915.0, 621.0]","ĐÔI MẮT",visual_draft,0.3782523757770743,1.8528456219705127,approved
+ocr_L29_V001_08,L29_V001,eval_data/ocr/images/L29_V001_296.jpg,296,13050,522.0,dynamic_overlay,"[178.77, 598.43, 275.23, 662.57]","MÊ KÔNG",visual_draft,0.33476099371910095,1.3390439748764038,approved
+ocr_L29_V001_09,L29_V001,eval_data/ocr/images/L29_V001_358.jpg,358,16952,678.08,no_text,"[0.0, 0.0, 1280.0, 720.0]","",no_text,0.0,0.0,approved
+ocr_L29_V001_10,L29_V001,eval_data/ocr/images/L29_V001_402.jpg,402,19934,797.36,dynamic_overlay,"[161.0, 585.0, 271.0, 625.0]","ĐÔI MẮT",visual_draft,0.08372988237578015,0.5036875736668025,approved
+ocr_L29_V001_11,L29_V001,eval_data/ocr/images/L29_V001_448.jpg,448,22596,903.84,dynamic_overlay,"[161.0, 587.0, 267.0, 625.0]","ĐÔI MẮT",visual_draft,0.3140717236175277,1.976688910517815,approved
+ocr_L29_V001_12,L29_V001,eval_data/ocr/images/L29_V001_506.jpg,506,27000,1080.0,static_text,"[566.0, 322.0, 1208.0, 372.0]","ĐÀI TRUYỀN HÌNH TP. HỒ CHÍ MINH",visual_draft,0.2168712475866788,6.939879922773722,approved
+ocr_L29_V004_01,L29_V004,eval_data/ocr/images/L29_V004_025.jpg,25,695,27.8,static_text,"[691.0, 369.0, 747.0, 387.0]","CÀ MAU",visual_draft,0.5667822491159326,0.6695115317681953,approved
+ocr_L29_V004_02,L29_V004,eval_data/ocr/images/L29_V004_069.jpg,69,1215,48.6,no_text,"[0.0, 0.0, 1280.0, 720.0]","",no_text,0.0,0.0,approved
+ocr_L29_V004_03,L29_V004,eval_data/ocr/images/L29_V004_116.jpg,116,1335,53.4,no_text,"[0.0, 0.0, 1280.0, 720.0]","",no_text,0.0,0.0,approved
+ocr_L29_V004_04,L29_V004,eval_data/ocr/images/L29_V004_148.jpg,148,2798,111.92,dynamic_overlay,"[60.0, 625.0, 297.0, 689.0]","Gác kèo",visual_draft,0.9652699181526483,7.722159345221186,approved
+ocr_L29_V004_05,L29_V004,eval_data/ocr/images/L29_V004_219.jpg,219,6611,264.44,dynamic_overlay,"[126.0, 604.0, 308.0, 660.0]","ĐÔI MẮT MÊ KÔNG",visual_draft,0.3352204917715941,2.3465434424011584,approved
+ocr_L29_V004_06,L29_V004,eval_data/ocr/images/L29_V004_255.jpg,255,8505,340.2,no_text,"[0.0, 0.0, 1280.0, 720.0]","",no_text,0.0,0.0,approved
+ocr_L29_V004_07,L29_V004,eval_data/ocr/images/L29_V004_324.jpg,324,12184,487.36,dynamic_overlay,"[121.0, 581.0, 339.0, 667.0]","ĐÔI MẮT MÊ KÔNG",visual_draft,0.3162533034016295,2.2137731238114062,approved
+ocr_L29_V004_08,L29_V004,eval_data/ocr/images/L29_V004_329.jpg,329,12420,496.8,dynamic_overlay,"[217.0, 587.0, 277.0, 625.0]","MẮT",visual_draft,0.5952475218249015,0.7952134861879543,approved
+ocr_L29_V004_09,L29_V004,eval_data/ocr/images/L29_V004_380.jpg,380,15525,621.0,dynamic_overlay,"[123.0, 601.0, 310.0, 666.0]","ĐÔI MẮT MÊ KÔNG",visual_draft,0.4715119733436702,2.829071840062021,approved
+ocr_L29_V004_10,L29_V004,eval_data/ocr/images/L29_V004_464.jpg,464,21541,861.64,dynamic_overlay,"[218.0, 590.0, 274.0, 622.0]","MẮT",visual_draft,0.9039442539215088,1.2655219554901123,approved
+ocr_L29_V004_11,L29_V004,eval_data/ocr/images/L29_V004_487.jpg,487,22823,912.92,no_text,"[0.0, 0.0, 1280.0, 720.0]","",no_text,0.0,0.0,approved
+ocr_L29_V004_12,L29_V004,eval_data/ocr/images/L29_V004_531.jpg,531,25245,1009.8,dynamic_overlay,"[609.0, 643.0, 834.0, 680.0]","Người gác kèo ong",auto_draft,0.8656774239068274,14.716516206416067,approved
+ocr_L29_V008_01,L29_V008,eval_data/ocr/images/L29_V008_007.jpg,7,540,21.6,static_text,"[452.0, 209.0, 857.0, 337.0]","ĐÔI MẮT",visual_draft,0.6747469709590642,4.72322879671345,approved
+ocr_L29_V008_02,L29_V008,eval_data/ocr/images/L29_V008_053.jpg,53,1328,53.12,no_text,"[0.0, 0.0, 1280.0, 720.0]","",no_text,0.0,0.0,approved
+ocr_L29_V008_03,L29_V008,eval_data/ocr/images/L29_V008_081.jpg,81,2625,105.0,dynamic_overlay,"[51.0, 618.0, 727.0, 703.0]","Làng tôm khô Rạch Gốc",visual_draft,0.8254773875590977,17.335025138741052,approved
+ocr_L29_V008_04,L29_V008,eval_data/ocr/images/L29_V008_126.jpg,126,5459,218.36,static_text,"[911.08, 356.22, 1057.92, 421.78]","98898",auto_draft,0.2848167384232832,1.424083692116416,approved
+ocr_L29_V008_05,L29_V008,eval_data/ocr/images/L29_V008_173.jpg,173,8640,345.6,static_text,"[568.68, 68.88, 716.32, 214.12]","TÀI",auto_draft,0.28887462615966797,1.1554985046386719,approved
+ocr_L29_V008_06,L29_V008,eval_data/ocr/images/L29_V008_200.jpg,200,10935,437.4,dynamic_overlay,"[697.34, 610.61, 773.66, 648.39]","HOÀNG",visual_draft,0.9262491432839071,2.6082733127122575,approved
+ocr_L29_V008_07,L29_V008,eval_data/ocr/images/L29_V008_245.jpg,245,14310,572.4,dynamic_overlay,"[637.0, 642.0, 917.0, 680.0]","Làng tôm khô Rạch Gốc",visual_draft,0.9234592156076534,19.392643527760722,approved
+ocr_L29_V008_08,L29_V008,eval_data/ocr/images/L29_V008_259.jpg,259,15390,615.6,dynamic_overlay,"[121.0, 576.0, 315.0, 669.0]","ĐÔI MẮT MÊ KÔNG",visual_draft,0.45501478364669445,2.7300887018801667,approved
+ocr_L29_V008_09,L29_V008,eval_data/ocr/images/L29_V008_291.jpg,291,17820,712.8,dynamic_overlay,"[492.42, 491.96, 842.58, 628.04]","CM 98898",auto_draft,0.46290442271256027,3.703235381700482,approved
+ocr_L29_V008_10,L29_V008,eval_data/ocr/images/L29_V008_327.jpg,327,21330,853.2,dynamic_overlay,"[119.0, 577.0, 316.0, 669.0]","ĐÔI MẮT MÊ KÔNG",visual_draft,0.13091696531742944,0.7855017919045766,approved
+ocr_L29_V008_11,L29_V008,eval_data/ocr/images/L29_V008_368.jpg,368,23625,945.0,dynamic_overlay,"[118.0, 573.0, 316.0, 670.0]","ĐÔI MẮT MÊ KÔNG",visual_draft,0.25352004745271256,1.2676002372635629,approved
+ocr_L29_V008_12,L29_V008,eval_data/ocr/images/L29_V008_427.jpg,427,26460,1058.4,static_text,"[566.0, 322.0, 1208.0, 372.0]","ĐÀI TRUYỀN HÌNH TP. HỒ CHÍ MINH",visual_draft,0.13641286317986662,4.365211621755732,approved
+ocr_L29_V012_01,L29_V012,eval_data/ocr/images/L29_V012_030.jpg,30,734,29.36,static_text,"[440.0, 398.0, 766.0, 430.0]","U MINH HẠ NATIONAL PARK",visual_draft,0.9122143883982138,20.980930933158916,approved
+ocr_L29_V012_02,L29_V012,eval_data/ocr/images/L29_V012_070.jpg,70,1215,48.6,static_text,"[132.0, 208.0, 188.0, 232.0]","PHÁT",auto_draft,0.25275460682573414,0.19904425287526564,approved
+ocr_L29_V012_03,L29_V012,eval_data/ocr/images/L29_V012_093.jpg,93,1285,51.4,no_text,"[0.0, 0.0, 1280.0, 720.0]","",no_text,0.0,0.0,approved
+ocr_L29_V012_04,L29_V012,eval_data/ocr/images/L29_V012_141.jpg,141,2295,91.8,dynamic_overlay,"[623.0, 599.0, 825.0, 637.0]","Dẫn chương trình",visual_draft,0.6835417177423572,10.936667483877715,approved
+ocr_L29_V012_05,L29_V012,eval_data/ocr/images/L29_V012_162.jpg,162,3915,156.6,dynamic_overlay,"[294.0, 638.0, 512.0, 686.0]","cổng cưới lá dừa",visual_draft,0.7599239751600647,8.359163726760713,approved
+ocr_L29_V012_06,L29_V012,eval_data/ocr/images/L29_V012_196.jpg,196,6325,253.0,dynamic_overlay,"[118.0, 602.0, 303.0, 663.0]","ĐÔI MẮT MÊ KÔNG",visual_draft,0.3006374913452472,1.8038249480714832,approved
+ocr_L29_V012_07,L29_V012,eval_data/ocr/images/L29_V012_246.jpg,246,9793,391.72,dynamic_overlay,"[120.38, 599.09, 199.62, 659.91]","MÊ K",auto_draft,0.8626435964035468,2.435660086614033,approved
+ocr_L29_V012_08,L29_V012,eval_data/ocr/images/L29_V012_267.jpg,267,11205,448.2,dynamic_overlay,"[117.0, 601.0, 306.0, 668.0]","ĐÔI MẮT MÊ KÔNG",visual_draft,0.3264524653566932,1.9587147921401593,approved
+ocr_L29_V012_09,L29_V012,eval_data/ocr/images/L29_V012_330.jpg,330,16470,658.8,dynamic_overlay,"[164.0, 584.0, 261.0, 624.0]","ĐÔI MẮT",visual_draft,0.5689235400109385,3.017961591151775,approved
+ocr_L29_V012_10,L29_V012,eval_data/ocr/images/L29_V012_367.jpg,367,19571,782.84,dynamic_overlay,"[116.0, 601.0, 304.0, 668.0]","ĐÔI MẮT MÊ KÔNG",visual_draft,0.60457068045623,3.62742408273738,approved
+ocr_L29_V012_11,L29_V012,eval_data/ocr/images/L29_V012_398.jpg,398,22275,891.0,dynamic_overlay,"[161.0, 587.0, 269.0, 623.0]","ĐÔI MẮT",visual_draft,0.3596470520602308,1.9117488611076645,approved
+ocr_L29_V012_12,L29_V012,eval_data/ocr/images/L29_V012_446.jpg,446,26325,1053.0,static_text,"[318.0, 428.0, 460.0, 458.0]","TMT Group",visual_draft,0.7006898027020693,5.246962311640105,approved
+ocr_L29_V014_01,L29_V014,eval_data/ocr/images/L29_V014_007.jpg,7,540,21.6,static_text,"[452.0, 209.0, 857.0, 338.0]","ĐÔI MẮT",visual_draft,0.763375599114949,5.343629193804643,approved
+ocr_L29_V014_02,L29_V014,eval_data/ocr/images/L29_V014_051.jpg,51,1329,53.16,no_text,"[0.0, 0.0, 1280.0, 720.0]","",no_text,0.0,0.0,approved
+ocr_L29_V014_03,L29_V014,eval_data/ocr/images/L29_V014_078.jpg,78,2371,94.84,dynamic_overlay,"[255.0, 636.0, 675.0, 701.0]","đan đát Nguyễn Phích",visual_draft,0.7452415706988341,14.904831413976682,approved
+ocr_L29_V014_04,L29_V014,eval_data/ocr/images/L29_V014_133.jpg,133,5535,221.4,dynamic_overlay,"[1093.56, 578.63, 1157.44, 622.37]","MẮT",visual_draft,0.7524826742652506,1.2318286309199884,approved
+ocr_L29_V014_05,L29_V014,eval_data/ocr/images/L29_V014_144.jpg,144,6345,253.8,dynamic_overlay,"[115.0, 598.0, 304.0, 670.0]","ĐÔI MẮT MÊ KÔNG",visual_draft,0.6087756219099295,3.6526537314595773,approved
+ocr_L29_V014_06,L29_V014,eval_data/ocr/images/L29_V014_187.jpg,187,8693,347.72,dynamic_overlay,"[117.0, 601.0, 304.0, 668.0]","ĐÔI MẮT MÊ KÔNG",visual_draft,0.4582497472882759,2.7494984837296554,approved
+ocr_L29_V014_07,L29_V014,eval_data/ocr/images/L29_V014_218.jpg,218,11205,448.2,dynamic_overlay,"[120.08, 597.07, 297.92, 671.93]","ĐÔI MẮT MÊ KÔNG",visual_draft,0.8446106410467965,5.067663846280779,approved
+ocr_L29_V014_08,L29_V014,eval_data/ocr/images/L29_V014_261.jpg,261,14175,567.0,dynamic_overlay,"[118.0, 602.0, 303.0, 662.0]","ĐÔI MẮT MÊ KÔNG",visual_draft,0.2117747891653042,1.2706487349918252,approved
+ocr_L29_V014_09,L29_V014,eval_data/ocr/images/L29_V014_287.jpg,287,16026,641.04,dynamic_overlay,"[117.0, 581.0, 307.0, 665.0]","ĐÔI MẮT MÊ KÔNG",visual_draft,0.22780065371018737,1.3668039222611243,approved
+ocr_L29_V014_10,L29_V014,eval_data/ocr/images/L29_V014_336.jpg,336,19305,772.2,dynamic_overlay,"[161.0, 585.0, 271.0, 625.0]","ĐÔI MẮT",visual_draft,0.07323049950740979,0.3775947630850818,approved
+ocr_L29_V014_11,L29_V014,eval_data/ocr/images/L29_V014_376.jpg,376,22680,907.2,dynamic_overlay,"[126.0, 599.0, 288.0, 667.0]","ĐÔI MẮT MÊ KÔNG",visual_draft,0.4315227145373261,2.5891362872239565,approved
+ocr_L29_V014_12,L29_V014,eval_data/ocr/images/L29_V014_411.jpg,411,25515,1020.6,static_text,"[318.0, 248.0, 442.0, 280.0]","Hoài Nam",visual_draft,0.8623644036576451,5.346659302677399,approved

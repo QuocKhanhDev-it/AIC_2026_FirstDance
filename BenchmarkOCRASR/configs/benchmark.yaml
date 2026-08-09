@@ -1,0 +1,13 @@
+schema_version: 1
+seed: 2026
+dataset_root: D:/Study/AICChallenge
+selected_videos: [L29_V001, L29_V004, L29_V008, L29_V012, L29_V014]
+ocr_samples_per_video: 12
+asr_clip_starts_sec: [120, 300, 540, 780]
+asr_clip_duration_sec: 30
+ocr_ticker_minimum_for_conclusion: 10
+ocr_static_accuracy_threshold: 0.80
+coverage_threshold: 0.95
+asr_timestamp_validity_threshold: 1.0
+accuracy_tie_percentage_points: 1.0
+bootstrap_iterations: 2000

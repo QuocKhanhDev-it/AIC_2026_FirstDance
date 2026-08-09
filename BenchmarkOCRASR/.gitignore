@@ -1,0 +1,11 @@
+__pycache__/
+*.py[cod]
+.pytest_cache/
+eval_data/ocr/images/
+eval_data/ocr/contact_sheets/
+eval_data/asr/clips/
+results/.parts/
+results/plots/*_small.jpg
+results/plots/*_tiny.jpg
+results/plots/debug_*.jpg
+.patch_probe*

@@ -1,0 +1,52 @@
+schema_version: 1
+seed: 2026
+device: cuda
+
+ocr:
+  - id: paddleocr_v5_mobile
+    family: paddleocr
+    enabled: true
+    params:
+      text_detection_model_name: PP-OCRv5_mobile_det
+      text_recognition_model_name: latin_PP-OCRv5_mobile_rec
+      device: gpu
+      use_doc_orientation_classify: false
+      use_doc_unwarping: false
+      use_textline_orientation: false
+  - id: easyocr_det_vietocr
+    family: easy_vietocr
+    enabled: true
+    params:
+      languages: [vi, en]
+      gpu: true
+      vietocr_config: vgg_transformer
+      device: cuda
+  - id: easyocr_vi_en
+    family: easyocr
+    enabled: true
+    params:
+      languages: [vi, en]
+      gpu: true
+
+asr:
+  - id: phowhisper_small
+    family: transformers_whisper
+    repo_id: vinai/PhoWhisper-small
+    enabled: true
+  - id: phowhisper_medium
+    family: transformers_whisper
+    repo_id: vinai/PhoWhisper-medium
+    enabled: true
+  - id: whisper_small
+    family: transformers_whisper
+    repo_id: openai/whisper-small
+    enabled: true
+
+asr_generation:
+  language: vi
+  task: transcribe
+  batch_size: 1
+  num_beams: 5
+  do_sample: false
+  temperature: 0.0
+  return_timestamps: true

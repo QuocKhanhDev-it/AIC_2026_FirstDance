@@ -1,0 +1,3 @@
+﻿model_id,text_type,samples,cer_norm,cer_ci_low,cer_ci_high,character_accuracy,wer_norm,exact_norm,detection_recall_iou50,latency_median_sec,latency_p95_sec,vram_peak_gb
+easyocr_det_vietocr,static_text,1,0.0,0.0,0.0,1.0,0.0,1.0,1.0,0.3216004999994766,0.3216004999994766,0.753654956817627
+easyocr_vi_en,static_text,1,0.1666666666666666,0.1666666666666666,0.1666666666666666,0.8333333333333334,1.0,0.0,1.0,0.185671999999613,0.185671999999613,0.6111483573913574
