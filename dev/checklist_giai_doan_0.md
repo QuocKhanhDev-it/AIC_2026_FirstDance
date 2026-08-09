@@ -7,7 +7,7 @@ Theo PHẦN 6 của `HUONG_DAN_GIAI_DOAN_0.md`. Đủ 8 gạch mới mở Giai �
 | 1 | `paths.parquet` phủ ≥ 99% video ở `csv`, `clip`, `keyframe_dir` | ⚠️ **một phần** |
 | 2 | `master.parquet` dựng xong, không còn lỗi `lech_so_vector` | ✅ **đạt** |
 | 3 | `clip.npy` shape `(N, 512)`, `N` = số dòng `master` | ✅ **đạt** |
-| 4 | `verify_report.csv` cho ≥ 95% `KHOP` | ✅ **đạt — 143/143** |
+| 4 | `verify_report.csv` cho ≥ 95% `KHOP` | ✅ **đạt — 203/203** |
 | 5 | Ghi lại 4 con số vào tài liệu nhóm | ✅ **đạt** |
 | 6 | `index/` đã lên Drive, cả 6 người tải được | ⬜ **chưa** |
 | 7 | Câu hỏi về cửa sổ `[s,e]` đã gửi BTC | ⬜ **chưa** |
@@ -20,8 +20,8 @@ máy này mới **6,9%** (60/873) vì mới tải `Keyframes_L21` + `Keyframes_L
 Không phải lỗi, chỉ là chưa tải xong. Gạch này sẽ tự đạt khi tải hết các gói
 Keyframes.
 
-Tính cả kết quả thành viên khác gửi về thì **162/873 video (18,6%) đã được
-kiểm chứng**, thuộc 5/10 nhóm L. Chạy `python scripts/07_gop_kiem_chung.py`
+Tính cả kết quả thành viên khác gửi về thì **248/873 video (28,4%) đã được
+kiểm chứng**, thuộc 7/10 nhóm L (thiếu L23, L26, L27). Chạy `python scripts/07_gop_kiem_chung.py`
 để xem bảng độ phủ mới nhất.
 
 **2 — đạt.** `problems.csv` có 844 dòng nhưng **toàn bộ là `lech_so_keyframe`**
@@ -31,11 +31,12 @@ nghiêm trọng mà hướng dẫn cảnh báo.
 **3 — đạt.** `clip.npy` = `(177321, 512)` float32 chuẩn L2. `master.parquet`
 = 177.321 dòng. Khớp chính xác.
 
-**4 — đạt.** 143/143 mẫu đạt trên 5 nhóm L (142 `KHOP` + 1 `KHOP_YEU`).
+**4 — đạt.** 203/203 mẫu đạt trên 7 nhóm L (202 `KHOP` + 1 `KHOP_YEU`).
 L29 và L24+L30 do máy khác chạy rồi gửi về. Mẫu đáng giá nhất là
 `L24_V044/003.jpg` — video 26,44 fps duy nhất của kho, keyframe ứng với
 `frame_idx=5` tức 0,19 giây, vẫn đạt corr 0,9997 và phân biệt được với hai
-dòng kề. fps lạ 26,44 hết là bẫy; **29,97 (30 video L25) thì chưa ai kiểm**.
+dòng kề. **Cả hai loại fps lạ nay đều đã kiểm và đạt** — 26,44 (1/1) và 29,97 (17/30).
+Rủi ro fps đã đóng; chỗ nguy hiểm nhất còn lại là keyframe trùng lặp (A5.6).
 
 `KHOP_YEU` là phán quyết mới: tương quan pixel thấp nhưng vượt xa dòng kề.
 Hiệu chuẩn trên L22 — mẫu tệ nhất `L22_V013/116.jpg` chỉ đạt corr 0,675

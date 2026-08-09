@@ -31,6 +31,9 @@ GOC = Path(__file__).resolve().parent.parent
 VERIFY = GOC / "dev" / "verify"
 # 02 dùng KHOP_YEU cho cảnh động: tương quan pixel thấp nhưng vượt xa dòng kề.
 DAT_PIXEL = {"KHOP", "KHOP_YEU"}
+# 03 dùng KHOP_TRUNG_LAP khi dòng thắng là BẢN SAO của dòng đang xét — xếp
+# hạng giữa các vector giống hệt nhau là nhiễu, không phải lệch chỉ số.
+DAT_CLIP = {"KHOP", "KHOP_TRUNG_LAP"}
 
 
 def doc(ten: str) -> pd.DataFrame:
@@ -68,22 +71,23 @@ def main():
 
     print("=" * 72)
     print(f"{'nhóm':<6} {'video':>6} {'02 đã kiểm':>11} {'02 đạt':>8} "
-          f"{'03 đã kiểm':>11} {'03 hạng 1':>10}")
+          f"{'03 đã kiểm':>11} {'03 đạt':>8}")
     print("-" * 72)
     for nhom in tong_video.index:
         p = pix[pix.nhom == nhom] if not pix.empty else pd.DataFrame()
         c = clip[clip.nhom == nhom] if not clip.empty else pd.DataFrame()
         p_dat = int(p.ket_luan.isin(DAT_PIXEL).sum()) if len(p) else 0
-        c_dat = int((c.hang == 1).sum()) if len(c) else 0
+        c_dat = int(c.ket_luan.isin(DAT_CLIP).sum()) if len(c) else 0
         danh = "" if len(p) or len(c) else "   <- chưa ai kiểm"
         print(f"{nhom:<6} {tong_video[nhom]:>6} {len(p):>11} {p_dat:>8} "
-              f"{len(c):>11} {c_dat:>10}{danh}")
+              f"{len(c):>11} {c_dat:>8}{danh}")
 
     n_video = int(tong_video.sum())
     print("-" * 72)
     print(f"{'TỔNG':<6} {n_video:>6} {len(pix):>11} "
           f"{int(pix.ket_luan.isin(DAT_PIXEL).sum()) if len(pix) else 0:>8} "
-          f"{len(clip):>11} {int((clip.hang == 1).sum()) if len(clip) else 0:>10}")
+          f"{len(clip):>11} "
+          f"{int(clip.ket_luan.isin(DAT_CLIP).sum()) if len(clip) else 0:>8}")
     print("=" * 72)
 
     da_kiem = set()
@@ -101,13 +105,26 @@ def main():
             print(truot[["video_id", "kf_name", "corr", "bien_do",
                          "ket_luan"]].to_string(index=False))
     if len(clip):
-        truot = clip[clip.hang != 1]
+        cot = [c for c in ("video_id", "kf_n", "cosine", "hang",
+                           "cach_biet", "trung_lap") if c in clip]
+        truot = clip[clip.ket_luan.str.startswith(("LECH", "KHONG"))]
         if len(truot):
-            print(f"\n!! {len(truot)} mẫu KHÔNG hạng 1 ở script 03:")
-            print(truot[["video_id", "kf_n", "cosine", "hang",
-                         "cach_biet"]].to_string(index=False))
-            print("   (hạng 2 do keyframe TRÙNG LẶP thì bình thường; hạng "
-                  "xa hơn mới là lệch hàng clip.npy)")
+            print(f"\n!! {len(truot)} mẫu TRƯỢT script 03 — phải xem ngay:")
+            print(truot[cot].to_string(index=False))
+            print("   cosine THẤP + không đúng hạng 1 = lệch hàng clip.npy thật.")
+
+        nghi = clip[clip.ket_luan == "NGHI_NGO"]
+        if len(nghi):
+            print(f"\n  {len(nghi)} mẫu NGHI_NGO — đúng hạng 1 nhưng cosine dưới "
+                  "0,95.\n  Cách biệt hạng 2 vẫn dương nên là khác biệt tiền xử "
+                  "lý (JPEG/resize),\n  không phải lệch chỉ số:")
+            print(nghi[cot].to_string(index=False))
+
+        n_tl = int((clip.ket_luan == "KHOP_TRUNG_LAP").sum())
+        if n_tl:
+            print(f"\n  {n_tl} mẫu KHOP_TRUNG_LAP: cosine >= 0,95 nhưng không "
+                  "đúng hạng 1 vì\n  dòng thắng là bản sao của chính nó. Tính là "
+                  "đạt — xem A5.6.")
 
     # fps lạ là cái bẫy nguy hiểm nhất còn lại: mọi phép quy đổi giây <-> frame
     # đều sai nếu 26.44 hoặc 29.97 bị làm tròn thành 25/30 ở đâu đó.

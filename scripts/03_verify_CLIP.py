@@ -50,6 +50,10 @@ warnings.filterwarnings("ignore")
 
 # Hiệu chuẩn trên L21 — nhóm đã được 02_verify.py chứng minh là ghép đúng.
 MATCH, SUSPECT = 0.95, 0.85
+# Hai keyframe cùng video giống nhau tới mức này thì coi là BẢN SAO, và phép
+# thử thứ hạng mất ý nghĩa giữa chúng. Đo trên L25: 49,8% keyframe có bản sao
+# ở ngưỡng này, có cặp cosine đúng 1,0000.
+DUP = 0.99
 MODEL_TAG = "ViT-B-32-quickgelu"     # KHÔNG đổi thành "ViT-B-32", xem docstring
 
 
@@ -116,15 +120,29 @@ def main():
             # không phụ thuộc ngưỡng nên bắt được lệch chỉ số mà cosine
             # tuyệt đối có thể bỏ qua.
             ids = m.loc[m.video_id == r.video_id, "row_id"].to_numpy()
-            sims = np.asarray(clip_mat[ids], dtype=np.float32) @ v
+            luu = np.asarray(clip_mat[ids], dtype=np.float32)
+            sims = luu @ v
             order = np.argsort(-sims)
             hang = int(np.where(ids[order] == r.row_id)[0][0]) + 1
             cach_biet = cos - float(sims[order[1 if hang == 1 else 0]])
 
-            if hang != 1:
+            # Bao nhieu keyframe khac trong cung video co vector gan nhu y het
+            # dong nay? L25 co 49,8% keyframe roi vao dien nay (canh tinh keo
+            # dai), va khi do phep thu thu hang mat y nghia: xep hang giua cac
+            # vector giong nhau den 1,0000 chi la nhieu.
+            tu_luu = luu @ np.asarray(clip_mat[r.row_id], dtype=np.float32)
+            trung_lap = int((tu_luu >= DUP).sum()) - 1        # tru chinh no
+            ke_thang = float(tu_luu[order[0]])   # do giong giua dong nay va dong thang
+
+            # Thu tu phan quyet: COSINE TUYET DOI truoc, thu hang sau.
+            # Lech chi so thuc su nghia la clip[row_id] la vector cua mot CANH
+            # KHAC, khi do cosine tut han xuong (0,3-0,7), khong the >= 0,95.
+            # Nen cosine cao la du de ket luan ghep dung, bat ke thu hang —
+            # thu hang chi de phan biet khi cosine da mo ho.
+            if cos >= MATCH:
+                kl = "KHOP" if hang == 1 else "KHOP_TRUNG_LAP"
+            elif hang != 1:
                 kl = f"LECH_INDEX (dung hang {hang}/{len(ids)})"
-            elif cos >= MATCH:
-                kl = "KHOP"
             elif cos >= SUSPECT:
                 kl = "NGHI_NGO"
             else:
@@ -135,10 +153,13 @@ def main():
                         "pts_time": round(r.pts_time, 2), "fps": r.fps,
                         "cosine": round(cos, 4), "hang": hang,
                         "so_keyframe": len(ids),
-                        "cach_biet": round(cach_biet, 4), "ket_luan": kl})
+                        "cach_biet": round(cach_biet, 4),
+                        "trung_lap": trung_lap,
+                        "giong_dong_thang": round(ke_thang, 4),
+                        "ket_luan": kl})
             print(f"  [{k}/{len(sample)}] {r.video_id} kf_n={r.kf_n} "
                   f"cos={cos:.4f} hang={hang}/{len(ids)} "
-                  f"cach_biet={cach_biet:+.4f}  {kl}")
+                  f"cach_biet={cach_biet:+.4f} trung_lap={trung_lap}  {kl}")
 
     out = pd.DataFrame(res)
     name = f"verify_clip{'_'+a.group if a.group else ''}.csv"
@@ -148,7 +169,7 @@ def main():
     vc = out.ket_luan.value_counts()
     for k, v in vc.items():
         print(f"  {k:<30} {v:>4}  ({v/len(out)*100:.0f}%)")
-    ok = vc.get("KHOP", 0) / len(out)
+    ok = (vc.get("KHOP", 0) + vc.get("KHOP_TRUNG_LAP", 0)) / len(out)
 
     if "hang" in out:
         dung_hang = (out.hang == 1).sum()
@@ -157,13 +178,21 @@ def main():
         print(f"  cosine             trung bình {out.cosine.mean():.4f}, "
               f"thấp nhất {out.cosine.min():.4f}")
         print(f"  cách biệt hạng 2   trung bình {out.cach_biet.mean():+.4f}")
+    if vc.get("KHOP_TRUNG_LAP", 0):
+        n = vc["KHOP_TRUNG_LAP"]
+        print(f"\n  ({n} mẫu KHOP_TRUNG_LAP: không đúng hạng 1, nhưng dòng thắng là")
+        print(f"   BẢN SAO của chính nó — cosine giữa hai vector đã lưu >= {DUP}.")
+        print("   Xếp hạng giữa các vector giống hệt nhau là nhiễu, không phải")
+        print("   lệch chỉ số. Tính là đạt.)")
 
     print()
     if ok >= 0.95:
         print("  ✅ Liên kết CSV <-> clip.npy ĐÚNG cho nhóm đã kiểm tra.")
     elif any(str(k).startswith("LECH_INDEX") for k in vc.index):
         print("  ❌ LỆCH CHỈ SỐ. Vector khớp với dòng KHÁC trong cùng video.")
-        print("     Xem cột `hang` để biết lệch mấy dòng.")
+        print("     Xem cột `hang` để biết lệch mấy dòng. Lưu ý: chỉ tin kết")
+        print("     luận này khi `cosine` THẤP. Cosine cao + cach_biet ~0 là")
+        print("     keyframe trùng lặp, đã tách riêng thành KHOP_TRUNG_LAP.")
     else:
         print("  ⚠️  Đúng hạng 1 nhưng cosine thấp — nhiều khả năng do tiền xử lý")
         print("     (model tag, cách resize, JPEG) chứ không phải lệch chỉ số.")
