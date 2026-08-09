@@ -37,10 +37,12 @@ DAT_CLIP = {"KHOP", "KHOP_TRUNG_LAP"}
 
 
 def doc(ten: str) -> pd.DataFrame:
+    """`ten` là 'verify_clip' hoặc 'verify_report'. Bắt cả bản không hậu tố
+    lẫn bản có --group (verify_clip_L26.csv), vì hai script giờ đều xuất
+    theo nhóm."""
     khung = []
     for thu_muc in sorted(p for p in VERIFY.iterdir() if p.is_dir()):
-        f = thu_muc / ten
-        if f.exists():
+        for f in sorted(thu_muc.glob(f"{ten}*.csv")):
             d = pd.read_csv(f)
             # Nhóm L lấy từ video_id, KHÔNG lấy từ tên thư mục: một máy giữ
             # nhiều nhóm sẽ xuất chung một file (đo thật: lô L24+L30).
@@ -77,7 +79,7 @@ def main():
     m["nhom"] = m.video_id.str[:3]
     tong_video = m.groupby("nhom").video_id.nunique()
 
-    pix, clip = doc("verify_report.csv"), doc("verify_clip.csv")
+    pix, clip = doc("verify_report"), doc("verify_clip")
     if pix.empty and clip.empty:
         sys.exit(f"Chưa có báo cáo nào trong {VERIFY}.")
 

@@ -1,7 +1,7 @@
 # Số liệu Giai đoạn 0 — đo thật trên dữ liệu
 
 *Cập nhật 2026-08-09. Gộp kết quả kiểm chứng của 5 máy: L21+L22 (máy này),
-L29, L24+L30 (phủ 100%), L25+L28, L23+L26+L27.*
+L29, L24+L30, L25+L28, L23+L26+L27. Độ phủ **97,0%**.*
 
 Dữ liệu tại `C:\Code\aic_data`. **Máy này đã tải L21 + L22** (keyframes +
 video); L23–L30 hiện chỉ có csv/clip/objects/media-info.
@@ -24,23 +24,21 @@ Kiểm chứng gộp được từ nhiều máy: xem [verify/](verify/), chạy
 | --- | --- | --- |
 | csv / clip / objects / media-info | 873 / 873 (100%) | đủ cả 10 nhóm L21–L30 |
 | keyframes / video mp4 **trên máy này** | **60 / 873 (6,9%)** | L21 + L22 |
-| **đã kiểm chứng — toàn nhóm** | **390 / 873 (44,7%)** | **đủ 10/10 nhóm L** |
+| **đã kiểm chứng — toàn nhóm** | **847 / 873 (97,0%)** | **đủ 10/10 nhóm L** |
 
-**Không nhóm L nào còn là vùng trắng.** L24 và L30 phủ 100% (43 và 96 video,
-kiểm hết bằng cả hai script) — đó là mẫu cho các máy còn lại: kiểm HẾT phần
-mình giữ, đừng dừng ở `--n` mặc định.
+**Năm nhóm phủ 100%:** L23, L24, L26, L27, L30. Riêng L26 — nhóm chiếm 57%
+kho — nay kiểm đủ **498/498 video ở cả hai script**.
 
-Mỏng nhất hiện nay:
+Còn thiếu:
 
-| Nhóm | Video | Đã kiểm (02 / 03) |
-| --- | --- | --- |
-| L27 | 16 | 3 / 1 |
-| L23 | 25 | 3 / 3 |
-| L28 | 24 | 13 / 24 |
-| L26 | 498 | 46 / 31 |
+| Nhóm | Video | 02 | 03 | Thiếu |
+| --- | --- | --- | --- | --- |
+| L25 | 88 | 47 | 40 | 26 video |
+| L28 | 24 | 13 | **24** | script 02 thiếu 11 |
 
-L26 chiếm 57% kho mà mới kiểm ~9% số video của nó — đây là chỗ đáng bổ sung
-nhất tiếp theo.
+L28 đã đủ ở script 03 (phép kiểm quan trọng hơn cho `clip.npy`), chỉ script 02
+còn thiếu. Máy giữ L25+L28 chạy lại với `--n 88 --group L25` và
+`--n 24 --group L28` là xong 873/873.
 
 `index/problems.csv` có 813 dòng `lech_so_keyframe` — đó là **chưa tải**,
 không phải lỗi ghép. **Không máy nào có dòng `lech_so_vector`** (đây mới là
@@ -52,8 +50,8 @@ lỗi nghiêm trọng).
 
 ### 1. Bảng cái ĐÚNG — ảnh keyframe ↔ dòng CSV
 
-`02_verify.py` chạy trên 334 mẫu thuộc cả 10 nhóm L: **334/334 đạt**
-(330 `KHOP` + 4 `KHOP_YEU`). Cách ghép dòng CSV thứ *i* ↔ ảnh keyframe thứ
+`02_verify.py` chạy trên 821 mẫu thuộc cả 10 nhóm L: **821/821 đạt**
+(817 `KHOP` + 4 `KHOP_YEU`). Cách ghép dòng CSV thứ *i* ↔ ảnh keyframe thứ
 *i* ↔ `frame_idx` là chính xác.
 
 `KHOP_YEU` là phán quyết cho cảnh động: tương quan pixel dưới 0,95 nhưng
@@ -66,11 +64,11 @@ vượt dòng kề ≥ 0,30. Bằng chứng hiệu chuẩn: `L22_V013/116.jpg` c
 ### 2. Liên kết CSV ↔ clip.npy cũng ĐÚNG
 
 `03_verify_CLIP.py` encode lại frame bằng CLIP ViT-B/32 rồi so với vector đã
-lưu: **316/321 đạt, KHÔNG mẫu nào lệch chỉ số.**
+lưu: **819/825 đạt, KHÔNG mẫu nào lệch chỉ số.**
 
-- 5 mẫu `NGHI_NGO` — đúng hạng 1, cosine 0,929–0,947, cách biệt hạng 2 dương
+- 6 mẫu `NGHI_NGO` — đúng hạng 1, cosine 0,919–0,947, cách biệt hạng 2 dương
   (+0,03…+0,16). Khác biệt tiền xử lý JPEG/resize, không phải lệch chỉ số.
-- 9 mẫu `KHOP_TRUNG_LAP` — cosine ≥ 0,95 nhưng không đúng hạng 1 vì dòng
+- 13 mẫu `KHOP_TRUNG_LAP` — cosine ≥ 0,95 nhưng không đúng hạng 1 vì dòng
   thắng là **bản sao** của chính nó. Xem mục 6.
 
 Nghĩa là vector thứ *i* trong `clip.npy` thật sự là vector của keyframe thứ
@@ -87,9 +85,15 @@ ngưỡng dù dữ liệu hoàn toàn đúng.
 đủ 873 file CSV.
 
 Đã **đo thật**, không phải suy từ code: đối chiếu năm lô kết quả của máy khác
-với `master.parquet` máy này — **261/261 dòng trùng khít** cả `video_id`,
+với `master.parquet` máy này — **765/765 dòng trùng khít** cả `video_id`,
 `kf_n`, `frame_idx` lẫn `fps` (23 dòng L29, 139 dòng L24+L30, 64 dòng
-L25+L28, 35 dòng L23+L26+L27). Năm lô, năm lần khớp tuyệt đối.
+L25+L28, 539 dòng L23+L26+L27).
+
+**Mạnh hơn thế: cả pipeline tái lập được.** Máy giữ L23+L26+L27 chạy lại
+**cả nhóm L21** — nhóm máy này đã chạy từ đầu. Kết quả trùng khít 29/29 ở
+**mọi cột**, kể cả `cosine` tới 4 chữ số thập phân. Hai máy khác nhau, hai
+ổ đĩa khác nhau, cùng chuỗi ffmpeg → CLIP, ra đúng cùng một con số. Nghĩa là
+số liệu của mọi người so sánh trực tiếp được, không cần hiệu chuẩn chéo.
 
 Hệ quả: kết quả của 6 người gộp được bằng `row_id`, và **không cần gửi
 `master.parquet`/`clip.npy` cho nhau** (395 MB, giống hệt nhau trừ ba cột

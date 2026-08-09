@@ -2,10 +2,10 @@
 
 ## Giai đoạn 0: Bảng cái
 
-**Trạng thái: ĐÃ XONG.** `02_verify.py` cho **334/334 KHỚP (100%)** trên
+**Trạng thái: ĐÃ XONG.** `02_verify.py` cho **821/821 KHỚP (100%)** trên
 **cả 10/10 nhóm L** — vượt ngưỡng 95%. Được phép sang Giai đoạn 1.
-Độ phủ kiểm chứng hiện **390/873 video (44,7%)**;
-**L24 và L30 đã phủ 100%** —
+Độ phủ kiểm chứng hiện **847/873 video (97,0%)**;
+L23, L24, L26, L27, L30 phủ 100% —
 xem `python scripts/07_gop_kiem_chung.py`.
 
 **Kế hoạch hiện hành: [docs/Ke_hoach_AIC2026_v4.md](docs/Ke_hoach_AIC2026_v4.md)** (thay thế v3).
@@ -20,8 +20,8 @@ Số liệu đầy đủ: [dev/so_lieu_giai_doan_0.md](dev/so_lieu_giai_doan_0.m
 | keyframe trong bảng cái | **177.321** |
 | ma trận CLIP | `(177321, 512)` float32, chuẩn hóa L2 |
 | detection objects (≥ 0,3) | **1.122.384** — 6,3 / keyframe |
-| kiểm chứng bằng ffmpeg | **334/334 KHỚP** (330 KHOP + 4 KHOP_YEU) |
-| kiểm chứng vector CLIP | **316/321 đạt**, 0 lệch chỉ số |
+| kiểm chứng bằng ffmpeg | **821/821 KHỚP** (817 KHOP + 4 KHOP_YEU) |
+| kiểm chứng vector CLIP | **819/825 đạt**, 0 lệch chỉ số |
 
 ## Bốn con số phải nhớ
 
@@ -74,7 +74,7 @@ Chỉ `index/` cần đồng bộ giữa 6 người. Không ai phải copy video
 | --- | --- | --- |
 | csv / clip / objects / media-info | 873 / 873 (100%) | đủ cả L21–L30 |
 | keyframes / video mp4 **trên máy này** | **60 / 873 (6,9%)** | L21 + L22 |
-| **đã kiểm chứng — toàn nhóm** | **390 / 873 (44,7%)** | đủ 10/10 nhóm L; L24+L30 phủ 100% |
+| **đã kiểm chứng — toàn nhóm** | **847 / 873 (97,0%)** | 5 nhóm phủ 100%; còn L25 và L28 |
 
 `problems.csv` có 813 dòng `lech_so_keyframe` — đó là **chưa tải**, không phải
 lỗi ghép. Không có dòng `lech_so_vector` nào (đây mới là lỗi nghiêm trọng).
@@ -99,8 +99,9 @@ python scripts\07_gop_kiem_chung.py
 
 **Đừng gửi `master.parquet` / `clip.npy` / `objects.parquet`** — mỗi bộ
 395 MB và giống hệt nhau trên mọi máy trừ ba cột đường dẫn tuyệt đối.
-`row_id` là như nhau ở mọi máy (đã đối chiếu thật 261/261 dòng của năm lô),
-nên gộp bằng `row_id` là an toàn.
+`row_id` là như nhau ở mọi máy (đã đối chiếu thật 765/765 dòng của năm lô).
+Mạnh hơn nữa: một máy khác chạy lại L21 và ra **cosine trùng khít tới 4 chữ
+số thập phân** với máy này ở cả 29/29 mẫu — cả pipeline tái lập được.
 
 ## Setup từ đầu
 
@@ -140,7 +141,7 @@ python scripts\03_verify_CLIP.py --out .\index --n 40 --group L26
 ```
 
 `02` kiểm **ảnh keyframe ↔ dòng CSV**, `03` kiểm **vector CLIP ↔ dòng CSV**.
-Trên cả 10 nhóm L đều sạch: 334/334 KHỚP và 316/321 đạt, không mẫu nào
+Trên cả 10 nhóm L đều sạch: 821/821 KHỚP và 819/825 đạt, không mẫu nào
 lệch chỉ số.
 
 Thời gian thực tế trên máy Windows đã đo:
