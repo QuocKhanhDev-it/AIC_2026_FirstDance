@@ -26,18 +26,19 @@ phải tin bằng mắt.
 
 | Chứng minh điều gì | Cách | Kết quả |
 | --- | --- | --- |
-| Ảnh keyframe thứ *i* ↔ dòng thứ *i* CSV | ffmpeg trích frame tại `pts_time`, so tương quan pixel + biên độ với dòng kề | **203/203 KHỚP** (7 nhóm L) |
-| Vector CLIP thứ *i* ↔ dòng thứ *i* CSV | encode lại frame, so cosine + xếp hạng trong video | **183/187 đạt**, 0 lệch chỉ số |
+| Ảnh keyframe thứ *i* ↔ dòng thứ *i* CSV | ffmpeg trích frame tại `pts_time`, so tương quan pixel + biên độ với dòng kề | **282/282 KHỚP** (7 nhóm L) |
+| Vector CLIP thứ *i* ↔ dòng thứ *i* CSV | encode lại frame, so cosine + xếp hạng trong video | **281/286 đạt**, 0 lệch chỉ số |
 
 Phép thứ hai v3 không yêu cầu, nhưng cần thiết: vector CLIP nằm trong file
 `.npy` riêng, lệch hàng ở đó thì kiểm ảnh không phát hiện được — mà TV1 dùng
 trực tiếp vector này.
 
-*Giới hạn:* mới kiểm được **248/873 video (28,4%)**, thuộc 7/10 nhóm L — còn
-thiếu L23, L26, L27. Mỗi máy tải thêm nhóm L nào thì chạy lại hai script đó
+*Giới hạn:* mới kiểm được **308/873 video (35,3%)**, thuộc 7/10 nhóm L.
+**L24 và L30 đã phủ 100%** (43 và 96 video, cả hai script). Còn thiếu hẳn
+L23, L26, L27. Mỗi máy tải thêm nhóm L nào thì chạy lại hai script đó
 cho nhóm đó rồi gửi hai file kết quả về (xem `scripts/07_gop_kiem_chung.py`).
 
-4 mẫu `NGHI_NGO` của script 03 đều **đúng hạng 1** với cách biệt dương
+5 mẫu `NGHI_NGO` của script 03 đều **đúng hạng 1** với cách biệt dương
 (+0,03…+0,16), cosine 0,929–0,947 — khác biệt tiền xử lý JPEG/resize, không
 phải lệch chỉ số.
 
@@ -420,8 +421,8 @@ Gợi ý chia theo nhóm L, cân bằng số video:
    *Vì sao gộp được:* `00_discover.py` duyệt theo `sorted(video_id)` và
    `01_build_index.py` đánh `row_id` tuần tự, nên `row_id ↔ (video_id, kf_n)`
    là như nhau ở mọi máy có đủ 873 file CSV. **Đã đo thật** — đối chiếu hai lô
-   của máy khác (23 dòng L29, 40 dòng L24+L30, 64 dòng L25+L28) với
-   `master.parquet` máy này: **127/127 trùng khít** cả `video_id`, `kf_n`,
+   của máy khác (23 dòng L29, 139 dòng L24+L30, 64 dòng L25+L28) với
+   `master.parquet` máy này: **226/226 trùng khít** cả `video_id`, `kf_n`,
    `frame_idx` lẫn `fps`. Đây là điều làm cho A5.5 (đường
    dẫn tuyệt đối khác nhau) **không** phá được việc gộp kết quả: đường dẫn
    khác máy, nhưng `row_id` thì không.
@@ -470,7 +471,7 @@ Bốn hệ quả bắt buộc code theo:
 
 | Câu hỏi phải trả lời | Trạng thái |
 | --- | --- |
-| Ảnh keyframe thứ *i* có đúng dòng thứ *i* CSV? | ✅ **Đúng** — 203/203 trên 7 nhóm L |
+| Ảnh keyframe thứ *i* có đúng dòng thứ *i* CSV? | ✅ **Đúng** — 282/282 trên 7 nhóm L |
 | Bao nhiêu % keyframe có object JSON? | ✅ **100%** |
 | Mật độ keyframe toàn bộ có ~109 frame? | ✅ **Không — 55 frame** |
 
@@ -888,7 +889,7 @@ chưa từng nhìn.
 | 4 | TV3 (BM25 metadata) → Bước 2 TRAKE | sai video → 0 điểm | ✅ dữ liệu đã đủ (100%) |
 | 5 | 0.c (VLM) → Bước 4 Q&A | `answer` sai định dạng → 0 điểm | 🟡 đang test |
 | 6 | TV1 (ma trận CLIP) → cả 2 mũi nhọn | cả hai mũi nhọn tắc | ✅ dữ liệu đã đủ (100%) |
-| **7** | **MỚI — tải đủ video/keyframe → #2, #3** | **hai phụ thuộc quan trọng nhất đều tắc** | ⬜ **28,4% đã kiểm chứng** |
+| **7** | **MỚI — tải đủ video/keyframe → #2, #3** | **hai phụ thuộc quan trọng nhất đều tắc** | ⬜ **35,3% đã kiểm chứng** |
 
 **Đường găng:**
 `Bảng cái ✅ → tải dữ liệu ⬜ → TV2 (trích dày) → Khánh (DP + tập dev) → GĐ3`
@@ -904,15 +905,15 @@ chưa từng nhìn.
 
 | Rủi ro | Dấu hiệu sớm | Phương án |
 | --- | --- | --- |
-| **Chia dữ liệu nhiều máy làm đứt đường dẫn tuyệt đối** | `kf_path` trỏ file không tồn tại | Thống nhất đường dẫn dữ liệu giống nhau trên mọi máy, hoặc remap (xem A5.5). Riêng việc **gộp kết quả** thì an toàn: `row_id` như nhau trên mọi máy (đã đo 127/127 trên ba lô) |
-| **Không ai chạy verify cho nhóm L mình giữ** | mới 248/873 video được kiểm chứng, 7/10 nhóm L | Bắt buộc mỗi máy chạy `02`+`03` cho phần mình, báo kết quả |
+| **Chia dữ liệu nhiều máy làm đứt đường dẫn tuyệt đối** | `kf_path` trỏ file không tồn tại | Thống nhất đường dẫn dữ liệu giống nhau trên mọi máy, hoặc remap (xem A5.5). Riêng việc **gộp kết quả** thì an toàn: `row_id` như nhau trên mọi máy (đã đo 226/226 trên bốn lô) |
+| **Không ai chạy verify cho nhóm L mình giữ** | mới 308/873 video được kiểm chứng, 7/10 nhóm L | Bắt buộc mỗi máy chạy `02`+`03` cho phần mình, báo kết quả |
 | BTC dùng cửa sổ `[s,e]` hẹp cho cả KIS | câu trả lời 0.a | Trích dày cho cả mũi nhọn 1 |
 | Tập dev lệch về L26 hoặc lệch chủ đề | Khánh soạn xong, kiểm phân bố | Lấy mẫu phân tầng theo nhóm L (A2), xem trước nội dung (A7) |
 | **Quota VLM free không đủ cho bài thi** | 3/6 model chết vì rate-limit ở đợt test 20 lượt | Chốt sớm: trả phí hay chạy model local |
 | OCR ticker sai nhiều | kết quả 0.b < 80% | Chỉ OCR vùng tiêu đề tĩnh, bỏ ticker chạy |
 | Batch 2 định dạng khác batch 1 | BTC công bố | Chạy lại `00`+`01` là biết ngay |
 | CLIP ViT-B/32 quá yếu | điểm dev KIS thấp | Tự encode lại 177k ảnh bằng model mạnh hơn (cần GPU) |
-| ~~Ảnh keyframe không khớp thứ tự CSV~~ | — | ✅ **đã loại trừ** — 203/203 khớp |
+| ~~Ảnh keyframe không khớp thứ tự CSV~~ | — | ✅ **đã loại trừ** — 282/282 khớp |
 
 ---
 
@@ -944,7 +945,7 @@ chưa từng nhìn.
    nhất hiện tại; hai phụ thuộc nặng nhất (#2, #3) đều chờ nó.
 2. **Mỗi máy — chạy `02_verify.py` + `03_verify_CLIP.py`** cho phần mình giữ
    ngay sau khi tải xong, báo kết quả về. Chưa đủ 873 video thì bảng cái mới
-   chỉ được chứng minh trên 28,4%.
+   chỉ được chứng minh trên 35,3%.
 3. **Khánh — xem trước video của ≥ 4 nhóm L khác nhau** trước khi viết tập dev
    (A7). Song song: chờ trả lời 0.a từ BTC.
 4. **TV5 — mở rộng harness VLM lên ≥ 50 câu, `--runs 3`**, và test với ngữ
@@ -959,9 +960,10 @@ chưa từng nhìn.
    **Thay bằng:** hỏi BTC câu 0.a cho ra kết quả, vì A5.6 (keyframe trùng
    lặp) làm câu này quyết định luôn chiến lược nộp bài của KIS và Q&A, không
    chỉ TRAKE.
-9. **Máy giữ L24+L30 chạy lại với `--n 139`.** Họ đã tải đủ cả 139 video của
-   hai nhóm nhưng mới kiểm 79. Chạy lại đưa độ phủ từ 162 lên **222/873
-   (25,4%)** mà không tốn thêm băng thông nào.
+9. **~~Máy giữ L24+L30 chạy lại với `--n 139`~~ — XONG.** Đã chạy, cả 139
+   video của L24 và L30 nay phủ 100% ở cả hai script. Độ phủ toàn nhóm lên
+   **308/873 (35,3%)**. Đây là mẫu cho các máy còn lại: kiểm HẾT phần mình
+   giữ, đừng dừng ở `--n` mặc định.
 
 > Mục 5, 6 và 9 là ba việc **làm được ngay hôm nay** trong khi chờ tải dữ liệu.
 > Đừng để cả nhóm ngồi chờ băng thông.

@@ -1,7 +1,7 @@
 # Số liệu Giai đoạn 0 — đo thật trên dữ liệu
 
 *Cập nhật 2026-08-09. Gộp kết quả kiểm chứng của 4 máy: L21+L22 (máy này),
-L29, L24+L30, L25+L28.*
+L29, L24+L30 (phủ 100%), L25+L28.*
 
 Dữ liệu tại `C:\Code\aic_data`. **Máy này đã tải L21 + L22** (keyframes +
 video); L23–L30 hiện chỉ có csv/clip/objects/media-info.
@@ -24,13 +24,14 @@ Kiểm chứng gộp được từ nhiều máy: xem [verify/](verify/), chạy
 | --- | --- | --- |
 | csv / clip / objects / media-info | 873 / 873 (100%) | đủ cả 10 nhóm L21–L30 |
 | keyframes / video mp4 **trên máy này** | **60 / 873 (6,9%)** | L21 + L22 |
-| **đã kiểm chứng — toàn nhóm** | **248 / 873 (28,4%)** | 7/10 nhóm L |
+| **đã kiểm chứng — toàn nhóm** | **308 / 873 (35,3%)** | 7/10 nhóm L |
 
-Còn thiếu người kiểm: **L23, L26, L27**.
+**L24 và L30 đã phủ 100%** — 43 và 96 video, kiểm hết bằng cả hai script.
+Đây là hai nhóm đầu tiên đạt mức đó, và là mẫu cho các máy còn lại: kiểm
+HẾT phần mình giữ, đừng dừng ở `--n` mặc định.
 
-Máy giữ L24+L30 đã tải đủ **cả 139 video** của hai nhóm nhưng mới kiểm 79.
-Chạy lại `--n 139` cho cả hai script là độ phủ lên **~308/873 (35%)** mà
-không cần tải thêm gì.
+Còn thiếu hẳn người kiểm: **L23, L26, L27** (539 video, trong đó L26 một mình
+đã 498).
 
 `index/problems.csv` có 813 dòng `lech_so_keyframe` — đó là **chưa tải**,
 không phải lỗi ghép. **Không máy nào có dòng `lech_so_vector`** (đây mới là
@@ -42,8 +43,8 @@ lỗi nghiêm trọng).
 
 ### 1. Bảng cái ĐÚNG — ảnh keyframe ↔ dòng CSV
 
-`02_verify.py` chạy trên 203 mẫu thuộc 7 nhóm L: **203/203 đạt**
-(202 `KHOP` + 1 `KHOP_YEU`). Cách ghép dòng CSV thứ *i* ↔ ảnh keyframe thứ
+`02_verify.py` chạy trên 282 mẫu thuộc 7 nhóm L: **282/282 đạt**
+(278 `KHOP` + 4 `KHOP_YEU`). Cách ghép dòng CSV thứ *i* ↔ ảnh keyframe thứ
 *i* ↔ `frame_idx` là chính xác.
 
 `KHOP_YEU` là phán quyết cho cảnh động: tương quan pixel dưới 0,95 nhưng
@@ -56,9 +57,9 @@ vượt dòng kề ≥ 0,30. Bằng chứng hiệu chuẩn: `L22_V013/116.jpg` c
 ### 2. Liên kết CSV ↔ clip.npy cũng ĐÚNG
 
 `03_verify_CLIP.py` encode lại frame bằng CLIP ViT-B/32 rồi so với vector đã
-lưu: **183/187 đạt, KHÔNG mẫu nào lệch chỉ số.**
+lưu: **281/286 đạt, KHÔNG mẫu nào lệch chỉ số.**
 
-- 4 mẫu `NGHI_NGO` — đúng hạng 1, cosine 0,929–0,947, cách biệt hạng 2 dương
+- 5 mẫu `NGHI_NGO` — đúng hạng 1, cosine 0,929–0,947, cách biệt hạng 2 dương
   (+0,03…+0,16). Khác biệt tiền xử lý JPEG/resize, không phải lệch chỉ số.
 - 9 mẫu `KHOP_TRUNG_LAP` — cosine ≥ 0,95 nhưng không đúng hạng 1 vì dòng
   thắng là **bản sao** của chính nó. Xem mục 6.
@@ -76,9 +77,10 @@ ngưỡng dù dữ liệu hoàn toàn đúng.
 `row_id` tuần tự, nên `row_id ↔ (video_id, kf_n)` là như nhau ở bất kỳ ai có
 đủ 873 file CSV.
 
-Đã **đo thật**, không phải suy từ code: đối chiếu ba lô kết quả của máy khác
-với `master.parquet` máy này — **127/127 dòng trùng khít** cả `video_id`,
-`kf_n`, `frame_idx` lẫn `fps` (23 dòng L29, 40 dòng L24+L30, 64 dòng L25+L28).
+Đã **đo thật**, không phải suy từ code: đối chiếu bốn lô kết quả của máy khác
+với `master.parquet` máy này — **226/226 dòng trùng khít** cả `video_id`,
+`kf_n`, `frame_idx` lẫn `fps` (23 dòng L29, 139 dòng L24+L30, 64 dòng
+L25+L28). Bốn lô, bốn lần khớp tuyệt đối.
 
 Hệ quả: kết quả của 6 người gộp được bằng `row_id`, và **không cần gửi
 `master.parquet`/`clip.npy` cho nhau** (395 MB, giống hệt nhau trừ ba cột
@@ -90,13 +92,16 @@ Hệ quả: kết quả của 6 người gộp được bằng `row_id`, và **k
 
 | fps | Số video | Đã kiểm | Kết quả |
 | --- | --- | --- | --- |
-| **26.44** | 1 (`L24_V044`) | 1/1 | pixel corr 0,9997; CLIP hạng 1, cosine 0,9891 |
+| **26.44** | 1 (`L24_V044`) | 1/1, **hai lần** | pixel corr 0,9997 và 0,9985; CLIP hạng 1, cosine 0,9891 và 0,9870 |
 | **29.97** | 30 (L25) | 17/30 | pixel corr 0,9810–0,9999; CLIP cosine 0,9878–0,9979 |
 
 `L24_V044` là mẫu khắc nghiệt nhất từng chạy: keyframe `003.jpg` ứng với
 `frame_idx=5`, tức **0,19 giây**, mà bài kiểm pixel vẫn tách được khỏi hai
 dòng kề (biên độ 0,148). Nghi vấn variable frame rate không thành hiện thực —
 `frame_idx / pts_time` đo được là **26,4380**, khớp `26.44` trong CSV.
+
+Lần chạy `--n 139` bốc trúng **một keyframe khác** của cùng video (`kf_n=10`,
+`frame_idx=83`, 3,14s) và cho **26,4331** — xác nhận độc lập lần thứ hai.
 
 Mọi hàm quy đổi giây ↔ frame vẫn **phải nhận `fps` làm tham số**, đọc từ cột
 `fps` của `master.parquet`. Rủi ro đã được chứng minh là không hiện thực,
