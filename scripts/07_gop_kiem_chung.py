@@ -35,13 +35,23 @@ DAT_PIXEL = {"KHOP", "KHOP_YEU"}
 
 def doc(ten: str) -> pd.DataFrame:
     khung = []
-    for thu_muc in sorted(VERIFY.iterdir()):
+    for thu_muc in sorted(p for p in VERIFY.iterdir() if p.is_dir()):
         f = thu_muc / ten
         if f.exists():
             d = pd.read_csv(f)
-            d["nhom"] = thu_muc.name
+            # Nhóm L lấy từ video_id, KHÔNG lấy từ tên thư mục: một máy giữ
+            # nhiều nhóm sẽ xuất chung một file (đo thật: lô L24+L30).
+            d["nhom"] = d.video_id.str[:3]
+            d["nguon"] = thu_muc.name
             khung.append(d)
-    return pd.concat(khung, ignore_index=True) if khung else pd.DataFrame()
+    if not khung:
+        return pd.DataFrame()
+    gop = pd.concat(khung, ignore_index=True)
+    trung = gop[gop.duplicated(["video_id", "nhom"], keep=False)]
+    if len(trung):
+        print(f"!! {trung.video_id.nunique()} video được nhiều nguồn cùng kiểm "
+              f"({', '.join(sorted(trung.nguon.unique()))}) — đếm một lần.\n")
+    return gop
 
 
 def main():

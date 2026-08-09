@@ -32,19 +32,18 @@ Kiểm chứng thì gộp được từ nhiều máy: xem [verify/](verify/) và
 3. **fps 26.44 là cái bẫy.** Mọi hàm quy đổi giây ↔ frame phải nhận `fps`
    làm tham số, đọc từ cột `fps` của `master.parquet`.
 
-4. **Bảng cái ĐÚNG.** `02_verify.py` chạy trên 83 video của ba nhóm L
-   (L21+L22 máy này, L29 do thành viên khác gửi): **83/83 đạt**
-   (82 KHỚP + 1 KHOP_YEU), tương quan 0,675–1,000. Cách ghép dòng CSV thứ i
-   ↔ ảnh keyframe thứ i ↔ `frame_idx` là chính xác.
-   L29 sạch nhất từ trước tới nay — toàn bộ 23 mẫu ≥ 0,9979.
+4. **Bảng cái ĐÚNG.** `02_verify.py` chạy trên 143 mẫu thuộc 5 nhóm L
+   (L21+L22 máy này; L29; L24+L30 do thành viên khác gửi): **143/143 đạt**
+   (142 KHỚP + 1 KHOP_YEU). Cách ghép dòng CSV thứ i ↔ ảnh keyframe thứ i ↔
+   `frame_idx` là chính xác.
    *Lưu ý:* chỉ kiểm được nhóm nào đã có video gốc. Tải thêm nhóm L nào thì
    chạy lại `02_verify.py` cho nhóm đó.
 
 5. **Liên kết CSV ↔ clip.npy cũng ĐÚNG.** `03_verify_CLIP.py` encode lại
-   frame bằng CLIP ViT-B/32 rồi so với vector đã lưu. Trên 83 video:
-   **82/83 đúng hạng 1**, cosine 0,9506–0,9985. Mẫu duy nhất ở hạng 2
-   (`L22_V013` kf 116) là keyframe TRÙNG LẶP — hai frame của cùng một đoạn
-   đồ họa chuyển cảnh, cosine giữa chúng 0,9787 — không phải lệch chỉ số.
+   frame bằng CLIP ViT-B/32 rồi so với vector đã lưu: **122/123 đúng hạng 1**,
+   cosine 0,9506–1,000. Mẫu duy nhất ở hạng 2 (`L22_V013` kf 116) là keyframe
+   TRÙNG LẶP — hai frame của cùng một đoạn đồ họa chuyển cảnh, cosine giữa
+   chúng 0,9787 — không phải lệch chỉ số.
 
 6. **`row_id` giống nhau trên mọi máy.** `00_discover.py` duyệt theo
    `sorted(video_id)` và `01_build_index.py` đánh `row_id` tuần tự, nên
@@ -56,6 +55,25 @@ Kiểm chứng thì gộp được từ nhiều máy: xem [verify/](verify/) và
    Hệ quả: kết quả kiểm chứng của 6 người gộp được bằng `row_id`, và
    **không cần gửi `master.parquet`/`clip.npy` cho nhau** (395 MB, giống hệt
    nhau trừ ba cột đường dẫn tuyệt đối).
+
+   Đã đối chiếu hai lô, **63/63 dòng trùng khít** cả `video_id`, `kf_n`,
+   `frame_idx` lẫn `fps`: 23 dòng L29 và 40 dòng L24+L30.
+
+7. **fps 26.44 đã hết là bẫy — nhưng 29.97 thì chưa.** `L24_V044` là video
+   duy nhất trong kho chạy 26,44 fps, và giờ đã qua cả hai bài kiểm
+   (pixel corr 0,9997; CLIP hạng 1, cosine 0,9891). Kiểm được đến mức này là
+   nhờ nó khắc nghiệt: keyframe `003.jpg` ứng với `frame_idx=5`, tức
+   **0,19 giây**, mà bài kiểm pixel vẫn phân biệt được với hai dòng kề
+   (biên độ 0,148). Nếu code có chỗ nào làm tròn 26,44 → 25 hoặc 30 thì mẫu
+   này đã trượt.
+
+   Còn lại **30 video L25 chạy 29,97 fps — chưa ai kiểm.** Đây là nhóm fps lạ
+   duy nhất còn hở, và là chỗ nguy hiểm nhất trong kho.
+
+8. **`L24_V044` là video dày keyframe nhất kho — 42 keyframe trong 35,18 giây.**
+   Ba keyframe cuối cách nhau đúng **1 frame** (928, 929, 930). Trung vị toàn
+   kho là 55 frame, nên video này lệch hẳn khỏi phân bố. Đáng chú ý cho TRAKE:
+   ở đây không cần trích dày, dữ liệu gốc đã dày sẵn.
 
    Nghĩa là vector thứ i trong `clip.npy` thật sự là vector của keyframe
    thứ i, không lệch hàng.
@@ -83,15 +101,19 @@ Tức `n` ↔ `f"{n:03d}.jpg"` ↔ `f"{n:03d}.json"`.
 | --- | --- | --- |
 | csv / clip / objects / media-info | 873 / 873 (100%) | đủ cả 10 nhóm L21–L30 |
 | keyframes / video mp4 **trên máy này** | **60 / 873 (6,9%)** | L21 + L22 |
-| **đã kiểm chứng — toàn nhóm** | **83 / 873 (9,5%)** | L21, L22, L29 — 3/10 nhóm |
+| **đã kiểm chứng — toàn nhóm** | **162 / 873 (18,6%)** | L21, L22, L24, L29, L30 — 5/10 nhóm |
 
-Còn thiếu người kiểm: **L23, L24, L25, L26, L27, L28, L30**. Riêng hai chỗ
-sau là bắt buộc vì fps lạ, sai một chỗ là hỏng mọi phép quy đổi giây ↔ frame:
+Còn thiếu người kiểm: **L23, L25, L26, L27, L28**. Riêng fps lạ — sai một chỗ
+là hỏng mọi phép quy đổi giây ↔ frame:
 
 | Nhóm | fps | Số video | Đã kiểm |
 | --- | --- | --- | --- |
-| L24 | 26.44 | 1 (`L24_V044`) | **0 — chưa ai** |
-| L25 | 29.97 | 30 | **0 — chưa ai** |
+| L24 | 26.44 | 1 (`L24_V044`) | ✅ **1/1** |
+| L25 | 29.97 | 30 | ❌ **0 — chưa ai** |
+
+Máy giữ L24+L30 đã tải đủ **cả 139 video** của hai nhóm nhưng mới kiểm 79.
+Chạy lại `--n 139` cho cả hai script là độ phủ lên **222/873 (25,4%)** mà
+không cần tải thêm gì.
 
 `index/problems.csv` có 813 dòng `lech_so_keyframe` — đó là **chưa tải**,
 không phải lỗi ghép. Không có dòng `lech_so_vector` nào (đây mới là lỗi

@@ -26,8 +26,8 @@ phải tin bằng mắt.
 
 | Chứng minh điều gì | Cách | Kết quả |
 | --- | --- | --- |
-| Ảnh keyframe thứ *i* ↔ dòng thứ *i* CSV | ffmpeg trích frame tại `pts_time`, so tương quan pixel + biên độ với dòng kề | **83/83 KHỚP** (L21+L22+L29) |
-| Vector CLIP thứ *i* ↔ dòng thứ *i* CSV | encode lại frame, so cosine + xếp hạng trong video | **82/83 đúng hạng 1**, cosine 0,951-0,999 |
+| Ảnh keyframe thứ *i* ↔ dòng thứ *i* CSV | ffmpeg trích frame tại `pts_time`, so tương quan pixel + biên độ với dòng kề | **143/143 KHỚP** (5 nhóm L) |
+| Vector CLIP thứ *i* ↔ dòng thứ *i* CSV | encode lại frame, so cosine + xếp hạng trong video | **122/123 đúng hạng 1**, cosine 0,951-1,000 |
 
 Phép thứ hai v3 không yêu cầu, nhưng cần thiết: vector CLIP nằm trong file
 `.npy` riêng, lệch hàng ở đó thì kiểm ảnh không phát hiện được — mà TV1 dùng
@@ -144,20 +144,28 @@ v3 ghi "25 và 30 lẫn lộn" — thiếu `26.44` và `29.97`. Cả hai đều 
 đổi giây↔frame **phải nhận `fps` làm tham số, cấm hardcode**. Khác biệt tồn
 tại ngay trong cùng nhóm L21 (`V001` = 30,0; `V003` = 25,0).
 
-**31 video có fps lạ, và CHƯA MÁY NÀO tải video gốc của chúng:**
+**31 video có fps lạ. Đã kiểm được 1, còn 30:**
 
 ```text
-fps 26.44: 1 video -> L24_V044
-fps 29.97: 30 video -> L25_V004, L25_V005, L25_V008, L25_V013, L25_V014, L25_V017, L25_V021, L25_V022, L25_V025, L25_V030, L25_V031, L25_V034, L25_V039, L25_V040, L25_V043, L25_V048, L25_V049, L25_V052, L25_V057, L25_V058, L25_V061, L25_V066, L25_V067, L25_V070, L25_V074, L25_V077, L25_V078, L25_V084, L25_V085, L25_V088
+fps 26.44:  1 video -> L24_V044                       ✅ ĐÃ KIỂM, ĐẠT
+fps 29.97: 30 video -> L25_V004, L25_V005, L25_V008, L25_V013, L25_V014, L25_V017, L25_V021, L25_V022, L25_V025, L25_V030, L25_V031, L25_V034, L25_V039, L25_V040, L25_V043, L25_V048, L25_V049, L25_V052, L25_V057, L25_V058, L25_V061, L25_V066, L25_V067, L25_V070, L25_V074, L25_V077, L25_V078, L25_V084, L25_V085, L25_V088    ❌ CHƯA AI KIỂM
 ```
 
-`26.44` gần như chắc chắn là **variable frame rate**. Với VFR thì
-`pts_time × fps` có thể không ra đúng cách BTC đánh số frame, mà `frame_idx`
-lại là giá trị nộp bài. Chưa kiểm được vì chưa có `.mp4` nào trong số này.
+**`26.44` đã hết là bẫy.** Máy giữ L24 tải được `L24_V044` và chạy cả hai
+script: pixel corr **0,9997**, CLIP **hạng 1** cosine 0,9891. Nghi vấn VFR
+không thành hiện thực — `frame_idx / pts_time` đo được là **26,4380**, khớp
+`26.44` trong CSV.
 
-> **Việc phải giao:** đảm bảo 31 video trên nằm trong phần tải của một máy
-> nào đó, rồi chạy `02_verify.py` riêng cho chúng. Đây là nhóm rủi ro cao
-> nhất còn lại của bảng cái. Xem PHẦN H mục 8.
+Mẫu này khắc nghiệt hơn mọi mẫu khác: keyframe `003.jpg` ứng với `frame_idx=5`,
+tức **0,19 giây**, mà bài kiểm pixel vẫn tách được khỏi hai dòng kề (biên độ
+0,148). Bất kỳ chỗ nào làm tròn 26,44 → 25 hoặc 30 đều đã làm mẫu này trượt.
+
+Hóa ra `L24_V044` cũng là **video dày keyframe nhất kho** — 42 keyframe trong
+35,18 giây, ba cái cuối cách nhau đúng **1 frame**. Đây là ngoại lệ ở đầu kia
+của phân bố so với trung vị 55 frame.
+
+> **Việc còn lại:** 30 video `29.97` của L25. Đây là nhóm rủi ro cao nhất còn
+> lại của bảng cái. Xem PHẦN H mục 8.
 
 **4. ~~Tên file object JSON không liên tục~~ — SAI, đã bác bỏ.**
 
@@ -336,9 +344,9 @@ Gợi ý chia theo nhóm L, cân bằng số video:
 
    *Vì sao gộp được:* `00_discover.py` duyệt theo `sorted(video_id)` và
    `01_build_index.py` đánh `row_id` tuần tự, nên `row_id ↔ (video_id, kf_n)`
-   là như nhau ở mọi máy có đủ 873 file CSV. **Đã đo thật** — đối chiếu 23
-   dòng L29 trong `verify_clip.csv` của máy khác với `master.parquet` máy này:
-   23/23 trùng khít cả `kf_n` lẫn `frame_idx`. Đây là điều làm cho A5.5 (đường
+   là như nhau ở mọi máy có đủ 873 file CSV. **Đã đo thật** — đối chiếu hai lô
+   của máy khác (23 dòng L29, 40 dòng L24+L30) với `master.parquet` máy này:
+   **63/63 trùng khít** cả `video_id`, `kf_n`, `frame_idx` lẫn `fps`. Đây là điều làm cho A5.5 (đường
    dẫn tuyệt đối khác nhau) **không** phá được việc gộp kết quả: đường dẫn
    khác máy, nhưng `row_id` thì không.
 3. **Ai giữ phần nào thì làm việc nặng phần đó.** Trích dày, OCR, decode video
@@ -386,7 +394,7 @@ Bốn hệ quả bắt buộc code theo:
 
 | Câu hỏi phải trả lời | Trạng thái |
 | --- | --- |
-| Ảnh keyframe thứ *i* có đúng dòng thứ *i* CSV? | ✅ **Đúng** — 83/83 trên L21+L22+L29 |
+| Ảnh keyframe thứ *i* có đúng dòng thứ *i* CSV? | ✅ **Đúng** — 143/143 trên 5 nhóm L |
 | Bao nhiêu % keyframe có object JSON? | ✅ **100%** |
 | Mật độ keyframe toàn bộ có ~109 frame? | ✅ **Không — 55 frame** |
 
@@ -804,13 +812,13 @@ chưa từng nhìn.
 | 4 | TV3 (BM25 metadata) → Bước 2 TRAKE | sai video → 0 điểm | ✅ dữ liệu đã đủ (100%) |
 | 5 | 0.c (VLM) → Bước 4 Q&A | `answer` sai định dạng → 0 điểm | 🟡 đang test |
 | 6 | TV1 (ma trận CLIP) → cả 2 mũi nhọn | cả hai mũi nhọn tắc | ✅ dữ liệu đã đủ (100%) |
-| **7** | **MỚI — tải đủ video/keyframe → #2, #3** | **hai phụ thuộc quan trọng nhất đều tắc** | ⬜ **9,5% đã kiểm chứng** |
+| **7** | **MỚI — tải đủ video/keyframe → #2, #3** | **hai phụ thuộc quan trọng nhất đều tắc** | ⬜ **18,6% đã kiểm chứng** |
 
 **Đường găng:**
 `Bảng cái ✅ → tải dữ liệu ⬜ → TV2 (trích dày) → Khánh (DP + tập dev) → GĐ3`
 
 > **Nút thắt đã dịch chuyển.** Ở v3, đường găng bắt đầu từ bảng cái. Bảng cái
-> nay đã xong và được chứng minh. Nút thắt mới là **tải dữ liệu**: chỉ 83/873
+> nay đã xong và được chứng minh. Nút thắt mới là **tải dữ liệu**: chỉ 222/873
 > video có keyframe và video gốc, mà cả #2 lẫn #3 — hai phụ thuộc nặng nhất —
 > đều cần chúng. Đây là việc cần dồn người vào ngay.
 
@@ -820,15 +828,15 @@ chưa từng nhìn.
 
 | Rủi ro | Dấu hiệu sớm | Phương án |
 | --- | --- | --- |
-| **Chia dữ liệu nhiều máy làm đứt đường dẫn tuyệt đối** | `kf_path` trỏ file không tồn tại | Thống nhất đường dẫn dữ liệu giống nhau trên mọi máy, hoặc remap (xem A5.5). Riêng việc **gộp kết quả** thì an toàn: `row_id` như nhau trên mọi máy (đã đo 23/23 trên L29) |
-| **Không ai chạy verify cho nhóm L mình giữ** | mới 83/873 video được kiểm chứng, 3/10 nhóm L | Bắt buộc mỗi máy chạy `02`+`03` cho phần mình, báo kết quả |
+| **Chia dữ liệu nhiều máy làm đứt đường dẫn tuyệt đối** | `kf_path` trỏ file không tồn tại | Thống nhất đường dẫn dữ liệu giống nhau trên mọi máy, hoặc remap (xem A5.5). Riêng việc **gộp kết quả** thì an toàn: `row_id` như nhau trên mọi máy (đã đo 63/63 trên hai lô) |
+| **Không ai chạy verify cho nhóm L mình giữ** | mới 162/873 video được kiểm chứng, 5/10 nhóm L | Bắt buộc mỗi máy chạy `02`+`03` cho phần mình, báo kết quả |
 | BTC dùng cửa sổ `[s,e]` hẹp cho cả KIS | câu trả lời 0.a | Trích dày cho cả mũi nhọn 1 |
 | Tập dev lệch về L26 hoặc lệch chủ đề | Khánh soạn xong, kiểm phân bố | Lấy mẫu phân tầng theo nhóm L (A2), xem trước nội dung (A7) |
 | **Quota VLM free không đủ cho bài thi** | 3/6 model chết vì rate-limit ở đợt test 20 lượt | Chốt sớm: trả phí hay chạy model local |
 | OCR ticker sai nhiều | kết quả 0.b < 80% | Chỉ OCR vùng tiêu đề tĩnh, bỏ ticker chạy |
 | Batch 2 định dạng khác batch 1 | BTC công bố | Chạy lại `00`+`01` là biết ngay |
 | CLIP ViT-B/32 quá yếu | điểm dev KIS thấp | Tự encode lại 177k ảnh bằng model mạnh hơn (cần GPU) |
-| ~~Ảnh keyframe không khớp thứ tự CSV~~ | — | ✅ **đã loại trừ** — 83/83 khớp |
+| ~~Ảnh keyframe không khớp thứ tự CSV~~ | — | ✅ **đã loại trừ** — 143/143 khớp |
 
 ---
 
@@ -860,7 +868,7 @@ chưa từng nhìn.
    nhất hiện tại; hai phụ thuộc nặng nhất (#2, #3) đều chờ nó.
 2. **Mỗi máy — chạy `02_verify.py` + `03_verify_CLIP.py`** cho phần mình giữ
    ngay sau khi tải xong, báo kết quả về. Chưa đủ 873 video thì bảng cái mới
-   chỉ được chứng minh trên 9,5%.
+   chỉ được chứng minh trên 18,6%.
 3. **Khánh — xem trước video của ≥ 4 nhóm L khác nhau** trước khi viết tập dev
    (A7). Song song: chờ trả lời 0.a từ BTC.
 4. **TV5 — mở rộng harness VLM lên ≥ 50 câu, `--runs 3`**, và test với ngữ
@@ -870,10 +878,13 @@ chưa từng nhìn.
 6. **TV1 — dựng ma trận CLIP + text encoder** với tag `ViT-B-32-quickgelu` và
    assert kiểm tra. Cũng **không chờ tải dữ liệu**.
 7. **Cả nhóm — chốt một bảng tên thành viên duy nhất** (TV1..TV5 + Khánh).
-8. **Giao 31 video fps lạ cho một máy cụ thể** (A5.3) và chạy `02_verify.py`
-   riêng cho chúng. Nhóm rủi ro cao nhất còn lại của bảng cái — nếu `26.44`
-   là variable frame rate thì `frame_idx` của những video đó có thể lệch, mà
-   đó chính là giá trị nộp bài.
+8. **Giao 30 video `29.97` của L25 cho một máy cụ thể** (A5.3) và chạy
+   `02_verify.py` + `03_verify_CLIP.py` riêng cho chúng. Nhóm rủi ro cao nhất
+   còn lại của bảng cái. `26.44` đã kiểm xong và đạt, nên khả năng `29.97`
+   cũng đạt là cao — nhưng chưa đo thì chưa được coi là biết.
+9. **Máy giữ L24+L30 chạy lại với `--n 139`.** Họ đã tải đủ cả 139 video của
+   hai nhóm nhưng mới kiểm 79. Chạy lại đưa độ phủ từ 162 lên **222/873
+   (25,4%)** mà không tốn thêm băng thông nào.
 
-> Mục 5 và 6 là hai việc **làm được ngay hôm nay** trong khi chờ tải dữ liệu.
+> Mục 5, 6 và 9 là ba việc **làm được ngay hôm nay** trong khi chờ tải dữ liệu.
 > Đừng để cả nhóm ngồi chờ băng thông.

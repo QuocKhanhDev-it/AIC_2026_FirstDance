@@ -2,9 +2,9 @@
 
 ## Giai đoạn 0: Bảng cái
 
-**Trạng thái: ĐÃ XONG.** `02_verify.py` cho **83/83 KHỚP (100%)** trên
-L21+L22+L29 — vượt ngưỡng 95%. Được phép sang Giai đoạn 1.
-Độ phủ kiểm chứng hiện **83/873 video (9,5%)**, 3/10 nhóm L —
+**Trạng thái: ĐÃ XONG.** `02_verify.py` cho **143/143 KHỚP (100%)** trên
+5 nhóm L — vượt ngưỡng 95%. Được phép sang Giai đoạn 1.
+Độ phủ kiểm chứng hiện **162/873 video (18,6%)**, 5/10 nhóm L —
 xem `python scripts/07_gop_kiem_chung.py`.
 
 **Kế hoạch hiện hành: [docs/Ke_hoach_AIC2026_v4.md](docs/Ke_hoach_AIC2026_v4.md)** (thay thế v3).
@@ -19,8 +19,8 @@ Số liệu đầy đủ: [dev/so_lieu_giai_doan_0.md](dev/so_lieu_giai_doan_0.m
 | keyframe trong bảng cái | **177.321** |
 | ma trận CLIP | `(177321, 512)` float32, chuẩn hóa L2 |
 | detection objects (≥ 0,3) | **1.122.384** — 6,3 / keyframe |
-| kiểm chứng bằng ffmpeg | **83/83 KHỚP** (82 KHOP + 1 KHOP_YEU) |
-| kiểm chứng vector CLIP | **82/83 đúng hạng 1** |
+| kiểm chứng bằng ffmpeg | **143/143 KHỚP** (142 KHOP + 1 KHOP_YEU) |
+| kiểm chứng vector CLIP | **122/123 đúng hạng 1** |
 
 ## Bốn con số phải nhớ
 
@@ -73,7 +73,7 @@ Chỉ `index/` cần đồng bộ giữa 6 người. Không ai phải copy video
 | --- | --- | --- |
 | csv / clip / objects / media-info | 873 / 873 (100%) | đủ cả L21–L30 |
 | keyframes / video mp4 **trên máy này** | **60 / 873 (6,9%)** | L21 + L22 |
-| **đã kiểm chứng — toàn nhóm** | **83 / 873 (9,5%)** | L21, L22, L29 |
+| **đã kiểm chứng — toàn nhóm** | **162 / 873 (18,6%)** | L21, L22, L24, L29, L30 |
 
 `problems.csv` có 813 dòng `lech_so_keyframe` — đó là **chưa tải**, không phải
 lỗi ghép. Không có dòng `lech_so_vector` nào (đây mới là lỗi nghiêm trọng).
@@ -98,8 +98,8 @@ python scripts\07_gop_kiem_chung.py
 
 **Đừng gửi `master.parquet` / `clip.npy` / `objects.parquet`** — mỗi bộ
 395 MB và giống hệt nhau trên mọi máy trừ ba cột đường dẫn tuyệt đối.
-`row_id` là như nhau ở mọi máy (đã đối chiếu thật 23/23 dòng L29 giữa hai
-máy), nên gộp bằng `row_id` là an toàn.
+`row_id` là như nhau ở mọi máy (đã đối chiếu thật 63/63 dòng của hai lô
+L29 và L24+L30), nên gộp bằng `row_id` là an toàn.
 
 ## Setup từ đầu
 
@@ -139,7 +139,7 @@ python scripts\03_verify_CLIP.py --out .\index --n 40 --group L26
 ```
 
 `02` kiểm **ảnh keyframe ↔ dòng CSV**, `03` kiểm **vector CLIP ↔ dòng CSV**.
-Trên L21+L22+L29 cả hai đều sạch: 83/83 KHỚP và 82/83 đúng hạng 1.
+Trên 5 nhóm L cả hai đều sạch: 143/143 KHỚP và 122/123 đúng hạng 1.
 
 Thời gian thực tế trên máy Windows đã đo:
 
