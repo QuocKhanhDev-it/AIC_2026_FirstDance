@@ -17,6 +17,7 @@ Script cũng thử các lệch chuẩn (dòng i-1, i+1, và các cách đánh s�
 
 Chạy:
     python 02_verify.py --out ./index --n 60
+    python 02_verify.py --out ./index --n 498 --group L26   # kiểm HẾT một nhóm
 
 Yêu cầu: ffmpeg trong PATH, pip install pillow
 """
@@ -57,13 +58,22 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", default=Path("./index"), type=Path)
     ap.add_argument("--n", type=int, default=60, help="số mẫu kiểm tra")
+    ap.add_argument("--group", default=None,
+                    help="lọc theo nhóm L, vd L26. Một máy giữ nhiều nhóm mà "
+                         "không lọc thì mẫu bị chia đều, nhóm đông nuốt hết chỗ.")
     ap.add_argument("--seed", type=int, default=0)
     a = ap.parse_args()
 
     m = pd.read_parquet(a.out / "master.parquet")
     m = m[m.kf_path.notna() & m.video_path.notna()]
+    if a.group:
+        m = m[m.video_id.str.startswith(a.group)]
     if m.empty:
-        raise SystemExit("Không có dòng nào đủ kf_path + video_path.")
+        raise SystemExit(
+            f"Không có dòng nào đủ kf_path + video_path"
+            f"{' cho nhóm ' + a.group if a.group else ''}.\n"
+            "Script này cần CẢ ảnh keyframe LẪN file .mp4. Nếu chỉ có .mp4 thì "
+            "dùng 03_verify_CLIP.py.")
 
     # lấy mẫu trải đều trên nhiều video
     rng = np.random.default_rng(a.seed)
@@ -140,7 +150,8 @@ def main():
                   f"corr={c:.3f}  {kl}")
 
     out = pd.DataFrame(res)
-    out.to_csv(a.out / "verify_report.csv", index=False)
+    ten = f"verify_report{'_' + a.group if a.group else ''}.csv"
+    out.to_csv(a.out / ten, index=False)
 
     print("\n" + "=" * 64)
     print("KẾT QUẢ")
@@ -159,8 +170,8 @@ def main():
         print("     Sửa cách ghép trong 01_build_index.py rồi chạy lại.")
     else:
         print("  -> KHÔNG KHỚP. Có thể ảnh keyframe thuộc video khác, hoặc")
-        print("     frame_idx tính theo fps khác. Xem index/verify_report.csv.")
-    print("\n  Chi tiết: index/verify_report.csv")
+        print(f"     frame_idx tính theo fps khác. Xem index/{ten}.")
+    print(f"\n  Chi tiết: index/{ten}")
     print("=" * 64)
 
 
