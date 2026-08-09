@@ -24,21 +24,16 @@ Kiểm chứng gộp được từ nhiều máy: xem [verify/](verify/), chạy
 | --- | --- | --- |
 | csv / clip / objects / media-info | 873 / 873 (100%) | đủ cả 10 nhóm L21–L30 |
 | keyframes / video mp4 **trên máy này** | **60 / 873 (6,9%)** | L21 + L22 |
-| **đã kiểm chứng — toàn nhóm** | **847 / 873 (97,0%)** | **đủ 10/10 nhóm L** |
+| **đã kiểm chứng — toàn nhóm** | **872 / 873 (99,9%)** | **đủ 10/10 nhóm L** |
 
-**Năm nhóm phủ 100%:** L23, L24, L26, L27, L30. Riêng L26 — nhóm chiếm 57%
-kho — nay kiểm đủ **498/498 video ở cả hai script**.
+**Chín nhóm phủ 100%.** Chỉ thiếu `L25_V001` — máy giữ L25 không có file
+video đó, nên 87/88 chứ không phải 88/88.
 
-Còn thiếu:
-
-| Nhóm | Video | 02 | 03 | Thiếu |
-| --- | --- | --- | --- | --- |
-| L25 | 88 | 47 | 40 | 26 video |
-| L28 | 24 | 13 | **24** | script 02 thiếu 11 |
-
-L28 đã đủ ở script 03 (phép kiểm quan trọng hơn cho `clip.npy`), chỉ script 02
-còn thiếu. Máy giữ L25+L28 chạy lại với `--n 88 --group L25` và
-`--n 24 --group L28` là xong 873/873.
+**Một mẫu duy nhất còn treo:** `L25_V004` keyframe 345/345 — bị CẢ HAI script
+gắn cờ (pixel corr 0,9321 vs dòng −1 là 0,9827; CLIP cosine 0,8710 hạng 2).
+Năm keyframe cuối video này là frame 29904–29908, liên tiếp, cách nhau 33 ms.
+Nhiều khả năng là `ffmpeg -ss` không định vị nổi ở sát mép file, nhưng **chưa
+chứng minh được**. Xem A5.7 của kế hoạch v4.
 
 `index/problems.csv` có 813 dòng `lech_so_keyframe` — đó là **chưa tải**,
 không phải lỗi ghép. **Không máy nào có dòng `lech_so_vector`** (đây mới là
@@ -50,8 +45,7 @@ lỗi nghiêm trọng).
 
 ### 1. Bảng cái ĐÚNG — ảnh keyframe ↔ dòng CSV
 
-`02_verify.py` chạy trên 821 mẫu thuộc cả 10 nhóm L: **821/821 đạt**
-(817 `KHOP` + 4 `KHOP_YEU`). Cách ghép dòng CSV thứ *i* ↔ ảnh keyframe thứ
+`02_verify.py` chạy trên 872 mẫu thuộc cả 10 nhóm L: **870/872 đạt (99,8%)**. Cách ghép dòng CSV thứ *i* ↔ ảnh keyframe thứ
 *i* ↔ `frame_idx` là chính xác.
 
 `KHOP_YEU` là phán quyết cho cảnh động: tương quan pixel dưới 0,95 nhưng
@@ -64,7 +58,7 @@ vượt dòng kề ≥ 0,30. Bằng chứng hiệu chuẩn: `L22_V013/116.jpg` c
 ### 2. Liên kết CSV ↔ clip.npy cũng ĐÚNG
 
 `03_verify_CLIP.py` encode lại frame bằng CLIP ViT-B/32 rồi so với vector đã
-lưu: **819/825 đạt, KHÔNG mẫu nào lệch chỉ số.**
+lưu: **865/872 đạt (99,2%)**.
 
 - 6 mẫu `NGHI_NGO` — đúng hạng 1, cosine 0,919–0,947, cách biệt hạng 2 dương
   (+0,03…+0,16). Khác biệt tiền xử lý JPEG/resize, không phải lệch chỉ số.

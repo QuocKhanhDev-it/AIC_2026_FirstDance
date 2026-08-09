@@ -2,10 +2,9 @@
 
 ## Giai đoạn 0: Bảng cái
 
-**Trạng thái: ĐÃ XONG.** `02_verify.py` cho **821/821 KHỚP (100%)** trên
-**cả 10/10 nhóm L** — vượt ngưỡng 95%. Được phép sang Giai đoạn 1.
-Độ phủ kiểm chứng hiện **847/873 video (97,0%)**;
-L23, L24, L26, L27, L30 phủ 100% —
+**Trạng thái: ĐÃ XONG.** `02_verify.py` cho **870/872 (99,8%)** và `03_verify_CLIP.py` cho
+**865/872 (99,2%)** — vượt xa ngưỡng 95%. Được phép sang Giai đoạn 1.
+Độ phủ kiểm chứng **872/873 video (99,9%)**, đủ 10/10 nhóm L —
 xem `python scripts/07_gop_kiem_chung.py`.
 
 **Kế hoạch hiện hành: [docs/Ke_hoach_AIC2026_v4.md](docs/Ke_hoach_AIC2026_v4.md)** (thay thế v3).
@@ -20,8 +19,8 @@ Số liệu đầy đủ: [dev/so_lieu_giai_doan_0.md](dev/so_lieu_giai_doan_0.m
 | keyframe trong bảng cái | **177.321** |
 | ma trận CLIP | `(177321, 512)` float32, chuẩn hóa L2 |
 | detection objects (≥ 0,3) | **1.122.384** — 6,3 / keyframe |
-| kiểm chứng bằng ffmpeg | **821/821 KHỚP** (817 KHOP + 4 KHOP_YEU) |
-| kiểm chứng vector CLIP | **819/825 đạt**, 0 lệch chỉ số |
+| kiểm chứng bằng ffmpeg | **870/872 đạt** (99,8%) |
+| kiểm chứng vector CLIP | **865/872 đạt** (99,2%), 1 mẫu chưa giải thích |
 
 ## Bốn con số phải nhớ
 
@@ -74,7 +73,7 @@ Chỉ `index/` cần đồng bộ giữa 6 người. Không ai phải copy video
 | --- | --- | --- |
 | csv / clip / objects / media-info | 873 / 873 (100%) | đủ cả L21–L30 |
 | keyframes / video mp4 **trên máy này** | **60 / 873 (6,9%)** | L21 + L22 |
-| **đã kiểm chứng — toàn nhóm** | **847 / 873 (97,0%)** | 5 nhóm phủ 100%; còn L25 và L28 |
+| **đã kiểm chứng — toàn nhóm** | **872 / 873 (99,9%)** | chỉ thiếu `L25_V001` |
 
 `problems.csv` có 813 dòng `lech_so_keyframe` — đó là **chưa tải**, không phải
 lỗi ghép. Không có dòng `lech_so_vector` nào (đây mới là lỗi nghiêm trọng).
@@ -141,8 +140,8 @@ python scripts\03_verify_CLIP.py --out .\index --n 40 --group L26
 ```
 
 `02` kiểm **ảnh keyframe ↔ dòng CSV**, `03` kiểm **vector CLIP ↔ dòng CSV**.
-Trên cả 10 nhóm L đều sạch: 821/821 KHỚP và 819/825 đạt, không mẫu nào
-lệch chỉ số.
+Trên cả 10 nhóm L: 870/872 và 865/872 đạt. Một mẫu duy nhất chưa giải
+thích được (`L25_V004`, keyframe cuối video) — xem A5.7.
 
 Thời gian thực tế trên máy Windows đã đo:
 

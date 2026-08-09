@@ -26,16 +26,15 @@ phải tin bằng mắt.
 
 | Chứng minh điều gì | Cách | Kết quả |
 | --- | --- | --- |
-| Ảnh keyframe thứ *i* ↔ dòng thứ *i* CSV | ffmpeg trích frame tại `pts_time`, so tương quan pixel + biên độ với dòng kề | **821/821 KHỚP** (10/10 nhóm L) |
-| Vector CLIP thứ *i* ↔ dòng thứ *i* CSV | encode lại frame, so cosine + xếp hạng trong video | **819/825 đạt**, 0 lệch chỉ số |
+| Ảnh keyframe thứ *i* ↔ dòng thứ *i* CSV | ffmpeg trích frame tại `pts_time`, so tương quan pixel + biên độ với dòng kề | **870/872 đạt** (99,8%) |
+| Vector CLIP thứ *i* ↔ dòng thứ *i* CSV | encode lại frame, so cosine + xếp hạng trong video | **865/872 đạt** (99,2%) |
 
 Phép thứ hai v3 không yêu cầu, nhưng cần thiết: vector CLIP nằm trong file
 `.npy` riêng, lệch hàng ở đó thì kiểm ảnh không phát hiện được — mà TV1 dùng
 trực tiếp vector này.
 
-*Phạm vi:* **847/873 video (97,0%)**, đủ cả 10/10 nhóm L. **Năm nhóm phủ
-100%**: L23, L24, L26, L27, L30. Chỉ còn L25 (62/88) và L28 (script 03 đủ
-24/24, script 02 mới 13/24). Mỗi máy tải thêm nhóm L nào thì chạy lại hai script đó
+*Phạm vi:* **872/873 video (99,9%)**, đủ cả 10/10 nhóm L. Chỉ thiếu
+`L25_V001` — máy giữ L25 không có file video đó. Mỗi máy tải thêm nhóm L nào thì chạy lại hai script đó
 cho nhóm đó rồi gửi hai file kết quả về (xem `scripts/07_gop_kiem_chung.py`).
 
 6 mẫu `NGHI_NGO` của script 03 đều **đúng hạng 1** với cách biệt dương
@@ -240,6 +239,44 @@ lệch chỉ số thật nghĩa là `clip[row_id]` là vector của một **cả
 đó cosine tụt xuống 0,3–0,7 chứ không thể ≥ 0,95. Nên cosine cao đã đủ kết
 luận ghép đúng, bất kể thứ hạng. Phán quyết mới `KHOP_TRUNG_LAP` dành cho
 trường hợp cosine ≥ 0,95 nhưng hạng > 1 vì dòng thắng là bản sao.
+
+---
+
+### A5.7 — CỤM FRAME LIÊN TIẾP, và mẫu duy nhất chưa giải thích được
+
+Lô cuối (L25) lộ ra hiện tượng thứ hai, khác với A5.6. Đo trên toàn kho:
+
+| Chỉ số | Giá trị |
+| --- | --- |
+| Cặp keyframe cách nhau **≤ 2 frame** | **10.845** (6,12% toàn kho) |
+| Số video có ít nhất một cặp như vậy | **745 / 873** |
+| Nằm ở 5 keyframe **cuối** video | 494 cặp (4,6%) — thuộc **132 video** |
+
+Cách nhau 1 frame ở 30 fps là **33 mili giây**. `ffmpeg -ss` không định vị
+chính xác đến mức đó, nhất là ở sát cuối file. Nên phép kiểm chứng có thể
+báo động giả ở những chỗ này — nhưng **`frame_idx` trong bảng cái vẫn đúng**,
+và đó mới là giá trị nộp bài.
+
+**Mẫu duy nhất chưa giải thích được: `L25_V004`, keyframe 345/345.**
+
+Đây là mẫu **duy nhất trong 872** bị **cả hai script độc lập cùng gắn cờ**:
+
+| Phép kiểm | Kết quả |
+| --- | --- |
+| 02 (pixel) | corr với đúng dòng **0,9321**, với dòng −1 **0,9827** → `LECH_INDEX` |
+| 03 (CLIP) | cosine với đúng dòng **0,8710**, hạng 2/345 → dưới ngưỡng 0,95 |
+
+Năm keyframe cuối của video này là frame **29904, 29905, 29906, 29907, 29908**
+— liên tiếp, mỗi cái cách nhau 33 ms. Đây là keyframe **cuối cùng của file**.
+
+Giải thích khả dĩ nhất: `ffmpeg -ss 997.964` ở sát mép file trả về frame kề
+chứ không đúng frame. Nhưng **chưa chứng minh được** — máy này không có file
+`.mp4` của L25.
+
+> **Việc phải giao:** máy giữ L25 chạy `02_verify.py` riêng cho `L25_V004`
+> với vài keyframe ở **giữa** video. Nếu chúng khớp, đây là hiện tượng mép
+> file và bảng cái đúng. Nếu chúng cũng lệch, video này lệch chỉ số thật và
+> phải xử lý riêng. **Một video trên 873 — ảnh hưởng tối đa 0,11% kho.**
 
 ---
 
@@ -477,7 +514,7 @@ Bốn hệ quả bắt buộc code theo:
 
 | Câu hỏi phải trả lời | Trạng thái |
 | --- | --- |
-| Ảnh keyframe thứ *i* có đúng dòng thứ *i* CSV? | ✅ **Đúng** — 821/821 trên 10/10 nhóm L |
+| Ảnh keyframe thứ *i* có đúng dòng thứ *i* CSV? | ✅ **Đúng** — 870/872, phủ 99,9% kho |
 | Bao nhiêu % keyframe có object JSON? | ✅ **100%** |
 | Mật độ keyframe toàn bộ có ~109 frame? | ✅ **Không — 55 frame** |
 
@@ -895,7 +932,7 @@ chưa từng nhìn.
 | 4 | TV3 (BM25 metadata) → Bước 2 TRAKE | sai video → 0 điểm | ✅ dữ liệu đã đủ (100%) |
 | 5 | 0.c (VLM) → Bước 4 Q&A | `answer` sai định dạng → 0 điểm | 🟡 đang test |
 | 6 | TV1 (ma trận CLIP) → cả 2 mũi nhọn | cả hai mũi nhọn tắc | ✅ dữ liệu đã đủ (100%) |
-| **7** | **MỚI — tải đủ video/keyframe → #2, #3** | **hai phụ thuộc quan trọng nhất đều tắc** | ✅ **97,0% đã kiểm chứng** |
+| **7** | **MỚI — tải đủ video/keyframe → #2, #3** | **hai phụ thuộc quan trọng nhất đều tắc** | ✅ **99,9% đã kiểm chứng** |
 
 **Đường găng:**
 `Bảng cái ✅ → tải dữ liệu ⬜ → TV2 (trích dày) → Khánh (DP + tập dev) → GĐ3`
@@ -912,14 +949,14 @@ chưa từng nhìn.
 | Rủi ro | Dấu hiệu sớm | Phương án |
 | --- | --- | --- |
 | **Chia dữ liệu nhiều máy làm đứt đường dẫn tuyệt đối** | `kf_path` trỏ file không tồn tại | Thống nhất đường dẫn dữ liệu giống nhau trên mọi máy, hoặc remap (xem A5.5). Riêng việc **gộp kết quả** thì an toàn: `row_id` như nhau trên mọi máy (đã đo 765/765 trên năm lô) |
-| **Không ai chạy verify cho nhóm L mình giữ** | 847/873 video được kiểm chứng (97,0%), đủ 10/10 nhóm L | Bắt buộc mỗi máy chạy `02`+`03` cho phần mình, báo kết quả |
+| **Không ai chạy verify cho nhóm L mình giữ** | 872/873 video được kiểm chứng (99,9%) | Bắt buộc mỗi máy chạy `02`+`03` cho phần mình, báo kết quả |
 | BTC dùng cửa sổ `[s,e]` hẹp cho cả KIS | câu trả lời 0.a | Trích dày cho cả mũi nhọn 1 |
 | Tập dev lệch về L26 hoặc lệch chủ đề | Khánh soạn xong, kiểm phân bố | Lấy mẫu phân tầng theo nhóm L (A2), xem trước nội dung (A7) |
 | **Quota VLM free không đủ cho bài thi** | 3/6 model chết vì rate-limit ở đợt test 20 lượt | Chốt sớm: trả phí hay chạy model local |
 | OCR ticker sai nhiều | kết quả 0.b < 80% | Chỉ OCR vùng tiêu đề tĩnh, bỏ ticker chạy |
 | Batch 2 định dạng khác batch 1 | BTC công bố | Chạy lại `00`+`01` là biết ngay |
 | CLIP ViT-B/32 quá yếu | điểm dev KIS thấp | Tự encode lại 177k ảnh bằng model mạnh hơn (cần GPU) |
-| ~~Ảnh keyframe không khớp thứ tự CSV~~ | — | ✅ **đã loại trừ** — 821/821 khớp |
+| ~~Ảnh keyframe không khớp thứ tự CSV~~ | — | ✅ **đã loại trừ** — 870/872 khớp |
 
 ---
 
@@ -951,7 +988,7 @@ chưa từng nhìn.
    nhất hiện tại; hai phụ thuộc nặng nhất (#2, #3) đều chờ nó.
 2. **Mỗi máy — chạy `02_verify.py` + `03_verify_CLIP.py`** cho phần mình giữ
    ngay sau khi tải xong, báo kết quả về. Chưa đủ 873 video thì bảng cái mới
-   được chứng minh trên 97,0%.
+   được chứng minh trên 99,9%.
 3. **Khánh — xem trước video của ≥ 4 nhóm L khác nhau** trước khi viết tập dev
    (A7). Song song: chờ trả lời 0.a từ BTC.
 4. **TV5 — mở rộng harness VLM lên ≥ 50 câu, `--runs 3`**, và test với ngữ
