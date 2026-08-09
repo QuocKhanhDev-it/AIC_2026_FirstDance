@@ -1,0 +1,17 @@
+[
+  {
+    "model_id": "easyocr_det_vietocr",
+    "text_type": "static_text",
+    "samples": 1,
+    "cer_norm": 0.0,
+    "cer_ci_low": 0.0,
+    "cer_ci_high": 0.0,
+    "character_accuracy": 1.0,
+    "wer_norm": 0.0,
+    "exact_norm": 1.0,
+    "detection_recall_iou50": 1.0,
+    "latency_median_sec": 0.3216004999994766,
+    "latency_p95_sec": 0.3216004999994766,
+    "vram_peak_gb": 0.753654956817627
+  }
+]

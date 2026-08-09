@@ -1,0 +1,16 @@
+schema_version: 1
+seed: 2026
+device: cuda
+asr:
+- id: phowhisper_small
+  family: transformers_whisper
+  repo_id: vinai/PhoWhisper-small
+  enabled: true
+asr_generation:
+  language: vi
+  task: transcribe
+  batch_size: 1
+  num_beams: 5
+  do_sample: false
+  temperature: 0.0
+  return_timestamps: true

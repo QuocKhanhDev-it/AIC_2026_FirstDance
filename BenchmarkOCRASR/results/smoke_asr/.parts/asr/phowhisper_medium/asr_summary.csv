@@ -1,0 +1,2 @@
+﻿model_id,clips,wer_norm,wer_ci_low,wer_ci_high,cer_norm,timestamp_valid_rate,timestamp_coverage,rtf_median,rtf_p95,vram_peak_gb
+phowhisper_medium,1,1.4210526315789473,1.4210526315789473,1.4210526315789473,1.4789272030651341,0.0,0.0,0.5160529266666951,0.5160529266666951,2.3567733764648438
