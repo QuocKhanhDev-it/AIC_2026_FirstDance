@@ -1,7 +1,7 @@
 # Số liệu Giai đoạn 0 — đo thật trên dữ liệu
 
-*Cập nhật 2026-08-09. Gộp kết quả kiểm chứng của 4 máy: L21+L22 (máy này),
-L29, L24+L30 (phủ 100%), L25+L28.*
+*Cập nhật 2026-08-09. Gộp kết quả kiểm chứng của 5 máy: L21+L22 (máy này),
+L29, L24+L30 (phủ 100%), L25+L28, L23+L26+L27.*
 
 Dữ liệu tại `C:\Code\aic_data`. **Máy này đã tải L21 + L22** (keyframes +
 video); L23–L30 hiện chỉ có csv/clip/objects/media-info.
@@ -24,14 +24,23 @@ Kiểm chứng gộp được từ nhiều máy: xem [verify/](verify/), chạy
 | --- | --- | --- |
 | csv / clip / objects / media-info | 873 / 873 (100%) | đủ cả 10 nhóm L21–L30 |
 | keyframes / video mp4 **trên máy này** | **60 / 873 (6,9%)** | L21 + L22 |
-| **đã kiểm chứng — toàn nhóm** | **308 / 873 (35,3%)** | 7/10 nhóm L |
+| **đã kiểm chứng — toàn nhóm** | **390 / 873 (44,7%)** | **đủ 10/10 nhóm L** |
 
-**L24 và L30 đã phủ 100%** — 43 và 96 video, kiểm hết bằng cả hai script.
-Đây là hai nhóm đầu tiên đạt mức đó, và là mẫu cho các máy còn lại: kiểm
-HẾT phần mình giữ, đừng dừng ở `--n` mặc định.
+**Không nhóm L nào còn là vùng trắng.** L24 và L30 phủ 100% (43 và 96 video,
+kiểm hết bằng cả hai script) — đó là mẫu cho các máy còn lại: kiểm HẾT phần
+mình giữ, đừng dừng ở `--n` mặc định.
 
-Còn thiếu hẳn người kiểm: **L23, L26, L27** (539 video, trong đó L26 một mình
-đã 498).
+Mỏng nhất hiện nay:
+
+| Nhóm | Video | Đã kiểm (02 / 03) |
+| --- | --- | --- |
+| L27 | 16 | 3 / 1 |
+| L23 | 25 | 3 / 3 |
+| L28 | 24 | 13 / 24 |
+| L26 | 498 | 46 / 31 |
+
+L26 chiếm 57% kho mà mới kiểm ~9% số video của nó — đây là chỗ đáng bổ sung
+nhất tiếp theo.
 
 `index/problems.csv` có 813 dòng `lech_so_keyframe` — đó là **chưa tải**,
 không phải lỗi ghép. **Không máy nào có dòng `lech_so_vector`** (đây mới là
@@ -43,8 +52,8 @@ lỗi nghiêm trọng).
 
 ### 1. Bảng cái ĐÚNG — ảnh keyframe ↔ dòng CSV
 
-`02_verify.py` chạy trên 282 mẫu thuộc 7 nhóm L: **282/282 đạt**
-(278 `KHOP` + 4 `KHOP_YEU`). Cách ghép dòng CSV thứ *i* ↔ ảnh keyframe thứ
+`02_verify.py` chạy trên 334 mẫu thuộc cả 10 nhóm L: **334/334 đạt**
+(330 `KHOP` + 4 `KHOP_YEU`). Cách ghép dòng CSV thứ *i* ↔ ảnh keyframe thứ
 *i* ↔ `frame_idx` là chính xác.
 
 `KHOP_YEU` là phán quyết cho cảnh động: tương quan pixel dưới 0,95 nhưng
@@ -57,7 +66,7 @@ vượt dòng kề ≥ 0,30. Bằng chứng hiệu chuẩn: `L22_V013/116.jpg` c
 ### 2. Liên kết CSV ↔ clip.npy cũng ĐÚNG
 
 `03_verify_CLIP.py` encode lại frame bằng CLIP ViT-B/32 rồi so với vector đã
-lưu: **281/286 đạt, KHÔNG mẫu nào lệch chỉ số.**
+lưu: **316/321 đạt, KHÔNG mẫu nào lệch chỉ số.**
 
 - 5 mẫu `NGHI_NGO` — đúng hạng 1, cosine 0,929–0,947, cách biệt hạng 2 dương
   (+0,03…+0,16). Khác biệt tiền xử lý JPEG/resize, không phải lệch chỉ số.
@@ -77,10 +86,10 @@ ngưỡng dù dữ liệu hoàn toàn đúng.
 `row_id` tuần tự, nên `row_id ↔ (video_id, kf_n)` là như nhau ở bất kỳ ai có
 đủ 873 file CSV.
 
-Đã **đo thật**, không phải suy từ code: đối chiếu bốn lô kết quả của máy khác
-với `master.parquet` máy này — **226/226 dòng trùng khít** cả `video_id`,
+Đã **đo thật**, không phải suy từ code: đối chiếu năm lô kết quả của máy khác
+với `master.parquet` máy này — **261/261 dòng trùng khít** cả `video_id`,
 `kf_n`, `frame_idx` lẫn `fps` (23 dòng L29, 139 dòng L24+L30, 64 dòng
-L25+L28). Bốn lô, bốn lần khớp tuyệt đối.
+L25+L28, 35 dòng L23+L26+L27). Năm lô, năm lần khớp tuyệt đối.
 
 Hệ quả: kết quả của 6 người gộp được bằng `row_id`, và **không cần gửi
 `master.parquet`/`clip.npy` cho nhau** (395 MB, giống hệt nhau trừ ba cột
@@ -194,6 +203,30 @@ mỗi lần mở file. Đã đổi sang `ThreadPoolExecutor` 24 luồng: **253 f
 
 Chi phí một lần: xong `objects.parquet` (2,7 MB) thì không đụng lại 177k
 file JSON nữa.
+
+## Hai điểm còn treo ở lô L23+L26+L27
+
+**1. Máy đó thiếu ảnh keyframe L21.** `02_verify.py` báo 8 dòng
+`loi_doc_anh: No such file or directory` cho `Keyframes_L21`, và
+`03_verify_CLIP.py` báo 5 dòng `khong_trich_duoc`. Đây là **sự cố tải dữ liệu
+trên máy đó**, không phải lỗi bảng cái — L21 đã được máy khác kiểm 29/29 đạt.
+Người giữ máy nên tải lại gói `Keyframes_L21` và kiểm lại `Videos_L21`.
+
+**2. Cột `kf_name` rỗng trong `verify_report.csv` của họ.** Theo
+`01_build_index.py` dòng 104 và 108, `kf_name` và `kf_path` cùng lấy từ một
+biến `kf` nên phải cùng rỗng hoặc cùng có. Mà `02_verify.py` lọc
+`kf_path.notna()`, tức những dòng đó phải có `kf_path`. Tôi **chưa giải thích
+được** mâu thuẫn này từ code hiện tại.
+
+Điều đó **không làm hỏng kết quả**: `corr` được tính từ ảnh đọc ở `kf_path`
+chứ không phải `kf_name`, và ba phép kiểm độc lập đều sạch —
+
+- `row_id` khớp `master.parquet` 35/35 (cả `kf_n`, `frame_idx`, `pts_time`, `fps`);
+- `(video_id, frame_idx)` của script 02 tồn tại trong bảng cái 52/52;
+- công thức `bien_do = corr − max(dòng kề)` khớp **52/52**, đúng logic
+  `02_verify.py`.
+
+Vẫn nên hỏi người gửi xem họ chạy đúng bản script trong repo không.
 
 ## Vặt vãnh nhưng hay vấp
 

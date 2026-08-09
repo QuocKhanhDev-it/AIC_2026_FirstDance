@@ -50,6 +50,18 @@ def doc(ten: str) -> pd.DataFrame:
     if not khung:
         return pd.DataFrame()
     gop = pd.concat(khung, ignore_index=True)
+
+    # Mẫu KHÔNG kiểm được (thiếu file ảnh, ffmpeg không trích được frame) là
+    # sự cố dữ liệu cục bộ của máy chạy, không phải bảng cái sai. Tách ra khỏi
+    # cả tử số lẫn mẫu số, nhưng vẫn báo để người đó biết mà tải lại.
+    hong = gop.ket_luan.str.startswith(("loi_doc_anh", "khong_trich_duoc"))
+    if hong.any():
+        print(f"!! {int(hong.sum())} mẫu KHÔNG kiểm được (thiếu ảnh / ffmpeg lỗi) "
+              f"ở {', '.join(sorted(gop.loc[hong, 'nguon'].unique()))}:")
+        print("   " + ", ".join(sorted(gop.loc[hong, "video_id"].unique())[:12]))
+        print("   Đây là sự cố tải dữ liệu của máy đó, không phải lỗi bảng cái.\n")
+        gop = gop[~hong].reset_index(drop=True)
+
     trung = gop[gop.duplicated(["video_id", "nhom"], keep=False)]
     if len(trung):
         print(f"!! {trung.video_id.nunique()} video được nhiều nguồn cùng kiểm "

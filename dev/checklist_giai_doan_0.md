@@ -7,7 +7,7 @@ Theo PHẦN 6 của `HUONG_DAN_GIAI_DOAN_0.md`. Đủ 8 gạch mới mở Giai �
 | 1 | `paths.parquet` phủ ≥ 99% video ở `csv`, `clip`, `keyframe_dir` | ⚠️ **một phần** |
 | 2 | `master.parquet` dựng xong, không còn lỗi `lech_so_vector` | ✅ **đạt** |
 | 3 | `clip.npy` shape `(N, 512)`, `N` = số dòng `master` | ✅ **đạt** |
-| 4 | `verify_report.csv` cho ≥ 95% `KHOP` | ✅ **đạt — 282/282** |
+| 4 | `verify_report.csv` cho ≥ 95% `KHOP` | ✅ **đạt — 334/334** |
 | 5 | Ghi lại 4 con số vào tài liệu nhóm | ✅ **đạt** |
 | 6 | `index/` đã lên Drive, cả 6 người tải được | ⬜ **chưa** |
 | 7 | Câu hỏi về cửa sổ `[s,e]` đã gửi BTC | ⬜ **chưa** |
@@ -20,9 +20,9 @@ máy này mới **6,9%** (60/873) vì mới tải `Keyframes_L21` + `Keyframes_L
 Không phải lỗi, chỉ là chưa tải xong. Gạch này sẽ tự đạt khi tải hết các gói
 Keyframes.
 
-Tính cả kết quả thành viên khác gửi về thì **308/873 video (35,3%) đã được
-kiểm chứng**, thuộc 7/10 nhóm L. **L24 và L30 đã phủ 100%** — hai nhóm đầu
-tiên kiểm hết mọi video. Còn thiếu hẳn L23, L26, L27. Chạy `python scripts/07_gop_kiem_chung.py`
+Tính cả kết quả thành viên khác gửi về thì **390/873 video (44,7%) đã được
+kiểm chứng**, và **cả 10/10 nhóm L nay đều có mẫu**. L24 và L30 phủ 100%.
+Mỏng nhất là L27 (1–3/16) và L23 (3/25). Chạy `python scripts/07_gop_kiem_chung.py`
 để xem bảng độ phủ mới nhất.
 
 **2 — đạt.** `problems.csv` có 844 dòng nhưng **toàn bộ là `lech_so_keyframe`**
@@ -32,7 +32,7 @@ nghiêm trọng mà hướng dẫn cảnh báo.
 **3 — đạt.** `clip.npy` = `(177321, 512)` float32 chuẩn L2. `master.parquet`
 = 177.321 dòng. Khớp chính xác.
 
-**4 — đạt.** 282/282 mẫu đạt trên 7 nhóm L (278 `KHOP` + 4 `KHOP_YEU`).
+**4 — đạt.** 334/334 mẫu đạt trên cả 10 nhóm L (330 `KHOP` + 4 `KHOP_YEU`).
 L29 và L24+L30 do máy khác chạy rồi gửi về. Mẫu đáng giá nhất là
 `L24_V044/003.jpg` — video 26,44 fps duy nhất của kho, keyframe ứng với
 `frame_idx=5` tức 0,19 giây, vẫn đạt corr 0,9997 và phân biệt được với hai
