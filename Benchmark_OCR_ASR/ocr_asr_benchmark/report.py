@@ -19,14 +19,17 @@ def _winner_ocr(frame: pd.DataFrame, config: dict[str, Any]) -> tuple[str | None
     if frame.empty:
         return None, {"reason": "no successful OCR results"}
     static = frame[frame.text_type == "static_text"].copy()
-    eligible = set(static.loc[static.character_accuracy >= config["ocr_static_accuracy_threshold"], "model_id"])
-    if not eligible:
-        return None, {"reason": "no OCR model meets static character accuracy threshold"}
-    combined = frame[frame.model_id.isin(eligible)].groupby("model_id", as_index=False).agg(
-        cer_norm=("cer_norm", "mean"), latency=("latency_median_sec", "mean"),
-        vram=("vram_peak_gb", "max"),
-    ).sort_values(["cer_norm", "latency", "vram"])
-    winner = str(combined.iloc[0].model_id)
+    minimum = int(config.get('ocr_static_minimum_for_selection', 50))
+    if static.empty or int(static.samples.min()) < minimum:
+        return None, {
+            'reason': f'insufficient static samples; at least {minimum} per model are required',
+            'static_samples_per_model': 0 if static.empty else int(static.samples.min()),
+        }
+    ranked = static.sort_values(
+        ['wer_norm', 'exact_norm', 'latency_median_sec', 'vram_peak_gb'],
+        ascending=[True, False, True, True],
+    )
+    winner = str(ranked.iloc[0].model_id)
     ticker = frame[(frame.model_id == winner) & (frame.text_type == "ticker_scrolling")]
     ticker_samples = int(ticker.samples.sum()) if not ticker.empty else 0
     ticker_status = "inconclusive" if ticker_samples < config["ocr_ticker_minimum_for_conclusion"] else "measured"
@@ -81,7 +84,7 @@ def generate_report(output_dir: Path = BENCH_ROOT / "results") -> Path:
         "conclusion": {
             "ocr": {"selected_model": ocr_winner, **ocr_notes},
             "asr": {"selected_model": asr_winner, **asr_notes},
-            "selection_policy": "accuracy_first; latency then VRAM for ties",
+            "selection_policy": "OCR: normalized WER, Exact, latency, VRAM; ASR: WER and timestamp gates",
         }
     }
     report = f"""# OCR & ASR Benchmark Summary — L29

@@ -7,6 +7,7 @@ asr_clip_starts_sec: [120, 300, 540, 780]
 asr_clip_duration_sec: 30
 ocr_ticker_minimum_for_conclusion: 10
 ocr_static_accuracy_threshold: 0.80
+ocr_static_minimum_for_selection: 50
 coverage_threshold: 0.95
 asr_timestamp_validity_threshold: 1.0
 accuracy_tie_percentage_points: 1.0

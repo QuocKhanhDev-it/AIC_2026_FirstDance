@@ -69,3 +69,47 @@ Trên máy hiện tại, Paddle báo checkpoint chạy được nhưng cuDNN run
 ```powershell
 ..\.venv\Scripts\python.exe -m pytest -q
 ```
+
+## OCR benchmark v2 cho BM25 — L21 + L29
+
+V2 giữ nguyên ASR, cố định EasyOCR detector và chỉ chốt recognizer trên crop ground-truth. Metric chính là corpus WER sau đúng tokenizer BM25; Exact là tiêu chí phụ, CER chỉ còn để chẩn đoán.
+
+### 1. Gán nhãn 100 positive + 100 negative
+
+```powershell
+..\.venv\Scripts\python.exe scripts\prepare_ocr_v2.py prepare
+# Tùy chọn: sinh box/text nháp trên chính 400 frame đã lấy ngẫu nhiên; không chọn mẫu bằng score
+..\.venv\Scripts\python.exe scripts\prepare_ocr_v2.py draft
+# Duyệt eval_data/ocr_v2/review.csv cùng contact_sheets, sau đó:
+..\.venv\Scripts\python.exe scripts\prepare_ocr_v2.py import
+..\.venv\Scripts\python.exe scripts\prepare_ocr_v2.py finalize
+..\.venv\Scripts\python.exe scripts\validate_ocr_v2.py --require-approved
+```
+
+Mỗi dòng được tính phải có `review_status=approved` và `second_review_status=approved`. Positive cần `bbox_xyxy`, `text_raw` và `semantic_type`; negative dùng `no_target_text` hoặc `no_text_anywhere`. Ticker không được gán positive.
+
+### 2. Chạy recognizer-only và gate
+
+```powershell
+..\.venv\Scripts\python.exe run_ocr_v2.py recognizer
+```
+
+Sau khi duyệt contact sheet dev, điền ROI chuẩn hóa cho L21/L29 trong `configs/roi_v2.yaml`, đổi `review_status` thành `approved`, rồi chạy:
+
+```powershell
+..\.venv\Scripts\python.exe run_ocr_v2.py gate
+```
+
+Threshold chỉ được chọn trên dev. Holdout phải đạt false-positive ≤ 5% và recall ≥ 80%.
+
+### 3. Đo giá trị tăng thêm so với metadata
+
+```powershell
+..\.venv\Scripts\python.exe scripts\prepare_ocr_queries.py prepare
+# Viết lại và duyệt 40 query trong retrieval_queries_review.csv
+..\.venv\Scripts\python.exe scripts\prepare_ocr_queries.py import
+..\.venv\Scripts\python.exe scripts\prepare_ocr_queries.py validate
+..\.venv\Scripts\python.exe run_ocr_retrieval.py --model-id vietocr_vgg_transformer
+```
+
+Chỉ chạy toàn bộ 177.321 keyframe khi kết luận là `selected_for_full_run`. Hai trạng thái dừng là `drop_ocr_channel_false_positive` và `drop_ocr_channel_no_retrieval_gain`.

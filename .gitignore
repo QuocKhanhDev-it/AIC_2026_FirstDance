@@ -31,6 +31,8 @@ data/
 cache/
 *.log
 .ipynb_checkpoints/
+BenchmarkOCRASR/eval_data/ocr_v2/contact_sheets/
+BenchmarkOCRASR/results/v2/.parts/
 
 # ---- IDE / OS ----
 .vscode/
