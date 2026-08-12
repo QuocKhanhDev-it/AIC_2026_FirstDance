@@ -18,6 +18,8 @@ xem `python scripts/07_gop_kiem_chung.py`.
 Toàn bộ tài liệu ở [docs/](docs/).
 
 Số liệu đầy đủ: [dev/so_lieu_giai_doan_0.md](dev/so_lieu_giai_doan_0.md)
+Máy có GPU: [docs/06_ke_hoach_encode_GPU.md](docs/06_ke_hoach_encode_GPU.md) —
+bảng kế hoạch encode model mạnh hơn `ViT-B/32`.
 
 | Chỉ số | Giá trị |
 | --- | --- |
