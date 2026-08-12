@@ -10,14 +10,16 @@
 
 | | Kết quả |
 | --- | --- |
-| Độ phủ kiểm chứng | **872 / 873 video (99,9%)** — đủ 10/10 nhóm L |
-| Script 02 — ảnh keyframe ↔ dòng CSV | **870 / 872 đạt (99,8%)** |
-| Script 03 — vector CLIP ↔ dòng CSV | **865 / 872 đạt (99,2%)** |
-| Mẫu chưa giải thích được | **1** (`L25_V004`, keyframe cuối video) |
+| Độ phủ kiểm chứng | **873 / 873 video — 100%** · đủ 10/10 nhóm L |
+| Script 02 — ảnh keyframe ↔ dòng CSV | **871 / 873 đạt (99,8%)** |
+| Script 03 — vector CLIP ↔ dòng CSV | **863 / 873 đạt (98,9%)** |
+| Lệch chỉ số thật | **0** |
 
-Ngưỡng để qua Giai đoạn 0 là 95%. Ta ở **99,8%**. Bảng cái đúng.
+Ngưỡng để qua Giai đoạn 0 là 95%. Ta ở **99,8% trên toàn bộ kho**.
 
-Chỉ thiếu `L25_V001` — máy giữ L25 không có file video đó.
+**Không mẫu nào sống sót qua truy ngược với tư cách lệch chỉ số thật.** Mọi
+cảnh báo đều quy về một trong hai đặc điểm của kho — keyframe trùng lặp
+(A5.6) hoặc cụm frame liên tiếp (A5.7).
 
 ### 1.2 Bốn con số phải nhớ
 
@@ -44,6 +46,15 @@ khác được**, không cần hiệu chuẩn chéo.
 và đạt. `L24_V044` — video 26,44 fps duy nhất — được xác nhận **hai lần độc
 lập** trên hai keyframe khác nhau, cho tỷ số 26,4380 và 26,4331.
 
+**d) Cách bác bỏ một cảnh báo: chạy lại cùng video với keyframe khác.**
+`L25_V004` từng là mẫu duy nhất bị cả hai script cùng gắn cờ. Lần chạy sau bốc
+trúng keyframe giữa video và mọi thứ sáng tỏ:
+
+| Lần | keyframe | vị trí | 02 corr | 02 biên độ | 03 cosine | 03 hạng |
+| --- | --- | --- | --- | --- | --- | --- |
+| 1 | `345.jpg` | **cuối video** | 0,9321 | **−0,0506** | 0,8710 | 2/345 |
+| 2 | `245.jpg` | giữa video | **0,9806** | **+0,9738** | **0,9461** | **1/345** |
+
 ### 1.4 Hai cái bẫy phát hiện trong quá trình kiểm chứng
 
 **A5.6 — Keyframe trùng lặp.** 11,83% keyframe toàn kho có bản sao cosine
@@ -53,12 +64,16 @@ keyframe. Video tệ nhất `L25_V085`: 408/599 keyframe có bản sao; có cặ
 cosine đúng **1,0000**.
 
 **A5.7 — Cụm frame liên tiếp.** 10.845 cặp keyframe cách nhau ≤ 2 frame
-(6,12% kho), nằm ở 745/873 video. 132 video có cụm này ở 5 keyframe **cuối**.
+(6,12% kho), nằm ở 745/873 video; 132 video có cụm này ở 5 keyframe **cuối**.
 Cách 1 frame ở 30fps là **33 ms** — `ffmpeg -ss` không định vị nổi.
 
-Hai hiện tượng này **không phải lỗi dữ liệu**. Nhưng chúng làm phép kiểm
-chứng báo động giả, và — quan trọng hơn — chúng là **rủi ro điểm số thật**.
-Xem PHẦN 2.
+Cực đoan hơn: **614 keyframe (0,35%, ở 192 video) có `frame_idx` trùng hệt
+dòng liền trước.** Ở đó đáp án không duy nhất — nộp `frame_idx` đó là trúng cả
+hai dòng, nên **không mất điểm**; chỉ là phép kiểm chứng không phân biệt được.
+
+Hai hiện tượng này **không phải lỗi dữ liệu**. A5.7 chỉ làm phép kiểm chứng
+báo động giả và không ảnh hưởng điểm. Nhưng **A5.6 là rủi ro điểm số thật** —
+xem PHẦN 2.
 
 ### 1.5 Ba lần script báo động giả, và bài học
 
@@ -201,7 +216,6 @@ Nếu quá hạn mà chưa có đáp, **mặc định giả thiết khắt khe h
 
 | # | Việc | Ghi chú |
 | --- | --- | --- |
-| 1 | Máy giữ L25 kiểm lại `L25_V004` với vài keyframe **giữa** video | Giải quyết mẫu duy nhất còn treo (A5.7) |
 | 2 | Máy giữ L23+L26+L27 tải lại gói `Keyframes_L21` | Thiếu 8 file ảnh |
 | 3 | Cắt ROI + ngưỡng confidence cho OCR, đo lại false positive | Chốt chặn của kênh 3 |
 | 4 | Bench lại OCR ≥ 50 mẫu, lấy **WER/Exact** làm chỉ số chính | Sau khi có ROI |
@@ -210,7 +224,7 @@ Nếu quá hạn mà chưa có đáp, **mặc định giả thiết khắt khe h
 
 ### 4.4 Điều KHÔNG cần lo nữa
 
-- ~~Bảng cái sai~~ — chứng minh trên 99,9% kho
+- ~~Bảng cái sai~~ — chứng minh trên **100% kho**, 0 lệch chỉ số thật
 - ~~fps lạ~~ — cả 26,44 lẫn 29,97 đã kiểm và đạt
 - ~~`row_id` lệch giữa các máy~~ — đo 765/765
 - ~~Số liệu các máy không so sánh được~~ — cả pipeline tái lập, cosine trùng
