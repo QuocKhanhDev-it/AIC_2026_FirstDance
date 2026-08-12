@@ -7,11 +7,19 @@
 Độ phủ kiểm chứng **873/873 video — 100%** —
 xem `python scripts/07_gop_kiem_chung.py`.
 
-**Kế hoạch hiện hành: [docs/Ke_hoach_AIC2026_v4.md](docs/Ke_hoach_AIC2026_v4.md)** (thay thế v3).
+**Kế hoạch hiện hành: [docs/Ke_hoach_AIC2026_v4.md](docs/Ke_hoach_AIC2026_v4.md)** (bản 4.1, thay thế v3).
+
+> **Mới 12/08 — PHẦN A8.** Đọc được bài báo hệ thống của một đội **mùa AIC'25**
+> (arXiv:2606.19682, đạt 90,5% vòng Sơ tuyển). Nó **trả lời câu 0.a**
+> (`frame_idx` chấm theo **khoảng**, TRAKE có **điểm từng phần**), thêm **kênh
+> thứ 5** (caption VLM), và cho thấy cuộc thi có thể là **thi tương tác** —
+> tức giao diện cũng là một phần của điểm. Đọc A8 trước khi bắt tay Giai đoạn 1.
 **Mới vào nhóm? Đọc [docs/01_cai_dat.md](docs/01_cai_dat.md) trước.**
 Toàn bộ tài liệu ở [docs/](docs/).
 
 Số liệu đầy đủ: [dev/so_lieu_giai_doan_0.md](dev/so_lieu_giai_doan_0.md)
+Máy có GPU: [docs/06_ke_hoach_encode_GPU.md](docs/06_ke_hoach_encode_GPU.md) —
+bảng kế hoạch encode model mạnh hơn `ViT-B/32`.
 
 | Chỉ số | Giá trị |
 | --- | --- |
