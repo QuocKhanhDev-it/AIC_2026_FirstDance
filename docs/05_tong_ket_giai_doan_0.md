@@ -109,7 +109,16 @@ L25** (L25 chiếm 21% số keyframe).
 | Chấp nhận cửa sổ `[s,e]` | Gộp cụm còn **một đại diện** → giải phóng slot trong top-100. Rủi ro biến mất. |
 | Đòi đúng `frame_idx` | Với ứng viên top, **nộp nhiều thành viên của cụm**. Cụm trung vị 5 phần tử, ta có 100 slot — trả giá được. |
 
-> **Câu 0.a giờ là câu quan trọng nhất chưa có lời đáp.** Trước đây nó chỉ
+> **CẬP NHẬT 2026-08-12 — câu 0.a đã có đáp án.** Bài báo hệ thống của một đội
+> AIC'25 (arXiv:2606.19682) ghi rõ: Textual-KIS yêu cầu `frame_idx` **rơi trong
+> một khoảng chuẩn**, TRAKE chấm **từng phần theo số sự kiện khớp**. Tức là
+> **dòng đầu của bảng trên**: gộp cụm còn một đại diện, rủi ro biến mất. Vẫn
+> nên hỏi BTC để xác nhận (luật '25 có thể khác '26), nhưng không còn bị chặn.
+> Xem PHẦN A8 của kế hoạch v4.
+>
+> *Đoạn dưới đây giữ lại làm lịch sử lập luận khi chưa có đáp án:*
+>
+> ~~Câu 0.a giờ là câu quan trọng nhất chưa có lời đáp.~~ Trước đây nó chỉ
 > ảnh hưởng module trích dày cho TRAKE. Giờ nó quyết định **chiến lược nộp
 > bài của cả KIS lẫn Q&A**. Nếu BTC chưa trả lời, xây cả hai đường — phần
 > chung (bảng cụm `index/trung_lap.parquet`) dùng được cho cả hai.
@@ -136,7 +145,7 @@ Giai đoạn 3 tối ưu cho một nhóm duy nhất.
 
 ---
 
-## PHẦN 3 — TÌNH TRẠNG BỐN KÊNH TRUY HỒI
+## PHẦN 3 — TÌNH TRẠNG CÁC KÊNH TRUY HỒI
 
 | Kênh | Dữ liệu | Trạng thái | Chặn bởi |
 | --- | --- | --- | --- |
@@ -144,9 +153,16 @@ Giai đoạn 3 tối ưu cho một nhóm duy nhất.
 | **2. BM25 metadata** | title 100%, description 99,7% (955 ký tự) | ✅ sẵn sàng | — |
 | **3. BM25 OCR/ASR** | chưa chạy | 🟡 đã bench, chưa sản xuất | ROI + ngưỡng |
 | **4. Objects + IDF** | 100%, 1.122.384 detection | ✅ sẵn sàng | — |
+| **5. Caption VLM** *(mới 12/08)* | chưa có | ⬜ chưa bắt đầu | chọn model — xem A8.4 |
 
-**Ba trong bốn kênh có thể xây ngay hôm nay** — không chờ tải dữ liệu, không
+**Ba trong năm kênh có thể xây ngay hôm nay** — không chờ tải dữ liệu, không
 chờ ai.
+
+> **Kênh 5 thêm ngày 2026-08-12.** Bài báo AIC'25 cho thấy hai câu Textual KIS
+> được giải nhờ **mô tả cảnh sinh tự động** — thứ mà metadata cấp video (mô tả
+> *cả video*) và objects (*nhãn rời rạc*) đều không thay thế được. Đội đó dùng
+> một model Qwen2.5-VL-3B cho **cả OCR lẫn caption**. Xem PHẦN A8.4 của kế
+> hoạch v4.
 
 ### 3.1 Kênh OCR/ASR — kết quả bench và kết luận
 
@@ -200,17 +216,25 @@ gì thì bỏ cả kênh.
 Xong 5 việc này là có **hệ thống tìm kiếm chạy được**, đo được trên tập dev.
 Kênh OCR ghép vào sau, không chặn.
 
-### 4.2 Chờ câu trả lời của BTC
+### 4.2 Chờ câu trả lời của BTC *(cập nhật 2026-08-12)*
 
-**Câu 0.a — BTC chấp nhận cửa sổ `[s,e]` hay đòi đúng `frame_idx`?**
+**Câu 0.a — đã có đáp án tạm, chuyển từ "chặn" sang "xác nhận".** Luật AIC'25
+chấm Textual-KIS theo `frame_idx` **rơi trong một khoảng**, và TRAKE chấm
+**từng phần theo số sự kiện khớp** (arXiv:2606.19682, mục Evaluation Metrics).
+Xây theo hướng "cửa sổ" — gộp cụm trùng lặp còn một đại diện.
 
-Đây là câu chi phối nhiều nhất. Nó quyết định:
-- Chiến lược nộp bài KIS và Q&A (gộp cụm hay nộp nhiều thành viên) — mục 2.1
-- Độ rộng cửa sổ module trích dày cho TRAKE
-- Cách Khánh soạn đáp án tập dev
+**Ba câu nên gửi BTC, không phải một:**
 
-Nếu quá hạn mà chưa có đáp, **mặc định giả thiết khắt khe hơn** (đòi đúng
-`frame_idx`) và xây theo hướng đó — đường đó bao được cả hai trường hợp.
+| # | Câu hỏi | Vì sao cần |
+| --- | --- | --- |
+| 0.a | `frame_idx` chấm theo khoảng hay theo frame chính xác? | xác nhận luật '25 còn đúng ở '26 |
+| **0.d** | TRAKE có điểm từng phần theo số sự kiện khớp không? | quyết định có luôn điền đủ N vị trí không |
+| **0.e** | **Vòng Chung kết có thi tương tác** (người gõ truy vấn trực tiếp) không? | **quyết định có dựng giao diện hay không** — cả một mảng công việc |
+
+Câu **0.e** giờ mới là câu chi phối nhiều nhất. AIC'25 là cuộc thi tương tác:
+điểm đến từ một người thao tác nhanh trên giao diện trong phiên thi. Toàn bộ
+công việc của ta tới nay là đánh chỉ mục ngoại tuyến, không có một dòng giao
+diện nào.
 
 ### 4.3 Việc người, không phải việc máy
 
@@ -219,8 +243,10 @@ Nếu quá hạn mà chưa có đáp, **mặc định giả thiết khắt khe h
 | 2 | Máy giữ L23+L26+L27 tải lại gói `Keyframes_L21` | Thiếu 8 file ảnh |
 | 3 | Cắt ROI + ngưỡng confidence cho OCR, đo lại false positive | Chốt chặn của kênh 3 |
 | 4 | Bench lại OCR ≥ 50 mẫu, lấy **WER/Exact** làm chỉ số chính | Sau khi có ROI |
-| 5 | Khánh soạn tập dev — **lấy mẫu phân tầng theo nhóm L** | Tránh 57% câu hỏi rơi vào L26 |
+| 5 | Khánh soạn tập dev — **lấy mẫu phân tầng theo nhóm L** | Tránh 57% câu hỏi rơi vào L26. **Nay là đường găng**: bản 4.1 thêm 6 giả thuyết từ bài báo AIC'25, không đo được thì không giữ được cái nào |
 | 6 | Chốt bảng tên thành viên duy nhất | Còn treo từ Giai đoạn 0 |
+| 7 | **Gán nhãn 400 mẫu `ocr_v2/review.csv`** *(mới 12/08)* | `bbox_xyxy`, `text_raw`, `semantic_type`, `legibility` đều **0/400**. Hạ tầng đo đã dựng xong nhưng chưa cho ra kết luận nào cho tới khi có nhãn |
+| 8 | **Điền ROI vào `configs/roi_v2.yaml`** *(mới 12/08)* | Cả L21 lẫn L29 còn `include: null`, `review_status: needs_review` — đây là chốt chặn tỷ lệ báo động giả 80–90% |
 
 ### 4.4 Điều KHÔNG cần lo nữa
 
@@ -230,6 +256,9 @@ Nếu quá hạn mà chưa có đáp, **mặc định giả thiết khắt khe h
 - ~~Số liệu các máy không so sánh được~~ — cả pipeline tái lập, cosine trùng
   tới 4 chữ số thập phân
 - ~~Objects là kênh nhiễu~~ — 100% phủ, 1,12 triệu detection
+- ~~Keyframe trùng lặp làm mất điểm~~ *(mới 12/08)* — `frame_idx` chấm theo
+  **khoảng**, nên hai dòng trùng nhau rơi cùng một khoảng. A5.6 và A5.7 vẫn
+  đáng biết vì **chiếm slot trong top-100**, nhưng không còn là rủi ro sai đáp án
 
 ---
 
@@ -244,3 +273,9 @@ python scripts\07_gop_kiem_chung.py
 Dữ liệu thô: [dev/verify/](../dev/verify/) — kết quả của 5 máy.
 Chi tiết: [dev/so_lieu_giai_doan_0.md](../dev/so_lieu_giai_doan_0.md).
 Kế hoạch đầy đủ: [docs/Ke_hoach_AIC2026_v4.md](Ke_hoach_AIC2026_v4.md).
+
+**Ngoại lệ — PHẦN A8 của kế hoạch v4** không đo từ dữ liệu của ta mà đọc từ
+bài báo hệ thống của một đội AIC'25 (arXiv:2606.19682v1). Đó là **kết quả thật
+của một đội thật ở đúng cuộc thi này mùa trước**, nhưng chỉ một đội, một mùa,
+và bài **không có ablation nào**. Đọc nó như giả thuyết có căn cứ, không như
+số liệu đã kiểm chứng.

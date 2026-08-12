@@ -8,6 +8,12 @@ và được đánh dấu "không cần tranh luận lại". Giờ đã dựng x
 được đo lại trên **toàn bộ 873 video / 177.321 keyframe**. Ba con số sai lệch
 đáng kể, một kết luận bị đảo ngược. Xem [PHẦN G](#phần-g--so-sánh-v3--v4).
 
+**Bản sửa 4.1 (2026-08-12) — nguồn bằng chứng mới:** đọc được bài báo hệ thống
+của một đội **mùa AIC'25**, tức đúng cuộc thi này năm trước. Đây là lần đầu ta
+có số liệu từ bên ngoài nhóm. Nó **trả lời câu hỏi 0.a** mà ta treo suốt Giai
+đoạn 0, xác nhận hai quyết định hạ tầng, và lộ ra hai lỗ hổng thật trong kế
+hoạch. Xem [PHẦN A8](#a8--bằng-chứng-ngoài-bài-báo-hệ-thống-aic25).
+
 ---
 
 ## PHẦN A — SỰ THẬT VỀ DỮ LIỆU
@@ -388,6 +394,176 @@ detection. Chảo, đũa, salad, bông cải đều lọt top 60.
 
 ---
 
+### A8 — Bằng chứng ngoài: bài báo hệ thống AIC'25
+
+*Nguồn: Nguyen et al., "Vortex: Multi-Modal Fusion System for Intelligent Video
+Retrieval", arXiv:2606.19682v1, 18/06/2026. Đội FocusOnFun, ĐH KHTN — ĐHQG-HCM.
+Đạt **79,6/88 (90,5%)** vòng Sơ tuyển AIC'25 và xếp loại Xuất sắc vòng Chung kết.*
+
+Mọi mục A1–A7 ở trên đo từ dữ liệu của chính ta. A8 là loại bằng chứng khác:
+**một đội mạnh đã thi đúng cuộc thi này năm ngoái và công bố họ làm gì.** Phải
+đọc nó khác cách đọc số liệu của mình — họ không có nghĩa vụ chứng minh gì cả,
+và ở dưới có một chỗ số liệu của họ nói ngược lại lời họ viết.
+
+#### A8.1 — CÂU 0.a ĐÃ CÓ ĐÁP ÁN (điều quan trọng nhất của cả mục này)
+
+Mục Evaluation Metrics của bài, nguyên văn:
+
+> Textual-KIS required both the video name and frame index **to fall within the
+> reference range**, Visual-QA required correct video, frame, and textual answer,
+> and Temporal Alignment granted **partial credit proportional to the number of
+> correctly matched frames within the allowed tolerance**.
+
+**Đáp án chuẩn là một KHOẢNG, không phải một frame.** Ta treo câu này suốt Giai
+đoạn 0 và xếp nó là câu hỏi mở giá trị cao nhất. Ba hệ quả:
+
+1. **A5.6 và A5.7 chính thức hết là rủi ro tính điểm.** 11,83% keyframe trùng
+   lặp, 614 keyframe cùng `frame_idx` — nộp một trong hai dòng đều rơi vào cùng
+   một khoảng. Ta đã kết luận vậy bằng suy luận; giờ có văn bản mùa trước.
+2. **TRAKE có điểm từng phần, theo *số sự kiện khớp*.** Nên chiến thuật đúng là
+   **nộp đủ N sự kiện kể cả khi chỉ chắc vài cái**. Bỏ trống chắc chắn 0; đoán
+   sai cũng 0; nên luôn đoán. Điều này v4 chưa nói rõ — mục 3 của PHẦN C chỉ
+   viết "không bao giờ bỏ trống một khoảnh khắc" mà không nêu lý do là điểm
+   từng phần tính theo số sự kiện.
+3. **Bước 3 của Mũi nhọn 1 ("tinh chỉnh vị trí frame") tụt ưu tiên.** Nó được
+   viết là *"chỉ khi BTC xác nhận cửa sổ hẹp ở 0.a"* — điều kiện đó nhiều khả
+   năng KHÔNG xảy ra.
+
+> ⚠️ **Đây là luật AIC'25, không phải AIC'26.** Vẫn phải để Khánh hỏi BTC. Khác
+> biệt là: trước đây ta *bị chặn*, giờ ta *có mặc định hợp lý để thiết kế theo*
+> và chỉ cần xác nhận lại.
+
+Công thức chấm trong bài trùng khít PHẦN C: `R@k = max R-Score trong top-k`,
+điểm cuối = trung bình của R@{1, 5, 20, 50, 100}.
+
+#### A8.2 — Bảng điểm của họ nói ngược lại lời họ viết
+
+Bảng 1 của bài, cột "Điểm/câu" là do ta thêm:
+
+| Vòng | Điểm | Số câu | **Điểm/câu** | Module tích hợp |
+| --- | --- | --- | --- | --- |
+| 1 | 20,6 | 24 | **0,86** | CLIP đơn thuần |
+| 2 | 27,8 | 30 | **0,93** | + SigLIP2, hợp nhất RRF |
+| 3 | 31,2 | 35 | **0,89** | + Temporal Search + Relevance Feedback |
+
+Bài viết *"performance progressively improved as additional modules were
+integrated"*. Nhưng điểm **tổng** tăng chủ yếu vì **số câu tăng**. Chuẩn hóa
+theo câu thì vòng 3 **thấp hơn** vòng 2.
+
+Có thể câu vòng sau khó hơn — nên đây không phải bằng chứng rằng Temporal
+Search và Relevance Feedback vô dụng. Điểm cần nhớ là: **bài không có một
+ablation nào.** Mọi tuyên bố về đóng góp của từng module đều không được kiểm
+chứng có đối chứng.
+
+**Hai điều rút ra, và chúng kéo ngược chiều nhau:**
+
+- **CLIP đơn thuần đã đạt ~0,86/câu.** Một baseline CLIP làm tử tế lấy gần hết
+  điểm. Điều này củng cố PHẦN E: ưu tiên số 1 là kênh CLIP chạy đúng và nhanh,
+  không phải gom cho đủ kênh.
+- **Nhưng giá trị biên của kênh 2–4 là chưa ai chứng minh**, kể cả đội 90,5%
+  này. Nên GIAI ĐOẠN 3 giữ nguyên kỷ luật *"chỉ giữ cái nào tăng điểm đo được"*
+  — và đó là lý do tập dev của Khánh vẫn là phụ thuộc #3.
+
+#### A8.3 — Xác nhận hai quyết định hạ tầng, phủ định một
+
+| Quyết định của ta | Họ làm gì | Kết luận |
+| --- | --- | --- |
+| RRF thay vì weighted-sum | RRF, `k = 60` | ✅ **Trùng.** Cả hằng số cũng trùng |
+| Không dùng Milvus/Elasticsearch | **Có dùng** cả hai + Redis | ✅ **Vẫn giữ quyết định của ta** — xem B1 |
+| CLIP ViT-B/32 512 chiều của BTC | ViT-L-14 (DFN5B) 1024 + SigLIP2 1152 | ❌ **Ta đang yếu hơn hẳn** |
+
+#### A8.4 — Hai lỗ hổng thật trong kế hoạch v4
+
+**Lỗ hổng 1 — thiếu kênh mô tả cảnh (caption).** Bốn kênh của v4 là CLIP, BM25
+metadata, BM25 OCR/ASR, objects+IDF. **Không có caption sinh bởi VLM.** Mà hai
+câu Textual KIS trong ví dụ của họ được giải nhờ đúng thứ đó:
+
+- *"hang động có hình khắc động vật"* → trúng nhờ ASR + caption sinh tự động
+- *"công trình dạng vòng elip bằng gạch đất nung"* → trúng nhờ scene description
+
+Metadata cấp video (A3) mô tả **cả video**, không mô tả **cảnh trong keyframe**.
+Objects cho nhãn rời rạc chứ không cho quan hệ ("vòng elip", "bằng gạch"). Nên
+đây là một khoảng trống thật, không phải trùng lặp với kênh sẵn có.
+
+Họ dùng **một model Qwen2.5-VL-3B-Instruct làm cả OCR lẫn captioning** — đổi
+lấy hai kênh bằng một lần chạy. Bench OCR/ASR hiện tại của Khánh so EasyOCR /
+PaddleOCR / VietOCR, **không cái nào biết viết caption**.
+
+**Lỗ hổng 2 — CLIP ViT-B/32 của BTC là sàn, không phải trần.** Bước nhảy
+0,86 → 0,93 điểm/câu của họ đến từ **thêm một model thứ hai mạnh hơn rồi RRF
+hai cái**. PHẦN F đã liệt kê rủi ro "CLIP ViT-B/32 quá yếu" nhưng xếp nó ở thế
+bị động (*"nếu điểm dev thấp thì..."*). Bài báo cho thấy nên xem đây là **cơ
+hội chủ động**, và ta đã có sẵn hạ tầng để làm: chia nhóm L cho 5–6 máy, và đã
+chứng minh pipeline tái lập chính xác giữa các máy (A0 — cosine trùng tới 4 chữ
+số thập phân, 29/29 mẫu).
+
+#### A8.5 — OCR mạnh hơn ta tưởng, nhưng phải dùng như BỘ LỌC
+
+**3 trong 5 ví dụ thực chiến của họ được giải bằng OCR**, gồm cả câu TRAKE khó
+nhất:
+
+| Câu | Chuỗi OCR | Vì sao thắng |
+| --- | --- | --- |
+| tkis-02 | `hidro` | chữ trong câu hỏi trắc nghiệm hiện trên màn hình |
+| vkis-07 | `DI TICH KIM LONG` | chữ khắc trên hiện vật |
+| trake-03 | `PHI 1 0 BRU` | **bảng tỷ số** — chốt được thời điểm bàn thắng |
+
+Nhưng để ý cú pháp họ gõ: `/filter all ocr{hidro}` — **LỌC, không phải xếp
+hạng.** v4 đang xếp OCR làm một kênh BM25 hòa vào RRF. Với token hiếm, lọc dứt
+khoát hơn hẳn: `hidro` có ở 3 khung hình thì lọc trả đúng 3, còn BM25 hòa RRF
+có thể bị ba kênh kia dìm xuống dưới hạng 20.
+
+**Cần CẢ HAI chế độ**, không phải chọn một. Đây là ràng buộc thiết kế cho
+Kênh 3, ghi vào GIAI ĐOẠN 1.
+
+#### A8.6 — Đây là cuộc thi TƯƠNG TÁC, có người ngồi lái
+
+Điều chỉnh nhận thức lớn nhất. Vòng Chung kết chấm bởi Jury Board, gợi ý mở
+dần, thí sinh gõ truy vấn trực tiếp trong phiên thi. Toàn bộ phần Relevance
+Feedback, "nearby frame", Temporal Search mode của họ là **giao diện** — và
+điểm đến từ **một con người thao tác nhanh**.
+
+Công việc của ta tới giờ hoàn toàn là đánh chỉ mục ngoại tuyến. v4 không có một
+dòng nào về giao diện. Nếu AIC'26 cũng tương tác thì **tốc độ và độ tiện của UI
+là một phần của điểm số**, không phải phần thưởng thêm.
+
+→ Thêm vào danh sách hỏi BTC, cùng câu 0.a. Xem [GIAI ĐOẠN 2](#giai-đoạn-2--ba-dạng-truy-vấn).
+
+#### A8.7 — Bốn kỹ thuật nên lấy, xếp theo giá trị / công sức
+
+| # | Kỹ thuật | Công sức | Vì sao đáng |
+| --- | --- | --- | --- |
+| 1 | **"Nearby frame"** — từ một kết quả, duyệt keyframe liền kề theo thời gian | vài chục dòng trên `master.parquet` | Xuất hiện ở 2/5 ví dụ của họ, là bước xoay chuyển của cả câu Q&A lẫn câu TRAKE |
+| 2 | **OCR làm bộ lọc** (A8.5) | có sẵn dữ liệu | 3/5 ví dụ |
+| 3 | **Temporal re-rank** (Algorithm 1) | ~20 dòng | TRAKE + KIS có bối cảnh trước/sau |
+| 4 | **Rocchio feedback** | ~10 dòng NumPy | Chỉ có giá trị nếu thi tương tác (A8.6) |
+
+Vì sao "nearby frame" đứng đầu: câu Q&A của họ cho gợi ý về **nguyên liệu**,
+còn đáp án nằm ở **bước cắt** vài giây sau. Truy hồi ngữ nghĩa đưa tới lân cận;
+đi bộ theo thời gian đưa tới đích. Cùng lý do với A1 (trung vị mật độ keyframe
+55 frame — lân cận là chỗ đáng đi bộ).
+
+#### A8.8 — Khử trùng lặp: cách rẻ để lấy một phần lợi ích của họ ngay
+
+Họ không dùng keyframe của BTC mà tự trích lại bằng AutoShot + lọc theo
+`rel_diff > 0,4` (chuẩn L2 giữa embedding frame hiện tại và keyframe giữ gần
+nhất). **Bộ lọc đó thực chất là khử dư thừa** — đúng thứ A5.6 đo được ở kho của
+ta: 11,83% keyframe trùng ở cosine ≥ 0,99, riêng L25 tới 49,82%.
+
+Ta **không cần AutoShot và không cần trích lại gì**: `clip.npy` đã nằm sẵn
+trong RAM, tính `rel_diff` giữa các keyframe liên tiếp là một phép trừ vector.
+
+**Vì sao đáng làm, tính theo điểm:** điểm lấy `max R-Score trong top-k`, mà
+`R@1` là 1/5 tổng điểm. Nếu top-5 bị 5 bản sao gần như y hệt của cùng một
+khoảnh khắc chiếm chỗ, ta phí 4 slot mà không tăng cơ hội trúng. Việc này cộng
+hưởng với ràng buộc đa dạng đã có ở PHẦN C mục 2 — nhưng ràng buộc đó tính theo
+`video_id`, **không bắt được bản sao trong CÙNG một video**.
+
+`index/trung_lap.parquet` (dựng ở Giai đoạn 0) đã có sẵn `max_cos` từng
+keyframe tới bản giống nhất cùng video. Nguyên liệu có rồi.
+
+---
+
 ## PHẦN B — QUYẾT ĐỊNH HẠ TẦNG
 
 ### B1. Không dùng Supabase / Postgres / Milvus / Elasticsearch — ĐÃ KIỂM CHỨNG
@@ -401,6 +577,27 @@ trên máy cá nhân, không cần server.
 | Vector CLIP | một `.npy` float32 nạp thẳng RAM (347 MB) | NumPy `M @ q` |
 | Bảng index / objects / OCR / ASR / metadata | **Parquet** | **DuckDB** |
 | Ảnh keyframe, video | để nguyên trên đĩa | lưu đường dẫn trong bảng index |
+
+**Đội AIC'25 ở A8 dùng Milvus + Elasticsearch + Redis. Ta vẫn không đổi.** Đây
+là chỗ ta cố ý làm khác họ, nên phải nói rõ vì sao — đo trên máy này:
+
+```text
+clip.npy: (177321, 512) float32 = 346,3 MB
+Quét TOÀN BỘ + lấy top-100:      16,7 ms/truy vấn   (NumPy vét cạn)
+Nếu thêm SigLIP2 1152 chiều:     779 MB RAM         (vẫn nạp thẳng được)
+```
+
+HNSW của Milvus sinh ra cho hàng chục triệu vector. Ở 177 nghìn, nó đổi vài
+mili-giây mà người dùng không cảm nhận được lấy một tầng hạ tầng phải cài, phải
+đồng bộ giữa 6 máy, và **phải debug lúc đang thi**. Vét cạn còn cho *đúng* top-k
+chứ không xấp xỉ.
+
+> **Ngưỡng đảo quyết định:** nếu số keyframe vượt ~2 triệu (batch 2 lớn bất
+> thường), hoặc nếu ta thêm ≥ 3 model embedding cùng lúc, hãy đo lại. Dưới mức
+> đó thì vét cạn thắng về mọi mặt trừ độ "trông có vẻ hiện đại".
+
+Riêng Elasticsearch: thứ ta cần từ nó là **lọc theo OCR/metadata** (A8.5). DuckDB
+làm được bằng một câu `WHERE ... LIKE`/full-text trên Parquet.
 
 ### B2. Không dùng C++ / pybind11 / ctypes
 
@@ -495,10 +692,14 @@ Gợi ý chia theo nhóm L, cân bằng số video:
 
 ## PHẦN C — CƠ CHẾ ĐIỂM CHI PHỐI MỌI THIẾT KẾ
 
-*Giữ nguyên v3, không có gì thay đổi.*
+*Công thức giữ nguyên v3 và nay được bài báo AIC'25 xác nhận nguyên văn (A8.1).
+Phần **hệ quả** thì có thay đổi: đáp án chuẩn là một KHOẢNG, không phải một
+frame.*
 
-`Final Score = trung bình R@{1, 5, 20, 50, 100}` — hàm bậc thang theo thứ
-hạng của **câu đúng đầu tiên**:
+`Final Score = trung bình R@{1, 5, 20, 50, 100}`, với
+`R@k = max(R-Score của 100 kết quả đầu, xét tới hạng k)`. Với KIS/Q&A thì
+R-Score là 0 hoặc 1, nên rút gọn thành hàm bậc thang theo thứ hạng của **câu
+đúng đầu tiên**:
 
 | Câu đúng đầu tiên ở hạng | Final Score |
 | --- | --- |
@@ -509,14 +710,25 @@ hạng của **câu đúng đầu tiên**:
 | 51 – 100 | 0,20 |
 | > 100 | 0,00 |
 
-Bốn hệ quả bắt buộc code theo:
+**Sáu hệ quả bắt buộc code theo:**
 
 1. **Luôn nộp đủ 100 câu.** Không có điểm phạt. Câu thứ 100 vẫn đáng 0,2.
 2. **Top-5 phải ĐA DẠNG.** Ràng buộc cứng: *mỗi video ≤ 2 slot trong top-5;
    top-20 trải trên ≥ 8 video khác nhau.*
-3. **TRAKE có điểm phân số** → không bao giờ bỏ trống một khoảnh khắc.
+3. **TRAKE: nộp ĐỦ N sự kiện, kể cả khi chỉ chắc vài cái.** *(sửa ở 4.1)* Điểm
+   TRAKE tính **từng phần theo số sự kiện khớp** trong dung sai cho phép
+   (A8.1). Bỏ trống chắc chắn 0; đoán sai cũng 0 — nên **luôn đoán**. Không bao
+   giờ nộp một chuỗi thiếu vị trí.
 4. **Q&A: `answer` sai → 0 điểm bất kể frame đúng.** Ưu tiên độ chắc chắn của
    câu trả lời hơn độ chính xác của frame.
+5. **MỚI — `frame_idx` chỉ cần rơi TRONG khoảng chuẩn.** *(A8.1)* Không cần
+   trúng chính xác một frame. Đây là lý do A5.6 (keyframe trùng lặp) và A5.7
+   (cụm frame liên tiếp, 614 keyframe cùng `frame_idx`) **không còn là rủi ro
+   tính điểm** — hai dòng cạnh nhau đều rơi cùng một khoảng.
+6. **MỚI — khử trùng lặp TRONG cùng video trước khi cắt top-K.** *(A8.8)* Ràng
+   buộc ở mục 2 tính theo `video_id` nên **không bắt được bản sao trong cùng một
+   video**. Mà A5.6 đo được 11,83% keyframe có bản sao cùng video ở
+   cosine ≥ 0,99 (L25: 49,82%). Năm bản sao chiếm hết top-5 là phí 4 slot.
 
 ---
 
@@ -719,7 +931,14 @@ trong 4 tuần, đây là hàng giờ đồng hồ.
 
 ---
 
-### GIAI ĐOẠN 1 — Bốn kênh nguyên liệu + thước đo
+### GIAI ĐOẠN 1 — Năm kênh nguyên liệu + thước đo
+
+*Bản 4.1: kênh 4 → **năm** kênh (thêm caption VLM, A8.4), cộng hai việc mới
+không chờ tải dữ liệu (khử trùng lặp, embedding thứ hai).*
+
+> **Thứ tự ưu tiên, theo A8.2:** CLIP đơn thuần đã đạt ~0,86 điểm/câu ở đội
+> AIC'25. **Kênh 1 chạy đúng và nhanh quan trọng hơn gom đủ năm kênh.** Đừng để
+> kênh 5 chặn kênh 1.
 
 #### TV1 — Kênh 1: truy hồi CLIP
 
@@ -728,6 +947,8 @@ trong 4 tuần, đây là hàng giờ đồng hồ.
 - Dịch/viết lại truy vấn sang tiếng Anh, sinh 3–5 biến thể.
 - ⚠️ Trả về `frame_idx`, không phải `kf_n`.
 - ⚠️ Mọi hàm giây↔frame nhận `fps` làm tham số (**4 giá trị**, xem A5.3).
+- **MỚI — vét cạn, đừng cài thư viện ANN.** Đo được 16,7 ms cho toàn bộ 177k
+  vector + lấy top-100 (B1). Faiss/HNSW ở cỡ này là hạ tầng thừa.
 
 #### TV2 — Module trích xuất frame dày *(đường găng)*
 
@@ -750,9 +971,79 @@ bình 955 ký tự, 99,7% tiếng Việt có dấu.
 
 Giữ nguyên v3. **Chạy phân tán** theo nhóm L mình giữ.
 
-#### TV2 — Kênh 4: Objects *(MỚI, nâng từ kênh phụ)*
+**MỚI (4.1) — phải có HAI chế độ, không chỉ một** *(A8.5)*:
+
+| Chế độ | Dùng khi | Cài đặt |
+| --- | --- | --- |
+| **Lọc cứng** | truy vấn chứa chuỗi hiếm, đọc được từ màn hình | `WHERE ocr_text LIKE '%hidro%'` trên Parquet, trả **mọi** khung khớp, bỏ qua RRF |
+| Kênh BM25 hòa RRF | truy vấn mô tả chung | như v3 |
+
+Lý do: 3/5 ví dụ thực chiến của đội AIC'25 được giải bằng **lọc** OCR — kể cả
+câu TRAKE khó nhất, chốt bằng bảng tỷ số `PHI 1 0 BRU`. Với token hiếm, hòa vào
+RRF có thể bị ba kênh kia dìm xuống dưới hạng 20; lọc thì không.
+
+> **Gợi ý cho bench của Khánh:** vì có chế độ lọc, **recall của OCR quan trọng
+> hơn precision** ở những chuỗi hiếm — đọc sót chữ `hidro` là mất hẳn đường
+> thắng, còn đọc thừa vài chuỗi rác thì chế độ lọc không bao giờ chạm tới. Đây
+> là một lý do nữa để bỏ CER và đo bằng truy hồi.
+
+#### TV2 — Kênh 4: Objects *(nâng từ kênh phụ ở v3)*
 
 Xem [PHẦN D1.6](#phần-d16--cách-nâng-objects-lên-kênh-chính) bên dưới.
+
+#### Kênh 5: Caption / mô tả cảnh bằng VLM *(MỚI ở 4.1 — A8.4)*
+
+**Lỗ hổng thật trong v4.** Metadata (A3) mô tả *cả video*; objects cho *nhãn
+rời rạc*. Không kênh nào diễn tả được **quan hệ trong một cảnh** — mà đó chính
+là dạng truy vấn KIS hay gặp:
+
+> *"công trình dạng vòng elip bằng gạch đất nung"* — `Building` trong objects
+> không phân biệt được elip với vuông; metadata cấp video không nhắc tới.
+
+Đội AIC'25 giải đúng dạng này bằng caption sinh tự động.
+
+**Cách rẻ nhất: một model làm hai việc.** Họ dùng **Qwen2.5-VL-3B-Instruct**
+cho *cả OCR lẫn captioning* trong một lần chạy. Bench hiện tại của Khánh so
+EasyOCR / PaddleOCR / VietOCR — **không cái nào biết viết caption**.
+
+- **Việc cần làm:** thêm Qwen2.5-VL-3B vào bench OCR như một ứng viên, chấm
+  bằng chính thước đo truy hồi đã dựng ở `retrieval_v2.py`.
+- **Nếu nó thắng:** một lần chạy ra hai kênh, và bài toán chi phí đổi hẳn.
+- **Nếu thua ở OCR:** vẫn có thể chạy riêng cho caption trên tập con.
+- ⚠️ **Đừng để kênh 5 chặn kênh 1–4.** Đây là kênh thêm, không phải đường găng.
+- ⚠️ 177.321 keyframe × một model 3B là chi phí lớn. **Đo trên 200 ảnh trước**,
+  nhân lên, rồi mới quyết — đúng cách đã làm với OCR/ASR.
+
+#### TV1 + TV2 — Hai việc MỚI làm được NGAY, không chờ tải dữ liệu
+
+**(a) Khử trùng lặp trong cùng video** *(A8.8, PHẦN C mục 6)*
+
+Nguyên liệu đã có: `clip.npy` trong RAM và `index/trung_lap.parquet` (đã dựng ở
+Giai đoạn 0, chứa `max_cos` từng keyframe tới bản giống nhất cùng video).
+
+```python
+# src/dedup.py — gộp keyframe gần trùng thành cụm, giữ một đại diện
+# Không cần AutoShot, không cần trích lại gì: chỉ so vector đã có.
+def gom_cum(clip, master, nguong=0.99): ...   # -> cot 'cum_id'
+def loc_top_k(ung_vien, k, moi_cum_toi_da=1): ...
+```
+
+Áp **sau khi xếp hạng, trước khi cắt top-K**, để không mất ứng viên ở khâu
+truy hồi. Kiểm hiệu quả trên tập dev của Khánh — nếu không tăng điểm thì bỏ,
+theo kỷ luật của GIAI ĐOẠN 3.
+
+**(b) Đo thử một embedding thứ hai** *(A8.4 lỗ hổng 2)*
+
+Bước nhảy 0,86 → 0,93 điểm/câu của đội AIC'25 đến từ đúng chỗ này. Nhưng
+**đừng encode cả 177k ảnh trước khi biết nó có lợi không**:
+
+1. Lấy ~2.000 keyframe (phân tầng theo nhóm L, theo A2).
+2. Encode bằng SigLIP2 *hoặc* CLIP ViT-L-14, đo trên tập dev của Khánh.
+3. So ba cấu hình: **ViT-B/32 đơn thuần** / model mới đơn thuần / **RRF hai cái**.
+4. Chỉ khi RRF thắng rõ mới chạy toàn kho — chia nhóm L cho 5–6 máy, đúng mô
+   hình PHẦN B4 vừa dùng thành công ở Giai đoạn 0.
+
+RAM không phải rào cản: thêm SigLIP2 1152 chiều là 779 MB, vẫn nạp thẳng (B1).
 
 #### TV5 — Khung pipeline & chuẩn I/O
 
@@ -900,7 +1191,29 @@ và Bước 4 Q&A nhấn mạnh ngữ cảnh (theo D0.3).*
 ở bảng trên. RRF an toàn hơn weighted-sum vì không cần chuẩn hóa thang điểm
 giữa cosine (0,2–0,35) và BM25 (không chặn trên).
 
-**Bước 3 — Tinh chỉnh vị trí frame** *(chỉ khi BTC xác nhận cửa sổ hẹp ở 0.a)*.
+**Bước 2b — MỚI (4.1): khử trùng lặp rồi mới cắt top-K.** Xem PHẦN C mục 6 và
+A8.8. Đặt *sau* RRF, *trước* khi cắt.
+
+**Bước 3 — ~~Tinh chỉnh vị trí frame~~ — TỤT ƯU TIÊN.** *(4.1)* Bước này viết
+là *"chỉ khi BTC xác nhận cửa sổ hẹp ở 0.a"*. Theo A8.1, luật AIC'25 chấm
+`frame_idx` **rơi trong một khoảng**, nên điều kiện đó nhiều khả năng không xảy
+ra. **Chưa làm bước này cho tới khi BTC trả lời khác đi.** Công sức chuyển sang
+Bước 3b.
+
+**Bước 3b — MỚI: đi bộ theo thời gian ("nearby frame").** *(A8.7 — kỹ thuật
+đáng giá nhất trên mỗi đơn vị công sức)*
+
+```python
+# src/lan_can.py
+def lan_can(video_id, frame_idx, so_buoc=10) -> list[Candidate]:
+    """Các keyframe liền kề theo thời gian trong cùng video.
+    master.parquet sắp theo (video_id, frame_idx) -> chỉ là trượt con trỏ."""
+```
+
+Vì sao đáng: câu Q&A trong ví dụ của đội AIC'25 cho gợi ý về **nguyên liệu**,
+còn đáp án nằm ở **bước cắt** vài giây sau. Truy hồi ngữ nghĩa đưa tới lân cận;
+đi bộ đưa tới đích. Cùng lý do với A1 — trung vị mật độ 55 frame nghĩa là lân
+cận đủ dày để đi bộ có ý nghĩa.
 
 **Bước 4 — Sinh câu trả lời (riêng Q&A).**
 
@@ -917,14 +1230,65 @@ giữa cosine (0,2–0,35) và BM25 (không chặn trên).
 
 #### Mũi nhọn 2 — TRAKE (TV2, TV4, Khánh)
 
-*Giữ nguyên toàn bộ 5 bước của v3.*
+*Giữ nguyên 5 bước của v3, thêm Bước 2b ở bản 4.1.*
 
 **Bước 1 —** Bóc tách sự kiện thành N truy vấn con, giữ đúng thứ tự.
 **Bước 2 —** Chốt video trước (BM25 metadata + CLIP tổng hợp) → 1–3 video.
+
+**Bước 2b — MỚI: xếp hạng lại theo thời gian, làm TRƯỚC khi trích dày.**
+*(A8.7 #3 — Algorithm 1 của bài AIC'25)*
+
+Ba truy vấn độc lập (trước / hiện tại / sau), gộp điểm cao nhất theo `video_id`:
+
+```python
+# src/thoi_gian.py  —  O(K log K), khoảng 20 dòng
+def xep_lai_theo_thoi_gian(R_truoc, R_hien_tai, R_sau):
+    tot_truoc, tot_sau = {}, {}
+    for vid, diem in R_truoc: tot_truoc[vid] = max(tot_truoc.get(vid, 0), diem)
+    for vid, diem in R_sau:   tot_sau[vid]   = max(tot_sau.get(vid, 0), diem)
+    ra = [(vid, fid, d + tot_truoc.get(vid, 0) + tot_sau.get(vid, 0))
+          for vid, fid, d in R_hien_tai]
+    return sorted(ra, key=lambda x: -x[2])
+```
+
+Video chứa **trọn chuỗi** sự kiện được cộng dồn điểm nên nổi lên đầu. Rẻ hơn
+hẳn quy hoạch động ở Bước 5 và chạy được trên **toàn kho**, nên dùng nó để
+**thu hẹp vùng trước**, rồi mới trích dày.
+
+Dùng được cả cho Mũi nhọn 1 khi truy vấn KIS mô tả bối cảnh trước/sau.
+
 **Bước 3 —** Cho điểm mềm bằng `object_score()`, không lọc cứng.
 **Bước 4 —** Trích dày trong vùng ứng viên (`stride=1..2`, vùng ~30s).
 **Bước 5 —** Dóng hàng thời gian bằng quy hoạch động, O(N·K), NumPy thuần.
 DP top-M (beam) ra 100 chuỗi, bắt buộc khác nhau ở ≥ 2/N vị trí.
+
+> **Nhắc lại PHẦN C mục 3:** TRAKE chấm **từng phần theo số sự kiện khớp**
+> (A8.1). Chuỗi nào chưa chắc vẫn phải điền đủ N vị trí — điền sai bằng bỏ
+> trống, mà điền đúng thì được điểm.
+
+#### MỚI (4.1) — Giao diện: nếu thi tương tác thì đây là một phần của điểm
+
+*Xem A8.6. v4 không có một dòng nào về việc này — đó là thiếu sót.*
+
+Vòng Chung kết AIC'25 là **người ngồi lái**: gợi ý mở dần, thí sinh gõ truy vấn
+trong phiên thi, Jury Board chấm. Nếu AIC'26 giữ thể thức đó thì tốc độ thao
+tác của người dùng **là điểm số**, không phải tiện nghi.
+
+**Chưa chốt được cho tới khi BTC trả lời** (gộp vào cùng câu 0.a). Nhưng nếu có
+thì đây là mức tối thiểu, xếp theo thứ tự đáng làm:
+
+| Ưu tiên | Thành phần | Ghi chú |
+| --- | --- | --- |
+| 1 | Ô tìm kiếm + lưới keyframe xếp hạng | có ảnh keyframe là dựng được |
+| 2 | **Nút "khung lân cận"** | Bước 3b — rẻ nhất, lợi nhất |
+| 3 | **Ô lọc OCR** | A8.5 — 3/5 ví dụ thực chiến |
+| 4 | Ba ô Trước / Hiện tại / Sau | gọi thẳng Bước 2b |
+| 5 | Rocchio feedback: `qm = αq₀ + β·TB(thích) − γ·TB(không thích)` | ~10 dòng NumPy, **chỉ có nghĩa nếu thi tương tác** |
+
+> **Cảnh báo phạm vi:** đây là nơi dễ đốt thời gian nhất trong cả kế hoạch. Một
+> ô nhập + lưới ảnh + hai nút là đủ. **Không dựng hệ thống tài khoản, không
+> lịch sử phiên, không đăng nhập.** Nhắc lại A8.2: chưa ai chứng minh các module
+> tương tác cộng điểm — điểm/câu của đội AIC'25 còn *giảm* ở vòng thêm chúng.
 
 ---
 
@@ -964,12 +1328,15 @@ chưa từng nhìn.
 | --- | --- | --- |
 | **Chia dữ liệu nhiều máy làm đứt đường dẫn tuyệt đối** | `kf_path` trỏ file không tồn tại | Thống nhất đường dẫn dữ liệu giống nhau trên mọi máy, hoặc remap (xem A5.5). Riêng việc **gộp kết quả** thì an toàn: `row_id` như nhau trên mọi máy (đã đo 765/765 trên năm lô) |
 | **Không ai chạy verify cho nhóm L mình giữ** | 873/873 video được kiểm chứng — 100% | Bắt buộc mỗi máy chạy `02`+`03` cho phần mình, báo kết quả |
-| BTC dùng cửa sổ `[s,e]` hẹp cho cả KIS | câu trả lời 0.a | Trích dày cho cả mũi nhọn 1 |
+| ~~BTC dùng cửa sổ `[s,e]` hẹp cho cả KIS~~ | — | 🟢 **hạ cấp** — luật AIC'25 chấm `frame_idx` rơi **trong một khoảng** (A8.1). Vẫn hỏi BTC để xác nhận, nhưng không còn chặn thiết kế |
+| **MỚI — thi tương tác mà ta không có giao diện** | BTC công bố thể thức Chung kết | Hỏi BTC cùng câu 0.a. Nếu có: dựng UI tối thiểu ở GIAI ĐOẠN 2 (A8.6), tuyệt đối không phình |
+| **MỚI — thiếu kênh mô tả cảnh** | truy vấn tả *quan hệ* trong cảnh ("vòng elip bằng gạch") đều trượt trên tập dev | Kênh 5 — Qwen2.5-VL làm cả OCR lẫn caption (A8.4). Đo trên 200 ảnh trước khi cam kết |
+| **MỚI — chép module của đội AIC'25 mà không đo** | tốn tuần cho Rocchio/Temporal rồi điểm dev không nhúc nhích | Bài của họ **không có ablation nào**, và điểm/câu còn *giảm* ở vòng thêm hai module đó (A8.2). Mọi thứ lấy từ A8 phải qua tập dev mới được giữ |
 | Tập dev lệch về L26 hoặc lệch chủ đề | Khánh soạn xong, kiểm phân bố | Lấy mẫu phân tầng theo nhóm L (A2), xem trước nội dung (A7) |
 | **Quota VLM free không đủ cho bài thi** | 3/6 model chết vì rate-limit ở đợt test 20 lượt | Chốt sớm: trả phí hay chạy model local |
 | OCR ticker sai nhiều | kết quả 0.b < 80% | Chỉ OCR vùng tiêu đề tĩnh, bỏ ticker chạy |
 | Batch 2 định dạng khác batch 1 | BTC công bố | Chạy lại `00`+`01` là biết ngay |
-| CLIP ViT-B/32 quá yếu | điểm dev KIS thấp | Tự encode lại 177k ảnh bằng model mạnh hơn (cần GPU) |
+| **CLIP ViT-B/32 quá yếu** *(nâng mức — A8.4)* | **không cần chờ dấu hiệu**: đội AIC'25 dùng ViT-L-14 1024 chiều **+ SigLIP2** 1152 chiều, và bước nhảy 0,86 → 0,93 điểm/câu của họ đến từ đúng đây | Đổi từ thế bị động sang **chủ động**: thử trên ~2.000 ảnh trước (GIAI ĐOẠN 1, việc *(b)*), chỉ chạy toàn kho nếu RRF hai model thắng rõ trên tập dev |
 | ~~Ảnh keyframe không khớp thứ tự CSV~~ | — | ✅ **đã loại trừ** — 871/873 khớp, 0 lệch thật |
 
 ---
@@ -994,17 +1361,40 @@ chưa từng nhìn.
 | Chốt VLM | chưa làm | **đợt 1 xong, kèm cảnh báo cỡ mẫu** |
 | Kiểm chứng bảng cái | 1 phép (ảnh↔CSV) | **2 phép** (thêm CLIP↔CSV) |
 
+### G2 — Sửa đổi v4 → v4.1 (nguồn: bài báo AIC'25, xem A8)
+
+| Hạng mục | v4 | **v4.1** |
+| --- | --- | --- |
+| Loại bằng chứng | chỉ đo từ dữ liệu của ta | **thêm kết quả thật của một đội mùa trước** |
+| Câu 0.a (cửa sổ `[s,e]`) | câu hỏi mở giá trị cao nhất, đang chặn | **có đáp án**: `frame_idx` chỉ cần rơi trong một khoảng |
+| A5.6 / A5.7 | rủi ro tính điểm chưa rõ mức | **hết là rủi ro tính điểm** |
+| TRAKE | "không bỏ trống khoảnh khắc nào" | **điểm từng phần theo số sự kiện → luôn điền đủ N** |
+| Số kênh | 4 | **5** (thêm caption VLM) |
+| Kênh OCR | một chế độ (BM25 hòa RRF) | **hai chế độ** — thêm lọc cứng cho token hiếm |
+| Bước 3 Mũi nhọn 1 | tinh chỉnh vị trí frame | **tụt ưu tiên**; thay bằng "khung lân cận" |
+| Model embedding | ViT-B/32 của BTC; "yếu" là rủi ro bị động | **cơ hội chủ động**: thử model thứ hai + RRF trên 2.000 ảnh |
+| Khử trùng lặp | không có | **bước 2b**, dùng `clip.npy` sẵn có |
+| Xếp hạng theo thời gian | chỉ có DP ở Bước 5 TRAKE | **thêm Bước 2b `O(K log K)`** chạy được toàn kho |
+| Giao diện | **không nhắc tới** | **một mục riêng** — có thể là một phần của điểm |
+| Milvus/Elasticsearch | loại, lập luận lý thuyết | **loại, có đối chứng**: 16,7 ms vét cạn |
+
+> **Cách đọc G2:** mọi dòng đều đến từ *một* bài báo *một* đội *một* mùa. Bài
+> không có ablation (A8.2). Nên đây là **giả thuyết có căn cứ**, không phải sự
+> thật đã đo — phải qua tập dev của Khánh mới được giữ, y như mọi thứ khác ở
+> GIAI ĐOẠN 3.
+
 ---
 
 ## PHẦN H — VIỆC LÀM NGAY
 
 1. **Cả nhóm — chốt ai giữ nhóm L nào** và bắt đầu tải. Đây là nút thắt duy
    nhất hiện tại; hai phụ thuộc nặng nhất (#2, #3) đều chờ nó.
-2. **Mỗi máy — chạy `02_verify.py` + `03_verify_CLIP.py`** cho phần mình giữ
-   ngay sau khi tải xong, báo kết quả về. Chưa đủ 873 video thì bảng cái mới
-   được chứng minh trên 100% kho.
+2. **~~Mỗi máy chạy `02` + `03`~~ — XONG.** Độ phủ **873/873 (100%)**, đủ 10/10
+   nhóm L, **0 lệch chỉ số thật**. Giai đoạn 0 khép lại.
 3. **Khánh — xem trước video của ≥ 4 nhóm L khác nhau** trước khi viết tập dev
-   (A7). Song song: chờ trả lời 0.a từ BTC.
+   (A7). **Tập dev giờ là đường găng thật**: bản 4.1 thêm 6 giả thuyết từ bài
+   báo AIC'25 (G2) mà **không cái nào được giữ nếu không đo được** — không có
+   tập dev thì cả A8 chỉ là đọc truyện.
 4. **TV5 — mở rộng harness VLM lên ≥ 50 câu, `--runs 3`**, và test với ngữ
    cảnh thật (3–5 frame + ASR). Chốt phương án quota.
 5. **TV2 — dựng `src/objects.py`** (IDF + `object_score`) theo D1.6. Việc này
@@ -1012,22 +1402,41 @@ chưa từng nhìn.
 6. **TV1 — dựng ma trận CLIP + text encoder** với tag `ViT-B-32-quickgelu` và
    assert kiểm tra. Cũng **không chờ tải dữ liệu**.
 7. **Cả nhóm — chốt một bảng tên thành viên duy nhất** (TV1..TV5 + Khánh).
-8. **~~Giao 30 video `29.97` cho một máy~~ — XONG.** Cả `26.44` lẫn `29.97`
-   đã kiểm và đạt (A5.3). Rủi ro fps đã đóng.
-   **Thay bằng:** hỏi BTC câu 0.a cho ra kết quả, vì A5.6 (keyframe trùng
-   lặp) làm câu này quyết định luôn chiến lược nộp bài của KIS và Q&A, không
-   chỉ TRAKE.
-9. **~~Máy giữ L24+L30 chạy lại với `--n 139`~~ — XONG.** Cả 139 video của
-   L24 và L30 nay phủ 100% ở cả hai script. Đây là mẫu cho các máy còn lại:
-   kiểm HẾT phần mình giữ, đừng dừng ở `--n` mặc định.
-10. **~~Bổ sung mẫu cho L26~~ — XONG.** L23, L26, L27 nay phủ 100%. Độ phủ
-   toàn nhóm **847/873 (97,0%)**.
-   **Còn lại:** máy giữ L25+L28 chạy `--n 88 --group L25` và
-   `--n 24 --group L28` là đủ 873/873. Thiếu 26 video L25 và 11 mẫu script
-   02 của L28.
-11. **Máy giữ L23+L26+L27 tải lại gói `Keyframes_L21`.** 8 mẫu báo
+8. **~~Giao 30 video `29.97`~~ — XONG.** Cả `26.44` lẫn `29.97` đã kiểm và đạt
+   (A5.3). Rủi ro fps đã đóng.
+9. **~~L24+L30 chạy `--n 139`~~ / ~~Bổ sung mẫu L26~~ / ~~L25+L28~~ — XONG.**
+   Toàn bộ 873/873.
+10. **Máy giữ L23+L26+L27 tải lại gói `Keyframes_L21`.** 8 mẫu báo
    `loi_doc_anh` và 5 mẫu `khong_trich_duoc` — thiếu file cục bộ, không
    phải lỗi bảng cái.
 
-> Mục 5, 6 và 9 là ba việc **làm được ngay hôm nay** trong khi chờ tải dữ liệu.
-> Đừng để cả nhóm ngồi chờ băng thông.
+### Việc MỚI từ bản 4.1 (nguồn: A8)
+
+11. **Khánh — gửi BTC BA câu, không phải một.** Câu 0.a giờ đã có mặc định hợp
+    lý (A8.1) nên đây là xác nhận, không còn là chặn:
+    - **0.a** — `frame_idx` chấm theo khoảng hay theo frame chính xác? *(luật
+      AIC'25: theo khoảng)*
+    - **0.d MỚI** — TRAKE có điểm từng phần theo số sự kiện khớp không?
+    - **0.e MỚI** — **Vòng Chung kết có phải thi tương tác** (người gõ truy vấn
+      trực tiếp) như AIC'25 không? Câu này quyết định có dựng giao diện hay
+      không, tức quyết định cả một mảng công việc.
+12. **TV1 — dựng `src/dedup.py`** (A8.8). Không chờ tải dữ liệu: `clip.npy` và
+    `index/trung_lap.parquet` đã có sẵn.
+13. **TV1 — đo thử embedding thứ hai trên ~2.000 ảnh** (GIAI ĐOẠN 1 việc *(b)*).
+    So ba cấu hình ViT-B/32 / model mới / RRF hai cái. **Đừng encode toàn kho
+    trước khi biết kết quả.**
+14. **TV5 hoặc Khánh — thêm Qwen2.5-VL-3B vào bench OCR** (A8.4), chấm bằng
+    thước đo truy hồi đã có ở `retrieval_v2.py`. Nếu thắng thì một lần chạy ra
+    cả OCR lẫn caption.
+15. **TV4 — thêm chế độ LỌC cho kênh OCR** (A8.5), song song chế độ BM25.
+16. **Ai rảnh trước — `src/lan_can.py` và `src/thoi_gian.py`.** Mỗi cái vài chục
+    dòng, không phụ thuộc gì ngoài `master.parquet`. Tỷ lệ lợi/công cao nhất
+    trong cả bản 4.1.
+
+> **Làm được ngay hôm nay, không chờ băng thông:** mục 5, 6, 12, 13, 16.
+> Đừng để cả nhóm ngồi chờ tải dữ liệu.
+>
+> **Kỷ luật cho toàn bộ việc mới:** mọi thứ ở bản 4.1 đến từ **một bài báo,
+> một đội, một mùa, không ablation** (A8.2). Dựng thì dựng, nhưng **chỉ giữ
+> cái nào tăng điểm đo được trên tập dev** — đúng nguyên tắc GIAI ĐOẠN 3. Đó
+> là lý do mục 3 (tập dev) quan trọng hơn tất cả mục 12–16 cộng lại.
