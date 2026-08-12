@@ -7,7 +7,7 @@ Theo PHẦN 6 của `HUONG_DAN_GIAI_DOAN_0.md`. Đủ 8 gạch mới mở Giai �
 | 1 | `paths.parquet` phủ ≥ 99% video ở `csv`, `clip`, `keyframe_dir` | ⚠️ **một phần** |
 | 2 | `master.parquet` dựng xong, không còn lỗi `lech_so_vector` | ✅ **đạt** |
 | 3 | `clip.npy` shape `(N, 512)`, `N` = số dòng `master` | ✅ **đạt** |
-| 4 | `verify_report.csv` cho ≥ 95% `KHOP` | ✅ **đạt — 870/872 (99,8%)** |
+| 4 | `verify_report.csv` cho ≥ 95% `KHOP` | ✅ **đạt — 871/873 (99,8%)** |
 | 5 | Ghi lại 4 con số vào tài liệu nhóm | ✅ **đạt** |
 | 6 | `index/` đã lên Drive, cả 6 người tải được | ⬜ **chưa** |
 | 7 | Câu hỏi về cửa sổ `[s,e]` đã gửi BTC | ⬜ **chưa** |
@@ -20,9 +20,8 @@ máy này mới **6,9%** (60/873) vì mới tải `Keyframes_L21` + `Keyframes_L
 Không phải lỗi, chỉ là chưa tải xong. Gạch này sẽ tự đạt khi tải hết các gói
 Keyframes.
 
-Tính cả kết quả thành viên khác gửi về thì **872/873 video (99,9%) đã được
-kiểm chứng**, đủ cả 10/10 nhóm L. Chỉ thiếu `L25_V001` — máy giữ L25 không
-có file video đó. Chạy `python scripts/07_gop_kiem_chung.py`
+Tính cả kết quả thành viên khác gửi về thì **873/873 video — 100% — đã được
+kiểm chứng**, đủ cả 10/10 nhóm L. Chạy `python scripts/07_gop_kiem_chung.py`
 để xem bảng độ phủ mới nhất.
 
 **2 — đạt.** `problems.csv` có 844 dòng nhưng **toàn bộ là `lech_so_keyframe`**
@@ -32,18 +31,19 @@ nghiêm trọng mà hướng dẫn cảnh báo.
 **3 — đạt.** `clip.npy` = `(177321, 512)` float32 chuẩn L2. `master.parquet`
 = 177.321 dòng. Khớp chính xác.
 
-**4 — đạt.** 870/872 mẫu đạt ở script 02 và 865/872 ở script 03.
-L29 và L24+L30 do máy khác chạy rồi gửi về. Mẫu đáng giá nhất là
-`L24_V044/003.jpg` — video 26,44 fps duy nhất của kho, keyframe ứng với
-`frame_idx=5` tức 0,19 giây, vẫn đạt corr 0,9997 và phân biệt được với hai
-dòng kề. **Cả hai loại fps lạ nay đều đã kiểm và đạt** — 26,44 (1/1) và 29,97 (17/30).
-Rủi ro fps đã đóng; chỗ nguy hiểm nhất còn lại là keyframe trùng lặp (A5.6).
+**4 — đạt.** 871/873 mẫu đạt ở script 02 và 863/873 ở script 03.
+**Không mẫu nào là lệch chỉ số thật** — mọi cảnh báo đều truy ngược được về
+keyframe trùng lặp (A5.6) hoặc cụm frame liên tiếp (A5.7).
 
-`KHOP_YEU` là phán quyết mới: tương quan pixel thấp nhưng vượt xa dòng kề.
-Hiệu chuẩn trên L22 — mẫu tệ nhất `L22_V013/116.jpg` chỉ đạt corr 0,675
-nhưng là đoạn đồ họa chuyển cảnh, và đồng hồ trên hình đọc cùng `18:36:43`
-với frame trích từ video, tức ghép đúng giây. Tương quan pixel tuyệt đối
-không chịu được cảnh động; biên độ so với dòng kề mới là dấu hiệu đáng tin.
+Hai phán quyết mới sinh ra từ quá trình này:
+
+- `KHOP_YEU` (script 02) — tương quan pixel thấp nhưng vượt xa dòng kề. Hiệu
+  chuẩn trên `L22_V013/116.jpg`: corr chỉ 0,675 nhưng đồng hồ trên hình đọc
+  cùng `18:36:43` với frame trích từ video, tức ghép đúng giây.
+- `KHOP_TRUNG_LAP` (script 03) — cosine ≥ 0,95 nhưng không đúng hạng 1 vì
+  dòng thắng là bản sao của chính nó.
+
+Cả hai loại fps lạ đã kiểm và đạt: 26,44 (1/1) và 29,97 (30/30).
 
 **5 — đạt.** Xem [so_lieu_giai_doan_0.md](so_lieu_giai_doan_0.md).
 

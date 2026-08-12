@@ -60,7 +60,7 @@ def generate_report(output_dir: Path = BENCH_ROOT / 'results') -> Path:
         'conclusion': {
             'ocr': {'selected_model': ocr_winner, **ocr_notes},
             'asr': {'selected_model': asr_winner, **asr_notes},
-            'selection_policy': 'accuracy first; latency then VRAM for ties',
+            'selection_policy': 'OCR: normalized WER, Exact, latency, VRAM; ASR: WER and timestamp gates',
             'ground_truth_approved': {'ocr': ocr_approved, 'asr': asr_approved},
         }
     }

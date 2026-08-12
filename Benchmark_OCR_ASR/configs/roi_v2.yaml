@@ -1,0 +1,12 @@
+schema_version: 2
+# Reviewers must replace null with normalized [x1, y1, x2, y2] coordinates
+# after inspecting dev contact sheets. Holdout must not be used to tune ROIs.
+profiles:
+  L21:
+    include: null
+    exclude: []
+    review_status: needs_review
+  L29:
+    include: null
+    exclude: []
+    review_status: needs_review

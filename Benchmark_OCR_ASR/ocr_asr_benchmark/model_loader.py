@@ -97,36 +97,6 @@ class EasyOCRAdapter:
 
 
 class PaddleVietOCRAdapter:
-    def __init__(self, params: dict[str, Any]):
-        detector_params = {
-            "lang": "vi", "ocr_version": params.get("detector_ocr_version", "PP-OCRv5"),
-            "device": "gpu", "use_doc_orientation_classify": False,
-            "use_doc_unwarping": False, "use_textline_orientation": False,
-        }
-        self.detector = PaddleOCRAdapter(detector_params)
-        require_cache_on_d("AIC_VIETOCR_CACHE")
-        from vietocr.tool.config import Cfg
-        from vietocr.tool.predictor import Predictor
-        config = Cfg.load_config_from_name(params.get("vietocr_config", "vgg_transformer"))
-        config["device"] = params.get("device", "cuda")
-        config["predictor"]["beamsearch"] = False
-        self.recognizer = Predictor(config)
-
-    def recognize_crop(self, image: Image.Image) -> str:
-        return str(self.recognizer.predict(image.convert("RGB"))).strip()
-
-    def predict(self, image_path: Path) -> list[dict[str, Any]]:
-        image = Image.open(image_path).convert("RGB")
-        width, height = image.size
-        predictions = self.detector.predict(image_path)
-        for prediction in predictions:
-            x1, y1, x2, y2 = prediction["bbox_xyxy"]
-            crop = image.crop((max(0, x1), max(0, y1), min(width, x2), min(height, y2)))
-            prediction["text"] = self.recognize_crop(crop)
-        return predictions
-
-
-class PaddleVietOCRAdapter:
     '''Paddle detector plus VietOCR recognizer with every artifact cached on D.'''
 
     _CONFIG_NAMES = {
@@ -194,17 +164,6 @@ class PaddleVietOCRAdapter:
         return predictions
 
 
-def load_ocr_adapter(model_config: dict[str, Any]) -> Any:
-    family = model_config["family"]
-    if family == "paddleocr":
-        return PaddleOCRAdapter(model_config["params"])
-    if family == "easyocr":
-        return EasyOCRAdapter(model_config["params"])
-    if family == "paddle_vietocr":
-        return PaddleVietOCRAdapter(model_config["params"])
-    raise ValueError(f"Unknown OCR family: {family}")
-
-
 class EasyVietOCRAdapter:
     '''EasyOCR detector plus VietOCR recognizer; both use one PyTorch runtime.'''
 
@@ -256,39 +215,6 @@ def load_ocr_adapter(model_config: dict[str, Any]) -> Any:
     if family == 'easy_vietocr':
         return EasyVietOCRAdapter(model_config['params'])
     raise ValueError('Unknown OCR family: {}'.format(family))
-
-
-class TransformersWhisperAdapter:
-    def __init__(self, model_config: dict[str, Any], generation: dict[str, Any]):
-        cache_dir = require_cache_on_d("HF_HUB_CACHE")
-        import torch
-        from transformers import AutoModelForSpeechSeq2Seq, AutoProcessor, pipeline
-        dtype = torch.float16 if torch.cuda.is_available() else torch.float32
-        repo_id = model_config["repo_id"]
-        model = AutoModelForSpeechSeq2Seq.from_pretrained(
-            repo_id, dtype=dtype, low_cpu_mem_usage=True,
-            use_safetensors=True, cache_dir=str(cache_dir),
-        )
-        processor = AutoProcessor.from_pretrained(repo_id, cache_dir=str(cache_dir))
-        device = 0 if torch.cuda.is_available() else -1
-        self.pipeline = pipeline(
-            "automatic-speech-recognition", model=model, tokenizer=processor.tokenizer,
-            feature_extractor=processor.feature_extractor, dtype=dtype,
-            device=device, chunk_length_s=30, batch_size=1,
-        )
-        self.generation = generation
-
-    def predict(self, audio_path: Path) -> dict[str, Any]:
-        generate_kwargs = {
-            "language": self.generation.get("language", "vi"),
-            "task": self.generation.get("task", "transcribe"),
-            "num_beams": self.generation.get("num_beams", 5),
-            "do_sample": False,
-        }
-        return self.pipeline(
-            str(audio_path), return_timestamps=self.generation.get("return_timestamps", True),
-            generate_kwargs=generate_kwargs,
-        )
 
 
 class TransformersWhisperAdapter:

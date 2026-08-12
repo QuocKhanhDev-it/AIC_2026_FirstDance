@@ -24,28 +24,29 @@ Kiểm chứng gộp được từ nhiều máy: xem [verify/](verify/), chạy
 | --- | --- | --- |
 | csv / clip / objects / media-info | 873 / 873 (100%) | đủ cả 10 nhóm L21–L30 |
 | keyframes / video mp4 **trên máy này** | **60 / 873 (6,9%)** | L21 + L22 |
-| **đã kiểm chứng — toàn nhóm** | **872 / 873 (99,9%)** | **đủ 10/10 nhóm L** |
+| **đã kiểm chứng — toàn nhóm** | **873 / 873 — 100%** | **đủ 10/10 nhóm L** |
 
-**Chín nhóm phủ 100%.** Chỉ thiếu `L25_V001` — máy giữ L25 không có file
-video đó, nên 87/88 chứ không phải 88/88.
+**Mọi nhóm phủ 100%.** Không video nào chưa được kiểm.
 
-**Một mẫu duy nhất còn treo:** `L25_V004` keyframe 345/345 — bị CẢ HAI script
-gắn cờ (pixel corr 0,9321 vs dòng −1 là 0,9827; CLIP cosine 0,8710 hạng 2).
-Năm keyframe cuối video này là frame 29904–29908, liên tiếp, cách nhau 33 ms.
-Nhiều khả năng là `ffmpeg -ss` không định vị nổi ở sát mép file, nhưng **chưa
-chứng minh được**. Xem A5.7 của kế hoạch v4.
+**Không mẫu nào là lệch chỉ số thật.** Mọi cảnh báo đều truy ngược được về
+một trong hai hiện tượng của kho:
 
-`index/problems.csv` có 813 dòng `lech_so_keyframe` — đó là **chưa tải**,
-không phải lỗi ghép. **Không máy nào có dòng `lech_so_vector`** (đây mới là
-lỗi nghiêm trọng).
+| Hiện tượng | Số mẫu | Xem |
+| --- | --- | --- |
+| Keyframe trùng lặp | 17 (`KHOP_TRUNG_LAP`) | A5.6 |
+| Cụm frame liên tiếp ở cuối video | 5 | A5.7 |
+| Khác biệt tiền xử lý JPEG (đúng hạng 1) | 7 (`NGHI_NGO`) | — |
 
-Độ dài video: min 30s, trung vị 317s, max 2735s.
+Bằng chứng quyết định cho A5.7: `L25_V004` được chạy **hai lần với hai
+keyframe khác nhau**. Keyframe cuối video (345/345) trượt cả hai phép kiểm;
+keyframe giữa video (245/345) đạt với biên độ khổng lồ — pixel corr 0,9806
+biên độ +0,9738, CLIP cosine 0,9461 hạng 1 cách biệt +0,4916.
 
 ## Kết luận rút ra
 
 ### 1. Bảng cái ĐÚNG — ảnh keyframe ↔ dòng CSV
 
-`02_verify.py` chạy trên 872 mẫu thuộc cả 10 nhóm L: **870/872 đạt (99,8%)**. Cách ghép dòng CSV thứ *i* ↔ ảnh keyframe thứ
+`02_verify.py` chạy trên 873 mẫu thuộc cả 10 nhóm L: **871/873 đạt (99,8%)**. Cách ghép dòng CSV thứ *i* ↔ ảnh keyframe thứ
 *i* ↔ `frame_idx` là chính xác.
 
 `KHOP_YEU` là phán quyết cho cảnh động: tương quan pixel dưới 0,95 nhưng
@@ -58,7 +59,7 @@ vượt dòng kề ≥ 0,30. Bằng chứng hiệu chuẩn: `L22_V013/116.jpg` c
 ### 2. Liên kết CSV ↔ clip.npy cũng ĐÚNG
 
 `03_verify_CLIP.py` encode lại frame bằng CLIP ViT-B/32 rồi so với vector đã
-lưu: **865/872 đạt (99,2%)**.
+lưu: **863/873 đạt (98,9%)**.
 
 - 6 mẫu `NGHI_NGO` — đúng hạng 1, cosine 0,919–0,947, cách biệt hạng 2 dương
   (+0,03…+0,16). Khác biệt tiền xử lý JPEG/resize, không phải lệch chỉ số.
