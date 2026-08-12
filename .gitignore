@@ -31,8 +31,14 @@ data/
 cache/
 *.log
 .ipynb_checkpoints/
-BenchmarkOCRASR/eval_data/ocr_v2/contact_sheets/
-BenchmarkOCRASR/results/v2/.parts/
+
+# ---- ảnh mẫu + kết quả dở của bench OCR/ASR ----
+# contact sheet là ảnh ghép TỪ KEYFRAME CỦA BTC -> repo public, không đẩy.
+# Hai luật này thêm ở commit 2f36584 nhưng ghi tên thư mục CŨ
+# (BenchmarkOCRASR/), mà chính commit đó đổi tên thành Benchmark_OCR_ASR/
+# -> luật hụt đích, 15 ảnh lọt lên. Đổi tên thư mục thì soát lại đây.
+Benchmark_OCR_ASR/eval_data/ocr_v2/contact_sheets/
+Benchmark_OCR_ASR/results/v2/.parts/
 
 # ---- IDE / OS ----
 .vscode/
