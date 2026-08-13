@@ -1,0 +1,9 @@
+{
+  "cau": "a person riding a motorbike on the street",
+  "model": "ViT-B-32-quickgelu",
+  "pretrained": "openai",
+  "chieu": 512,
+  "row_id": 10200,
+  "video_id": "L22_V008",
+  "cos": 0.3415
+}

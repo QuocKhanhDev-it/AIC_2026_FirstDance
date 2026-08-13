@@ -603,18 +603,39 @@ làm được bằng một câu `WHERE ... LIKE`/full-text trên Parquet.
 
 Giữ nguyên v3. Nút cổ chai thật là decode video và inference model.
 
-### B3. Cấu trúc thư mục — đã dựng
+### B3. Cấu trúc thư mục
+
+*Sửa ở 4.1: bản trước liệt kê `src/` như thể **đã dựng**, nhưng đó là danh sách
+**dự kiến** — thực tế lúc đó chỉ có `objects.py`. Dưới đây tách rõ hai cột.*
 
 ```text
 aic2026/
-  scripts/    00_discover.py  01_build_index.py  02_verify.py  03_verify_CLIP.py
-  index/      master.parquet  clip.npy  objects.parquet  problems.csv  *_report
-  src/        dense.py  retrieval.py  scoring.py  objects.py  run.py
-  dev/        số liệu, checklist, queries_draft.md, dev.json
+  scripts/    00_discover  01_build_index  02_verify  03_verify_CLIP
+              04_smoke_vlm  05_bench_vlm  06_tim  07_gop_kiem_chung  08_encode
+  index/      master.parquet  clip.npy  objects.parquet  trung_lap.parquet
+              label_idf.parquet  problems.csv  *_report
+  dev/        số liệu, checklist, verify/
   docs/       hướng dẫn thành viên
   cache/      frame dày đã decode
   submissions/
 ```
+
+| `src/` | Trạng thái | Là gì |
+| --- | --- | --- |
+| `schema.py` | ✅ | `Candidate`, `AnswerKIS/QA/TRAKE` |
+| `dense.py` | ✅ | Kênh 1 — truy hồi vector ảnh, **không dính model nào** |
+| `rrf.py` | ✅ | Hợp nhất **N** danh sách + ràng buộc đa dạng |
+| `dedup.py` | ✅ | Gộp bản sao cùng video (A5.6, PHẦN C mục 6) |
+| `lan_can.py` | ✅ | Đi bộ theo thời gian (A8.7 #1) |
+| `thoi_gian.py` | ✅ | Xếp hạng lại theo chuỗi (A8.7 #3) |
+| `objects.py` | ✅ | Kênh 4 — objects + IDF |
+| `bm25.py` | ⬜ | Kênh 2 + 3 — chưa có |
+| `run.py` | ⬜ | Đường ống đầu-cuối — chưa có |
+
+| `tests/` | Trạng thái | Chốt chặn cho |
+| --- | --- | --- |
+| `test_dense.py` | ✅ 7/7 qua | **Bẫy A6** — sai biến thể model không ném lỗi, chỉ tụt điểm âm thầm |
+| `moc_dense.json` | ✅ | Mốc cố định: truy vấn chuẩn → `row_id` phải không đổi |
 
 ### B4. Mô hình chia dữ liệu nhiều máy
 
@@ -1420,8 +1441,10 @@ chưa từng nhìn.
     - **0.e MỚI** — **Vòng Chung kết có phải thi tương tác** (người gõ truy vấn
       trực tiếp) như AIC'25 không? Câu này quyết định có dựng giao diện hay
       không, tức quyết định cả một mảng công việc.
-12. **TV1 — dựng `src/dedup.py`** (A8.8). Không chờ tải dữ liệu: `clip.npy` và
-    `index/trung_lap.parquet` đã có sẵn.
+12. **~~TV1 — dựng `src/dedup.py`~~ — XONG** (A8.8), cùng với `schema.py`,
+    `dense.py`, `rrf.py`, `lan_can.py`, `thoi_gian.py` và `tests/test_dense.py`
+    (7/7 qua). Xem bảng ở [B3](#b3-cấu-trúc-thư-mục).
+    **Còn lại của TV1:** `src/bm25.py` và `src/run.py`.
 13. **TV1 — đo thử embedding thứ hai trên ~2.000 ảnh** (GIAI ĐOẠN 1 việc *(b)*).
     So ba cấu hình ViT-B/32 / model mới / RRF hai cái. **Đừng encode toàn kho
     trước khi biết kết quả.**
@@ -1429,9 +1452,16 @@ chưa từng nhìn.
     thước đo truy hồi đã có ở `retrieval_v2.py`. Nếu thắng thì một lần chạy ra
     cả OCR lẫn caption.
 15. **TV4 — thêm chế độ LỌC cho kênh OCR** (A8.5), song song chế độ BM25.
-16. **Ai rảnh trước — `src/lan_can.py` và `src/thoi_gian.py`.** Mỗi cái vài chục
-    dòng, không phụ thuộc gì ngoài `master.parquet`. Tỷ lệ lợi/công cao nhất
-    trong cả bản 4.1.
+16. **~~`src/lan_can.py` và `src/thoi_gian.py`~~ — XONG.** Kèm phát hiện tiện
+    lợi: `master.parquet` đã sắp theo **cả `row_id` lẫn `(video_id, frame_idx)`**
+    nên "khung lân cận" chỉ là số học trên `row_id`, không cần tra cứu gì.
+17. **MỚI — `scripts/08_encode.py` đã viết xong** (việc 1 của
+    [kế hoạch GPU](06_ke_hoach_encode_GPU.md)). Đã chạy thử đầu-cuối trên CPU
+    với `ViT-B-32-quickgelu`: 605 keyframe, và vector sinh ra **trùng khít
+    `clip.npy` của BTC — trung vị cosine 0,9994, 605/605 đạt ≥ 0,95**. Phép
+    kiểm lệch hàng đã thử cả hai chiều: **6/6 đạt** trên ma trận đúng,
+    **0/6 và thoát mã 1** trên ma trận cố ý dịch một bậc.
+    **Máy GPU chỉ còn phải cài `torch` bản CUDA và tải ảnh.**
 
 > **Làm được ngay hôm nay, không chờ băng thông:** mục 5, 6, 12, 13, 16.
 > Đừng để cả nhóm ngồi chờ tải dữ liệu.
