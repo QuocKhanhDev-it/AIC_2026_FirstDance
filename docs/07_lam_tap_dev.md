@@ -276,6 +276,55 @@ Có con số đó rồi thì mọi giả thuyết của bản 4.1 mới bắt đ
 
 ---
 
+## §10. Sáu người cùng soạn thì chia thế nào
+
+### Nguyên tắc chia: ai giữ nhóm L nào thì soạn câu cho nhóm đó
+
+Không phải để chia đều cho công bằng, mà vì **bước 3 của §4 bắt buộc mở ảnh
+gốc kiểm lại** — và chỉ máy đang giữ gói `Keyframes_*` mới mở được ảnh gốc ở
+độ phân giải đầy đủ. Người khác chỉ có contact sheet 320 px, mà §4 đã cho thấy
+320 px đánh lừa được mắt.
+
+| Việc | Ai | Gửi gì |
+| --- | --- | --- |
+| Dựng contact sheet nhóm L mình giữ | mỗi máy | `dev/sheets/` lên Drive (~240 MB cả kho) |
+| Soạn câu cho nhóm L mình giữ | mỗi máy | `dev/tap_dev_<nhóm>.jsonl` — **vài KB, gửi qua chat được** |
+| Gộp + soát + cất tập test | một người | `dev/tap_dev.jsonl` |
+
+Contact sheet lên Drive vẫn có ích cho **mọi người** — để nhìn ra kho có gì,
+và để người gộp soát chéo. Chỉ việc *viết câu* mới cần ảnh gốc.
+
+### Quy ước `id`: gắn nhóm L vào
+
+```
+kis-L21-001    qa-L25-003    trake-L26-002
+```
+
+Sáu người cùng đánh `kis-001` là trùng ngay. Gắn nhóm L thì vừa hết trùng vừa
+**nhìn ra phân bố ngay trên `id`** — đếm nhanh xem nhóm nào đang thiếu câu.
+
+### Mỗi người soạn bao nhiêu câu
+
+Mục tiêu 60 câu / 10 nhóm L = **6 câu mỗi nhóm**. Ai giữ 2 nhóm thì soạn 12
+câu, giữ 3 nhóm thì 18. Chia theo nhóm L chứ đừng chia theo đầu người — A2:
+L26 có 498 video còn L21 chỉ 30, nhưng **tập dev cần cân bằng theo nhóm**, chứ
+không theo kích thước nhóm.
+
+### Gộp lại
+
+```powershell
+python src\tap_dev.py --gop dev\tap_dev_L21.jsonl dev\tap_dev_L25.jsonl `
+                            dev\tap_dev_L26.jsonl --file dev\tap_dev.jsonl
+python src\tap_dev.py --file dev\tap_dev.jsonl --no-cum
+python src\tap_dev.py --file dev\tap_dev.jsonl --kiem
+```
+
+`--gop` **báo lỗi khi trùng `id` chứ không tự đổi tên**: đổi ngầm thì sau này
+không truy được câu đó của ai. Bảng phân bố in ra ở `--kiem` là chỗ nhìn để
+biết còn thiếu nhóm nào.
+
+---
+
 ## Bảng việc
 
 | # | Việc | Thời gian | Chặn bởi |
