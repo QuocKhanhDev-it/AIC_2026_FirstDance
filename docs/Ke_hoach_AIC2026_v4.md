@@ -64,6 +64,17 @@ phải lệch chỉ số.
 phí thấp hơn ước tính của v3. **TV2 phải tự đo lại trên máy mình**, đừng lấy
 mốc "3,1 giây CPU cho 300 frame" của v3 vì mốc đó đo trên một máy khác.
 
+> **Đã đo trên máy này (14/08, `python src/trich_day.py --do-luong`):**
+> **~284 ms/khung** (61 khung trong 17,3s, `L23_V014`, mỗi khung một tiến
+> trình `ffmpeg` riêng) — **chậm hơn ~28 lần** mốc "10 ms/khung" của v3. Chi
+> phí khởi động tiến trình `ffmpeg` trên Windows là phần lớn, không phải
+> decode. Không đổi kết luận (vẫn bắt buộc trích dày), nhưng đổi cách ước
+> lượng CPU ở B4: 129,8 giờ video × nhiều truy vấn con × nhiều khung/truy vấn
+> ở ~0,28s/khung là đáng kể — nếu chi phí này chặn tiến độ, hướng tối ưu rõ
+> nhất là gộp nhiều `-frames:v` vào MỘT lệnh ffmpeg cho cả cửa sổ thay vì một
+> tiến trình mỗi khung. **Mỗi máy nên tự chạy lại lệnh trên** vì phần cứng
+> khác nhau — con số này không đại diện cho máy khác.
+
 ### A2. Kho dữ liệu lệch nặng về một nhóm L
 
 873 video, phân bố **rất không đều**:
@@ -629,6 +640,7 @@ aic2026/
 | `lan_can.py` | ✅ | Đi bộ theo thời gian (A8.7 #1) |
 | `thoi_gian.py` | ✅ | Xếp hạng lại theo chuỗi (A8.7 #3) |
 | `objects.py` | ✅ | Kênh 4 — objects + IDF |
+| `trich_day.py` | ✅ | **TV2 — trích frame dày** quanh một khoảnh khắc (Bước 4 TRAKE); trả `list[KhungDay]`, KHÔNG phải `Candidate` (không có row_id thật, xem docstring) |
 | `bm25.py` | ⬜ | Kênh 2 + 3 — chưa có |
 | `run.py` | ⬜ | Đường ống đầu-cuối — chưa có |
 
@@ -636,6 +648,7 @@ aic2026/
 | --- | --- | --- |
 | `test_dense.py` | ✅ 7/7 qua | **Bẫy A6** — sai biến thể model không ném lỗi, chỉ tụt điểm âm thầm |
 | `moc_dense.json` | ✅ | Mốc cố định: truy vấn chuẩn → `row_id` phải không đổi |
+| `test_trich_day.py` | ✅ 7/7 qua | `frame_idx` đúng dãy yêu cầu + khớp pixel với ảnh keyframe gốc (corr ≥ 0,95, cùng ngưỡng `02_verify.py`) + cache không gọi lại ffmpeg |
 
 ### B4. Mô hình chia dữ liệu nhiều máy
 
