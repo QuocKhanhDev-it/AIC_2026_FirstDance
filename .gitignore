@@ -32,6 +32,11 @@ cache/
 *.log
 .ipynb_checkpoints/
 
+# ---- contact sheet để duyệt tập dev ----
+# Ảnh ghép TỪ KEYFRAME CỦA BTC -> repo public, không đẩy. Cả kho ~240 MB;
+# chia sẻ giữa các máy bằng Drive, xem docs/07_lam_tap_dev.md §2.
+dev/sheets/
+
 # ---- ảnh mẫu + kết quả dở của bench OCR/ASR ----
 # contact sheet là ảnh ghép TỪ KEYFRAME CỦA BTC -> repo public, không đẩy.
 # Hai luật này thêm ở commit 2f36584 nhưng ghi tên thư mục CŨ
