@@ -102,11 +102,22 @@ sau, ghi vào đầu file:
 > Đáp án sai trong tập dev còn tệ hơn không có tập dev: nó làm mọi cấu hình bị
 > chấm sai theo cùng một hướng mà không ai biết.
 
-Đường dẫn ảnh gốc lấy từ bảng cái:
+Tra `row_id` đọc trên sheet ra đường dẫn ảnh gốc — nhận nhiều số một lần,
+thêm `--mo` để mở luôn bằng trình xem ảnh mặc định:
 
 ```powershell
-python -c "import pandas as pd; m=pd.read_parquet('index/master.parquet'); print(m.kf_path.iloc[713])"
+python scripts\10_contact_sheet.py --tra 593 605 713 809 --mo
 ```
+
+```text
+  row_id  video_id      kf  frame_idx      giây  đường dẫn ảnh gốc
+     593  L21_V003      25       2220     88.80  C:\Code\aic_data\...\L21_V003\025.jpg
+     605  L21_V003      37       3620    144.80  C:\Code\aic_data\...\L21_V003\037.jpg
+```
+
+Nó in kèm **khung JSONL điền sẵn** `row_id_dung` và `nguon` — chỉ còn phải gõ
+`cau_hoi`, và gõ **sau khi** đã xem ảnh gốc. Nhớ sửa `000` trong `id` thành số
+thứ tự thật.
 
 ### Bẫy riêng của kho này: dòng chữ chạy dưới đáy màn hình
 
