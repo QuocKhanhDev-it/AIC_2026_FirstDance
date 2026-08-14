@@ -20,6 +20,8 @@ Toàn bộ tài liệu ở [docs/](docs/).
 Số liệu đầy đủ: [dev/so_lieu_giai_doan_0.md](dev/so_lieu_giai_doan_0.md)
 Máy có GPU: [docs/06_ke_hoach_encode_GPU.md](docs/06_ke_hoach_encode_GPU.md) —
 bảng kế hoạch encode model mạnh hơn `ViT-B/32`.
+Soạn tập dev: [docs/07_lam_tap_dev.md](docs/07_lam_tap_dev.md) — **đường găng
+hiện tại**, không có nó thì mọi thứ ở bản 4.1 đều không đo được.
 
 | Chỉ số | Giá trị |
 | --- | --- |
