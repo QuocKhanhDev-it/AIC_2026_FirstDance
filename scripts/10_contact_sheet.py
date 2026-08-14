@@ -1,5 +1,5 @@
 """
-09_contact_sheet.py — Dựng lưới ảnh để DUYỆT BẰNG MẮT khi soạn tập dev.
+10_contact_sheet.py — Dựng lưới ảnh để DUYỆT BẰNG MẮT khi soạn tập dev.
 
 Vì sao cần: đáp án của tập dev phải tìm bằng mắt, KHÔNG được tìm bằng chính
 `06_tim.py`. Tập dev tạo bằng công cụ đang được đem ra chấm chỉ chứa những
@@ -13,10 +13,10 @@ Một video ~203 keyframe. Lấy thưa 1/10 còn ~20 ô, đủ để thấy vide
 mà file chỉ vài trăm KB. Chọn được khoảnh khắc rồi mới dựng lại dày quanh đó.
 
     # duyệt nhanh cả nhóm L, mỗi video một file
-    python scripts/09_contact_sheet.py --nhom L21 --thua 10
+    python scripts/10_contact_sheet.py --nhom L21 --thua 10
 
     # đã ưng một video -> xem dày quanh vùng quan tâm
-    python scripts/09_contact_sheet.py --video L21_V003 --thua 1 --tu 120 --den 180
+    python scripts/10_contact_sheet.py --video L21_V003 --thua 1 --tu 120 --den 180
 
 CHIA SẺ GIỮA CÁC MÁY: ảnh keyframe cả kho là 30,5 GB, không ai gửi nổi. Contact
 sheet thưa 1/10 cho toàn bộ 873 video chỉ khoảng 350 MB — đẩy Drive được. Mỗi

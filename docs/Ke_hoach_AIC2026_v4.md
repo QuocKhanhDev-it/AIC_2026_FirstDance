@@ -74,6 +74,29 @@ mốc "3,1 giây CPU cho 300 frame" của v3 vì mốc đó đo trên một máy
 > nhất là gộp nhiều `-frames:v` vào MỘT lệnh ffmpeg cho cả cửa sổ thay vì một
 > tiến trình mỗi khung. **Mỗi máy nên tự chạy lại lệnh trên** vì phần cứng
 > khác nhau — con số này không đại diện cho máy khác.
+>
+> **Máy thứ hai đo lại (14/08) — và đã KIỂM CHỨNG hướng tối ưu nói trên.**
+> Cùng `--do-luong` trên máy khác: **199 ms/khung** (61 khung / 12,1s,
+> `L21_V001`). Cùng bậc với 284 ms, nên đây là tính chất của cách gọi ffmpeg
+> chứ không phải của một máy cụ thể.
+>
+> Đo trực tiếp giả thuyết "chi phí nằm ở khởi động tiến trình, không phải
+> decode" trên cùng một cửa sổ 61 khung liên tiếp:
+>
+> | Cách gọi | Thời gian | Mỗi khung |
+> | --- | --- | --- |
+> | 61 tiến trình `ffmpeg` riêng *(cách hiện tại)* | 10,28 s | **169 ms** |
+> | **1 tiến trình cho cả cửa sổ** (`-ss` + `-t` + `image2pipe`) | **1,18 s** | **19 ms** |
+>
+> **Nhanh gấp 8,7 lần.** Và 19 ms/khung khớp lại với mốc "~10 ms/khung" của
+> v3 — nhiều khả năng mốc v3 đo bằng cách gộp, còn cách gọi từng khung mới là
+> thứ làm chậm 20–28 lần.
+>
+> → Giả thuyết của TV2 **đúng**, và đây là tối ưu đáng làm vì `trich_day` nằm
+> trên đường găng (PHẦN E #2). Ràng buộc khi cài: `-ss` + `-t` trả về **một
+> luồng ảnh nối tiếp**, phải tách theo header từng ảnh; và **cache theo từng
+> frame vẫn giữ nguyên** — chỉ đổi cách lấy khi cache trượt, không đổi cấu
+> trúc cache.
 
 ### A2. Kho dữ liệu lệch nặng về một nhóm L
 
@@ -623,6 +646,7 @@ Giữ nguyên v3. Nút cổ chai thật là decode video và inference model.
 aic2026/
   scripts/    00_discover  01_build_index  02_verify  03_verify_CLIP
               04_smoke_vlm  05_bench_vlm  06_tim  07_gop_kiem_chung  08_encode
+              09_trich_day_batch  10_contact_sheet
   index/      master.parquet  clip.npy  objects.parquet  trung_lap.parquet
               label_idf.parquet  problems.csv  *_report
   dev/        số liệu, checklist, verify/

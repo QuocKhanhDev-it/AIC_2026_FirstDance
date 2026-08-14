@@ -20,7 +20,7 @@ Cách làm có vẻ tự nhiên nhất — gõ truy vấn, thấy kết quả đ
 - Mọi cải tiến (RRF, dedup, SigLIP2, caption) đều trông vô dụng
 - Và ta kết luận sai rằng bản 4.1 không đáng làm
 
-Đáp án phải tìm bằng **mắt duyệt nội dung**. Đó là lý do có `09_contact_sheet.py`.
+Đáp án phải tìm bằng **mắt duyệt nội dung**. Đó là lý do có `10_contact_sheet.py`.
 
 ---
 
@@ -53,7 +53,7 @@ nhóm L) lẫn A7 (kho lệch về ẩm thực, không phải tin tức).
 
 ```powershell
 # duyệt nhanh cả một nhóm L, mỗi video một file
-python scripts\09_contact_sheet.py --nhom L21 --thua 10
+python scripts\10_contact_sheet.py --nhom L21 --thua 10
 ```
 
 Mỗi ô có ghi sẵn **`row_id`** — đó là con số duy nhất cần chép lại.
@@ -61,14 +61,14 @@ Mỗi ô có ghi sẵn **`row_id`** — đó là con số duy nhất cần chép
 Đo thật: một video 24 ô ra file **279 KB**. Cả 873 video ≈ **240 MB** — đẩy
 Drive được thoải mái, so với 30,5 GB nếu gửi ảnh gốc.
 
-> **Việc cần nhắn cả nhóm ngay:** mỗi máy chạy `09_contact_sheet.py --nhom <L
+> **Việc cần nhắn cả nhóm ngay:** mỗi máy chạy `10_contact_sheet.py --nhom <L
 > của mình> --thua 10` rồi đẩy thư mục `dev/sheets/` lên Drive. Sau đó ai cũng
 > duyệt được toàn kho mà không phải tải gì nặng.
 
 Chọn được video ưng ý thì xem dày quanh vùng quan tâm:
 
 ```powershell
-python scripts\09_contact_sheet.py --video L25_V012 --thua 1 --tu 120 --den 180
+python scripts\10_contact_sheet.py --video L25_V012 --thua 1 --tu 120 --den 180
 ```
 
 ---
