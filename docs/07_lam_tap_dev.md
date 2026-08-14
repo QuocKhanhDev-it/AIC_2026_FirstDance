@@ -119,19 +119,29 @@ Nó in kèm **khung JSONL điền sẵn** `row_id_dung` và `nguon` — chỉ c�
 `cau_hoi`, và gõ **sau khi** đã xem ảnh gốc. Nhớ sửa `000` trong `id` thành số
 thứ tự thật.
 
-### Bẫy riêng của kho này: dòng chữ chạy dưới đáy màn hình
+### Bẫy riêng của kho này: BA vùng chữ, chỉ hai vùng dùng được
 
-Kho toàn bản tin, và **dòng chữ chạy ở đáy KHÔNG liên quan gì tới hình đang
-chiếu**. Đo thật trên hai keyframe:
+Bản tin có **ba** loại chữ trên màn hình, và chúng khác nhau hoàn toàn về mức
+đáng tin. Phân biệt sai là viết câu hỏi trật:
 
-| Hình | Dòng chữ chạy |
-| --- | --- |
-| Đập Hòa Bình xả lũ | *"chủ trương đầu tư cao tốc TP.HCM - Mộc Bài..."* |
-| Một con ngựa con | *"Đà Nẵng: Ô tô 'điên' tông văng 6 xe máy..."* |
+| Vùng | Ví dụ đo thật | Có liên quan tới hình? |
+| --- | --- | --- |
+| **Chữ trong cảnh** — biển hiệu, chữ trên công trình, biển số | `THỦY ĐIỆN HÒA BÌNH` trên thân đập; `CHÙA LIÊN HOA` trên cổng chùa; biển số `63-B3 366.32` | ✅ **có** — dùng thoải mái |
+| **Băng rôn tiêu đề** — dải đỏ lớn kèm logo `60 giây` | `BẮC NINH: CHÁY NHÀ 5 TẦNG TRONG ĐÊM RẰM THÁNG 7` trên đúng cảnh cháy nhà | ✅ **có** — nhưng xem cảnh báo dưới |
+| **Dòng chữ chạy ở đáy** | Ảnh đập Hòa Bình đi kèm *"cao tốc TP.HCM - Mộc Bài"*; ảnh con ngựa con đi kèm *"Đà Nẵng: Ô tô 'điên' tông văng 6 xe máy"*; ảnh dung nham đi kèm *"Tòa án Indonesia yêu cầu hãng dược phẩm bồi thường"* | ❌ **KHÔNG** — tin chạy độc lập |
 
-**Đừng bao giờ viết câu hỏi dựa vào dòng chữ chạy.** Chỉ dùng chữ **nằm trong
-cảnh** (biển hiệu, chữ trên thân đập, bảng tỷ số). Đây cũng chính là lý do
-kênh OCR cần cắt ROI bỏ vùng đáy.
+**Tuyệt đối không viết câu hỏi dựa vào dòng chữ chạy.** Nó là luồng tin riêng,
+chạy song song và không dính gì tới cảnh đang chiếu.
+
+**Băng rôn tiêu đề thì có liên quan, nhưng đừng chép nguyên văn vào câu hỏi.**
+Chép nguyên si thì kênh OCR trúng ngay mà chẳng đo được gì về thị giác — câu
+hỏi thành bài kiểm tra chép chữ. Hãy tả **cảnh**, và nếu muốn đo OCR thì làm
+hẳn một câu `QA` riêng lấy đáp án từ chữ đó.
+
+> **Hệ quả cho kênh OCR (kênh 3):** cắt ROI **không phải** là "bỏ nửa dưới màn
+> hình". Băng rôn tiêu đề và dòng chữ chạy nằm sát nhau ở đáy nhưng một cái
+> vàng một cái độc. Ranh giới đúng là **dải chữ chạy cuối cùng**, không phải
+> toàn bộ vùng đáy.
 
 ---
 
