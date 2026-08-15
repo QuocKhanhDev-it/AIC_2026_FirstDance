@@ -94,6 +94,34 @@ def test_loc_theo_video(kenh):
     assert kq and all(c.video_id == vid for c in kq)
 
 
+def test_khoa_be_ung_vien(kenh):
+    """`be=` phải chặn thật, không được chỉ là tham số trang trí.
+
+    Đây là chốt cho lỗi đo ở việc 8 của kế hoạch GPU: so `clip.npy` (đủ
+    177.321 dòng thật) với ma trận chạy thử SigLIP2 (chỉ vài nghìn dòng thật)
+    mà không khóa bể là so "tìm trong 177k" với "tìm trong vài nghìn".
+    """
+    import numpy as np
+    vid = kenh.master.video_id.iloc[0]
+    be = (kenh.master.video_id == vid).values
+
+    kq = kenh.tim("người đi xe máy", k=50, be=be)
+    assert kq, "khóa bể mà không trả về gì"
+    assert all(c.video_id == vid for c in kq), "bể bị rò — có ứng viên ngoài bể"
+
+    # thu hẹp bể phải làm thứ hạng của một đáp án cố định TỐT LÊN (số nhỏ hơn)
+    from dense import be_chung
+    assert be_chung(kenh).sum() == kenh.dong_da_encode().sum()
+    assert isinstance(be_chung(kenh, kenh), np.ndarray)
+
+
+def test_dong_da_encode(kenh):
+    """`clip.npy` của BTC phủ 100% nên không được có dòng vector 0."""
+    ma = kenh.dong_da_encode()
+    assert ma.shape == (len(kenh.master),)
+    assert ma.all(), f"{(~ma).sum()} dòng vector 0 trong clip.npy — bất thường"
+
+
 def test_nhieu_bien_the_lay_diem_cao_nhat(kenh):
     """Nhiều cách diễn đạt -> max, không phải trung bình.
 

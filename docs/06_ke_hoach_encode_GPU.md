@@ -122,6 +122,41 @@ Không cần thêm dữ liệu gì. Đây là lý do việc 6 phải chạy trư
 | **B** | SigLIP2 đơn thuần | model mới đủ mạnh để dùng một mình |
 | **C** | **RRF(A, B)** | ghép có lợi — đúng kết quả đội AIC'25 |
 
+> 🛑 **BẮT BUỘC KHÓA BỂ ỨNG VIÊN — nếu không, việc 8 ra kết luận NGƯỢC.**
+>
+> `clip.npy` có đủ **177.321 dòng thật**. Ma trận chạy thử SigLIP2 chỉ encode
+> vài nghìn dòng, phần còn lại là **vector 0** (cosine 0, không bao giờ được
+> truy hồi). So thẳng A với B là so *"tìm trong 177 nghìn"* với *"tìm trong
+> vài nghìn"* — B thắng vì bể nhỏ hơn, **không liên quan gì tới chất lượng
+> model**.
+>
+> Đo thật trên tập dev 12 câu, **cùng một ma trận `clip.npy`**, chỉ đổi bể:
+>
+> | Bể ứng viên | Điểm |
+> | --- | --- |
+> | đầy đủ 177.321 keyframe | **0,5167** |
+> | thu hẹp 2.328 keyframe | **0,8000** |
+> | | **+0,2833 thuần ảo giác** |
+>
+> Để so sánh: toàn bộ lợi ích đội AIC'25 thu được khi thêm SigLIP2 là
+> **+0,07** điểm/câu (A8.2). **Ảo giác lớn gấp 4 lần thứ cần đo.**
+>
+> Cách đúng — `src/dense.py` đã có sẵn:
+>
+> ```python
+> from dense import KenhAnh, be_chung
+> a_kenh = KenhAnh("./index")                                  # ViT-B/32
+> b_kenh = KenhAnh("./index", matrix="clip_siglip2_thu.npy")   # SigLIP2 thử
+> be = be_chung(a_kenh, b_kenh)        # chỉ dòng CẢ HAI đều encode thật
+>
+> a = cham(dev, lambda c: a_kenh.tim(c.cau_hoi, k=100, be=be))
+> b = cham(dev, lambda c: b_kenh.tim(c.cau_hoi, k=100, be=be))
+> print(so_sanh_cap(a, b, "ViT-B/32", "SigLIP2"))
+> ```
+>
+> Và **câu hỏi dev phải có đáp án nằm trong bể đó** — soạn từ đúng các video
+> đã encode, nếu không thì không câu nào tìm được.
+
 > ⚠️ **Cách đo SAI thường gặp:** encode 2.000 ảnh rải rác rồi đo. Truy hồi là
 > xếp hạng trên **toàn kho** — chỉ 2.000 ứng viên thì bài toán dễ hẳn, số đẹp
 > giả tạo, không suy ra được gì. Phải encode **trọn vẹn** các video trong tập

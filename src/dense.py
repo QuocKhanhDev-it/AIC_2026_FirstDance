@@ -94,8 +94,17 @@ class KenhAnh:
             v = self.model.encode_text(self.tok([cau]))[0].numpy().astype(np.float32)
         return v / (np.linalg.norm(v) + 1e-9)
 
+    def dong_da_encode(self) -> np.ndarray:
+        """Mặt nạ bool: dòng nào có vector THẬT (khác vector 0).
+
+        Ma trận chạy thử của `08_encode.py` luôn đủ 177.321 dòng nhưng phần
+        chưa encode để 0. Cần biết phần nào thật để khóa bể ứng viên khi so
+        cấu hình — xem `be_chung()`.
+        """
+        return np.abs(np.asarray(self.mat[:, :8], dtype=np.float32)).sum(1) > 0
+
     def tim(self, cau, k=100, video_id=None, chi_co_anh=False,
-            moi_video=None) -> list[Candidate]:
+            moi_video=None, be=None) -> list[Candidate]:
         """Trả về tối đa `k` ứng viên, điểm cao xuống thấp.
 
         `cau` nhận cả một chuỗi lẫn danh sách chuỗi. Nhiều biến thể của cùng
@@ -106,11 +115,16 @@ class KenhAnh:
         `moi_video` là ràng buộc đa dạng của PHẦN C mục 2. Để None ở tầng kênh
         (mặc định) và áp một lần duy nhất sau khi RRF — áp sớm sẽ cắt mất ứng
         viên mà các kênh khác còn cần.
+
+        `be` là mặt nạ bool giới hạn bể ứng viên. **BẮT BUỘC dùng khi so hai
+        ma trận có độ phủ khác nhau** — xem `be_chung()`.
         """
         cac_cau = [cau] if isinstance(cau, str) else list(cau)
         sim = np.max([np.asarray(self.mat) @ self.encode_text(c)
                       for c in cac_cau], axis=0)
 
+        if be is not None:
+            sim = np.where(np.asarray(be, dtype=bool), sim, -9.0)
         if video_id is not None:
             sim = np.where((self.master.video_id == video_id).values, sim, -9.0)
         if chi_co_anh:
@@ -136,6 +150,39 @@ class KenhAnh:
                     loc.append(c)
             ra = loc
         return ra[:k]
+
+
+def be_chung(*kenh: "KenhAnh") -> np.ndarray:
+    """Bể ứng viên chung: chỉ những dòng CẢ HAI ma trận đều đã encode thật.
+
+    ⚠️ BẮT BUỘC khi so hai cấu hình có độ phủ khác nhau — ví dụ `clip.npy`
+    (đủ 177.321 dòng thật) với ma trận chạy thử của `08_encode.py` (chỉ vài
+    nghìn dòng thật, phần còn lại là vector 0).
+
+    Không khóa bể là so "tìm trong 177 nghìn" với "tìm trong vài nghìn", và
+    bên có bể nhỏ hơn thắng vì lý do KHÔNG liên quan gì tới chất lượng model.
+
+    Đã đo trên tập dev 12 câu, CÙNG một ma trận `clip.npy`, chỉ đổi bể:
+
+        bể đầy đủ 177.321 keyframe   ->  0,5167
+        bể thu hẹp   2.328 keyframe  ->  0,8000      (+0,2833 THUẦN ẢO GIÁC)
+
+    Để so sánh: toàn bộ lợi ích đội AIC'25 thu được khi thêm SigLIP2 chỉ là
+    +0,07 điểm/câu (A8.2). Ảo giác này lớn gấp 4 lần thứ cần đo — không khóa
+    bể thì kết luận ra ngược.
+
+        be = be_chung(kenh_b32, kenh_siglip2)
+        a  = cham(dev, lambda c: kenh_b32.tim(c.cau_hoi, k=100, be=be))
+        b  = cham(dev, lambda c: kenh_siglip2.tim(c.cau_hoi, k=100, be=be))
+    """
+    if not kenh:
+        raise ValueError("cần ít nhất một kênh")
+    ra = kenh[0].dong_da_encode()
+    for k in kenh[1:]:
+        if len(k.master) != len(kenh[0].master):
+            raise ValueError("các kênh không cùng bảng cái")
+        ra &= k.dong_da_encode()
+    return ra
 
 
 # Truy vấn dùng làm mốc cho bài test cố định ở tests/test_dense.py.
