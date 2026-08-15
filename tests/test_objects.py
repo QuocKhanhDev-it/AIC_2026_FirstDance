@@ -131,6 +131,32 @@ def test_bo_dang_tran_van_khop_duoc_cum_that(bang, cau, phai_co):
     assert phai_co in nhan_tu_truy_van(cau, bang)
 
 
+def test_anh_xa_xap_xi_khi_khong_co_nhan_chinh_xac(bang):
+    """Nhãn xấp xỉ là ĐÚNG khi kho không có nhãn chính xác hơn.
+
+    Quy tắc chọn: nếu kho CÓ nhãn chính xác hơn thì phải tách thành dòng riêng
+    (`Microwave oven` tồn tại -> "lò vi sóng" không được gộp vào `Oven`). Nếu
+    kho KHÔNG có thì ánh xạ về nhãn gần nhất, vì `object_score` cho điểm mềm
+    và bỏ trống là mất hẳn.
+
+    Ca `Balloon` có bằng chứng thực nghiệm mạnh: `row_id 7291` trong tập dev
+    là khung khinh khí cầu, và detector gán cho nó `Balloon(0,82)` — chính
+    OpenImages coi khinh khí cầu là `Balloon`. Kho KHÔNG có `Hot air balloon`.
+    Bỏ ánh xạ này là phá đúng một câu trong tập dev của ta.
+    """
+    from objects import nhan_tu_truy_van
+    assert "Balloon" in nhan_tu_truy_van("khinh khí cầu sọc đỏ", bang)
+    assert "Microwave oven" in nhan_tu_truy_van("lò vi sóng trong bếp", bang)
+    assert "Microwave oven" not in nhan_tu_truy_van("lò nướng bánh", bang)
+
+
+def test_nhan_bao_trum_that_su_duoc_dung(bang):
+    """`row_id 15180` (hai con mèo rừng) được detector gán `Carnivore(0,86)`,
+    KHÔNG phải `Cat`. Truy vấn "mèo rừng" phải chạm được nhãn đó."""
+    from objects import nhan_tu_truy_van
+    assert "Carnivore" in nhan_tu_truy_van("hai con mèo rừng trên bãi cỏ", bang)
+
+
 def test_cum_chong_lan_giu_ca_hai(bang):
     """"chiếc ô tô": cụm "chiếc ô" và "ô tô" chồng lấn MỘT PHẦN.
 

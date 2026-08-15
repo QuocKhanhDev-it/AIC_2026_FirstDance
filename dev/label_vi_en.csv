@@ -107,15 +107,22 @@ Lantern,đèn lồng,"đèn lồng, lồng đèn",
 Egg,trứng,"trứng, quả trứng, trứng gà",Food
 Cattle,bò,"bò, con bò, trâu, đàn bò, gia súc",Animal
 Dog,chó,"chó, con chó, cún",Animal
-Cat,mèo,"mèo, con mèo, mèo rừng",Animal
+Cat,mèo,"mèo, con mèo, mèo nhà",Carnivore
+Carnivore,thú ăn thịt,"thú ăn thịt, mèo rừng, thú hoang, dã thú, hổ, báo, sói, cáo",Animal
+Goat,dê,"dê, con dê, đàn dê",Animal
+Milk,sữa tươi,"sữa tươi, hộp sữa, ly sữa, cốc sữa",Dairy
 Horse,ngựa,"ngựa, con ngựa, chú ngựa",Animal
-Bird,chim,"chim, con chim, đàn chim, cò, vịt, gà",Animal
+Bird,chim,"chim, con chim, đàn chim, loài chim, chim chóc, cò",Animal
+Chicken,gà,"gà, con gà, đàn gà, gà trống, gà mái",Bird
+Duck,vịt,"vịt, con vịt, đàn vịt",Bird
+Goose,ngỗng,"ngỗng, con ngỗng",Bird
 Fork,nĩa,"nĩa, dĩa ăn, cái nĩa",Tableware
 Microphone,micro,"micro, mic, micrô",
 Cocktail,cocktail,"cocktail, đồ uống pha chế",Drink
 Baked goods,bánh,"bánh, bánh nướng, bánh mì, bánh ngọt",Food
 Sushi,sushi,"sushi, cơm cuộn",Food
-Oven,lò nướng,"lò nướng, lò vi sóng, lò",Kitchen appliance
+Oven,lò nướng,"lò nướng, lò quay, lò bánh, lò",Kitchen appliance
+Microwave oven,lò vi sóng,"lò vi sóng, lò viba",Kitchen appliance
 Kitchen knife,dao,"dao, con dao, dao thái, dao bếp",Kitchen utensil
 Cucumber,dưa chuột,"dưa chuột, dưa leo",Vegetable
 Cutting board,thớt,"thớt, tấm thớt, thớt gỗ",Kitchen utensil
