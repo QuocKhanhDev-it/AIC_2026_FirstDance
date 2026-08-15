@@ -1197,7 +1197,7 @@ python src\tap_dev.py --file dev\tap_dev.jsonl --kiem
 | --- | --- | --- | --- |
 | 2 | **`src/bm25.py`** — kênh 2 (metadata) + kênh 3 (OCR/ASR) | TV3 | metadata đã phủ 100%, 955 ký tự/video. Kênh 3 cần **hai chế độ**: lọc cứng cho token hiếm + BM25 hòa RRF (A8.5) |
 | 3 | **`dev/label_vi_en.csv`** — dịch top ~150 nhãn | TV2 | ~1 giờ, mở khóa nốt kênh 4 (D1.6) |
-| 4 | **Tối ưu `trich_day`: gộp cả cửa sổ vào MỘT lệnh ffmpeg** | TV2 | đã đo: **nhanh gấp 8,7 lần** (169 → 19 ms/khung). Nằm trên đường găng TRAKE |
+| 4 | ~~Tối ưu `trich_day`: gộp cả cửa sổ vào MỘT lệnh ffmpeg~~ | TV2 | ✅ **XONG** — `trich_nhieu()` trong `src/trich_day.py`, áp dụng lại cho `scripts/09_trich_day_batch.py`. Đo lại trên máy này sau khi cài: **28 ms/khung** (61 khung liên tục, stride=1) so với 169–284 ms/khung cũ — 7/7 test qua. Cờ `-vsync 0` của A1 đã bị GỠ ở ffmpeg 9.0, đổi sang `-fps_mode passthrough` |
 | 5 | **Commit script vá `kf_path`** | Khánh | máy nào tải `index/` từ Drive cũng gặp (A5.5); đừng để mỗi người viết lại |
 | 6 | **Gán nhãn 400 mẫu `ocr_v2` + điền `roi_v2.yaml`** | TV4 | đang **0/400**. ROI: ranh giới là **dải chữ chạy cuối cùng**, KHÔNG phải "bỏ nửa dưới" — băng rôn tiêu đề có liên quan tới hình |
 | 7 | **`src/run.py`** — đường ống đầu-cuối | TV5 | chỉ đáng viết khi đã có ≥ 2 kênh |

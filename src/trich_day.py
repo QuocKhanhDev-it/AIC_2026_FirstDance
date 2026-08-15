@@ -32,6 +32,14 @@ hướng — cache theo frame tận dụng được phần chồng lấn đó, c
 nguyên khối thì không. `cache/` không đẩy git (xem .gitignore), không đồng bộ
 qua Drive — chỉ tồn tại trên máy đã trích, chạy phân tán theo nhóm L ai giữ.
 
+**Tối ưu H2 #4 (đã đo, A1): khung nào cache trượt được trích bằng MỘT lệnh
+`ffmpeg` cho CẢ cửa sổ còn thiếu**, không phải một tiến trình mỗi khung —
+`trich_nhieu()` giải mã liên tục `-ss`+`-t` rồi tách luồng `image2pipe` theo
+chữ ký PNG. Đo trên hai máy: 169 ms/khung (một tiến trình/khung) -> 19
+ms/khung (một tiến trình/cửa sổ), nhanh gấp 8,7 lần. Chi phí nằm ở khởi động
+tiến trình ffmpeg trên Windows, không phải decode — gộp lệnh xóa gần hết chi
+phí đó. Cấu trúc cache theo-từng-frame KHÔNG đổi, chỉ đổi cách LẤY khi trượt.
+
 Dùng:
     from trich_day import trich_day
     khung = trich_day(video_path, video_id="L23_V001", center_frame=1200,
@@ -62,30 +70,72 @@ class KhungDay(NamedTuple):
     anh: Image.Image
 
 
-def _trich_mot_frame(video_path, t: float, timeout: float = 15.0) -> Image.Image | None:
-    """Trích một frame tại giây `t` bằng ffmpeg.
+_PNG_SIG = b"\x89PNG\r\n\x1a\n"
 
-    `-ss` đặt TRƯỚC `-i`: ffmpeg (>= bản 2.1) seek nhanh tới keyframe container
-    gần nhất rồi TỰ giải mã tiếp cho khớp đúng mốc thời gian yêu cầu — không
-    phải đánh đổi tốc độ lấy độ chính xác như bản ffmpeg cũ. Cùng cách
-    `02_verify.py` dùng, đã đo được 871/873 video khớp (99,8%) trên toàn kho.
 
-    Trả `None` nếu ffmpeg lỗi hoặc hết giờ — im lặng bỏ qua, để gọi hàng loạt
-    cho nhiều truy vấn con không bị một frame hỏng làm dừng cả pipeline.
+def _tach_anh_png(data: bytes) -> list[bytes]:
+    """Tách một luồng nhiều ảnh PNG nối liền nhau (ffmpeg `image2pipe`) thành
+    từng ảnh riêng, dựa vào chữ ký 8 byte đầu mỗi PNG — không có khung nào
+    khác chứa lại đúng chuỗi byte này nên tìm-và-cắt là đủ, không cần parse
+    chunk IHDR/IEND."""
+    moc = []
+    start = 0
+    while True:
+        i = data.find(_PNG_SIG, start)
+        if i == -1:
+            break
+        moc.append(i)
+        start = i + len(_PNG_SIG)
+    return [data[a:b] for a, b in zip(moc, moc[1:] + [len(data)])]
+
+
+def trich_nhieu(video_path, frame_idxs, anchor_frame: int, anchor_pts_time: float,
+                 fps: float, timeout: float = 60.0) -> dict:
+    """Trích NHIỀU frame bằng MỘT tiến trình `ffmpeg` duy nhất (A1: đo được
+    nhanh gấp 8,7 lần so với một tiến trình mỗi khung — 169 -> 19 ms/khung,
+    xác nhận trên hai máy khác nhau).
+
+    `-ss` (trước `-i`) + `-t` khiến ffmpeg giải mã LIÊN TỤC mọi frame trong
+    khoảng `[min(frame_idxs), max(frame_idxs)]`, không nhảy cóc theo stride —
+    nhảy cóc cần filter `select` riêng và phá tính liên tục của decode, mà
+    chính tính liên tục đó là thứ giúp seek chỉ tốn chi phí MỘT lần cho cả cửa
+    sổ. `image2pipe` trả về một LUỒNG ảnh PNG nối tiếp nhau, phải tách lại
+    bằng `_tach_anh_png`. `-fps_mode passthrough` giữ nguyên số khung giải mã
+    được, không cho ffmpeg tự rớt/nhân đôi khung để khớp một fps đầu ra khác
+    (cờ cũ `-vsync 0` đã bị GỠ ở ffmpeg 9.0 — `Unrecognized option`, không chỉ
+    deprecated; `-fps_mode` là cờ thay thế từ ffmpeg 5.1).
+
+    Trả `dict[frame_idx, Image.Image]` — chỉ chứa khung tách/mở ảnh THÀNH
+    CÔNG; khung nào ffmpeg không trả về (đầu/cuối video, file hỏng) vắng mặt
+    trong dict, gọi hàng loạt không bị một khung hỏng làm dừng cả cửa sổ.
     """
+    fidx_min, fidx_max = min(frame_idxs), max(frame_idxs)
+    t_start = max(anchor_pts_time + (fidx_min - anchor_frame) / fps, 0.0)
+    so_frame = fidx_max - fidx_min + 1
+    thoi_luong = (so_frame + 0.5) / fps  # +nửa khung cho chắc khung cuối
+
     try:
         r = subprocess.run(
-            ["ffmpeg", "-v", "error", "-ss", f"{max(t, 0.0):.3f}", "-i", str(video_path),
-             "-frames:v", "1", "-f", "image2pipe", "-vcodec", "png", "-"],
+            ["ffmpeg", "-v", "error", "-ss", f"{t_start:.3f}", "-i", str(video_path),
+             "-t", f"{thoi_luong:.3f}", "-fps_mode", "passthrough",
+             "-f", "image2pipe", "-vcodec", "png", "-"],
             capture_output=True, timeout=timeout)
     except (subprocess.TimeoutExpired, OSError):
-        return None
+        return {}
     if r.returncode != 0 or not r.stdout:
-        return None
-    try:
-        return Image.open(io.BytesIO(r.stdout)).convert("RGB")
-    except Exception:
-        return None
+        return {}
+
+    can_lay = set(frame_idxs)
+    ra = {}
+    for i, raw in enumerate(_tach_anh_png(r.stdout)):
+        fidx = fidx_min + i
+        if fidx not in can_lay:
+            continue
+        try:
+            ra[fidx] = Image.open(io.BytesIO(raw)).convert("RGB")
+        except Exception:
+            pass
+    return ra
 
 
 def _duong_cache(cache_dir, video_id: str, frame_idx: int) -> Path:
@@ -119,26 +169,37 @@ def trich_day(video_path, video_id: str, center_frame: int, center_pts_time: flo
         raise ValueError(f"stride phải >= 1, nhận {stride}")
 
     ban_kinh_frame = max(1, round(radius_sec * fps))
-    cac_frame = range(center_frame - ban_kinh_frame, center_frame + ban_kinh_frame + 1, stride)
+    cac_frame = [f for f in
+                 range(center_frame - ban_kinh_frame, center_frame + ban_kinh_frame + 1, stride)
+                 if f >= 0]
+    if not cac_frame:
+        return []
+
+    da_co = {}
+    con_thieu = []
+    for fidx in cac_frame:
+        duong = _duong_cache(cache_dir, video_id, fidx) if cache_dir else None
+        if duong is not None and duong.exists():
+            try:
+                da_co[fidx] = Image.open(duong).convert("RGB")
+                continue
+            except Exception:
+                pass
+        con_thieu.append(fidx)
+
+    if con_thieu:
+        moi = trich_nhieu(video_path, con_thieu, center_frame, center_pts_time, fps)
+        for fidx, anh in moi.items():
+            da_co[fidx] = anh
+            if cache_dir:
+                anh.save(_duong_cache(cache_dir, video_id, fidx), quality=90)
 
     ra = []
     for fidx in cac_frame:
-        if fidx < 0:
+        if fidx not in da_co:
             continue
-        duong = _duong_cache(cache_dir, video_id, fidx) if cache_dir else None
-        anh = None
-        if duong is not None and duong.exists():
-            try:
-                anh = Image.open(duong).convert("RGB")
-            except Exception:
-                anh = None
         t = center_pts_time + (fidx - center_frame) / fps
-        if anh is None:
-            anh = _trich_mot_frame(video_path, t)
-            if anh is not None and duong is not None:
-                anh.save(duong, quality=90)
-        if anh is not None:
-            ra.append(KhungDay(frame_idx=fidx, pts_time=round(t, 3), anh=anh))
+        ra.append(KhungDay(frame_idx=fidx, pts_time=round(t, 3), anh=da_co[fidx]))
     return ra
 
 
