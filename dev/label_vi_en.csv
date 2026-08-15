@@ -1,0 +1,136 @@
+nhan_en,nhan_vi,dong_nghia,cha
+Clothing,quần áo,"quần áo, trang phục, y phục, đồ mặc",
+Person,người,"người, con người, nhân vật, cán bộ, công an, cảnh sát, bác sĩ, y tá, học sinh, sinh viên, giáo viên, thầy giáo, cô giáo, người dân, nhân viên, công nhân, nông dân, phóng viên, bộ đội, chiến sĩ, tài xế, hành khách, khán giả, đám đông",
+Human face,khuôn mặt,"mặt, khuôn mặt, gương mặt",Person
+Man,đàn ông,"đàn ông, người đàn ông, nam giới, anh",Person
+Food,thức ăn,"thức ăn, đồ ăn, món ăn, thực phẩm",
+Woman,phụ nữ,"phụ nữ, người phụ nữ, đàn bà, cô gái, chị",Person
+Tree,cây,"cây, cây cối, thân cây, hàng cây",Plant
+Table,bàn,"bàn, cái bàn, mặt bàn, bàn ăn",
+Human hand,bàn tay,"tay, bàn tay, đôi tay",Person
+Flower,hoa,"hoa, bông hoa, đóa hoa, cành hoa",Plant
+Plant,thực vật,"cây, thực vật, cây xanh",
+Tomato,cà chua,"cà chua, quả cà chua",Vegetable
+Poster,áp phích,"áp phích, poster, băng rôn, tấm biển, biểu ngữ",
+Boat,thuyền,"thuyền, tàu, ghe, xuồng, đò, tàu thuyền",Vehicle
+Footwear,giày dép,"giày, dép, giày dép, xăng đan, ủng, giày thể thao",Clothing
+Glasses,kính,"kính, kính mắt, mắt kính, kính râm",Fashion accessory
+Building,tòa nhà,"tòa nhà, công trình, nhà cao tầng, kiến trúc",
+Girl,bé gái,"bé gái, cô bé, con gái, thiếu nữ",Person
+Vegetable,rau,"rau, rau củ, rau xanh, rau quả",Food
+Frying pan,chảo,"chảo, chảo rán, chảo chống dính",Kitchen utensil
+Bowl,bát,"bát, tô, chén, cái bát",Tableware
+Salad,salad,"salad, xà lách, rau trộn, gỏi, nộm",Food
+Boy,bé trai,"bé trai, cậu bé, con trai",Person
+Bicycle,xe đạp,"xe đạp, chiếc xe đạp",Land vehicle
+Toy,đồ chơi,"đồ chơi, món đồ chơi",
+Window,cửa sổ,"cửa sổ, ô cửa",
+Car,ô tô,"ô tô, xe hơi, xe ô tô, xe con, xe bốn bánh",Land vehicle
+Flag,cờ,"cờ, lá cờ, quốc kỳ, cờ đỏ sao vàng",
+Wheel,bánh xe,"bánh xe, lốp xe, vành xe",
+Drink,đồ uống,"đồ uống, thức uống, nước uống, nước giải khát",
+Laptop,máy tính xách tay,"laptop, máy tính xách tay, máy tính",
+Skyscraper,nhà chọc trời,"nhà chọc trời, cao ốc, tòa nhà cao tầng",Building
+House,nhà,"nhà, ngôi nhà, căn nhà, nhà ở",Building
+Broccoli,bông cải xanh,"bông cải xanh, súp lơ xanh, bông cải",Vegetable
+Chopsticks,đũa,"đũa, đôi đũa",Tableware
+Tableware,bộ đồ ăn,"bát đĩa, chén đĩa, bộ đồ ăn, đồ ăn uống",
+Suit,bộ vest,"vest, com lê, com-lê, bộ vest, áo vest",Clothing
+Vehicle,phương tiện,"xe, xe cộ, phương tiện, phương tiện giao thông",
+Wok,chảo gang,"chảo, chảo gang, chảo sâu lòng",Kitchen utensil
+Flowerpot,chậu hoa,"chậu hoa, chậu cây, bồn hoa",
+Palm tree,cây cọ,"cây cọ, cây dừa, cây cau",Tree
+Houseplant,cây cảnh,"cây cảnh, cây trong nhà, chậu cây cảnh",Plant
+Spoon,thìa,"thìa, muỗng, cái thìa",Tableware
+Land vehicle,xe đường bộ,"xe, xe cộ, phương tiện đường bộ",Vehicle
+Snack,đồ ăn vặt,"đồ ăn vặt, ăn vặt, quà vặt, bánh kẹo",Food
+Dairy,sữa,"sữa, sản phẩm từ sữa, bơ sữa",Food
+Bookcase,kệ sách,"kệ sách, giá sách, tủ sách",Shelf
+Shelf,kệ,"kệ, giá, giá đỡ, ngăn kệ",
+Chair,ghế,"ghế, cái ghế, ghế ngồi",
+Animal,động vật,"động vật, con vật, thú, gia súc, gia cầm, thú rừng, thú hoang",
+Dress,váy,"váy, đầm, váy đầm, áo dài",Clothing
+Plate,đĩa,"đĩa, dĩa, cái đĩa",Tableware
+Pasta,mì Ý,"mì ý, pasta, mì, nui, spaghetti",Food
+Fashion accessory,phụ kiện,"phụ kiện, đồ trang sức, trang sức",
+Bottle,chai,"chai, lọ, bình, chai nước",
+Guitar,đàn ghi ta,"đàn ghi ta, ghi ta, guitar, đàn",
+Bicycle helmet,mũ bảo hiểm xe đạp,"mũ bảo hiểm, nón bảo hiểm",Clothing
+Fish,cá,"cá, con cá, đàn cá",Animal
+Swimming pool,hồ bơi,"hồ bơi, bể bơi",
+Whiteboard,bảng trắng,"bảng trắng, bảng, tấm bảng",
+Fruit,trái cây,"trái cây, hoa quả, quả",Food
+Dessert,món tráng miệng,"tráng miệng, món tráng miệng, đồ ngọt",Food
+Motorcycle,xe máy,"xe máy, mô tô, xe gắn máy, xe mô tô",Land vehicle
+Book,sách,"sách, quyển sách, cuốn sách, tài liệu",
+Lipstick,son môi,"son, son môi, thỏi son",
+Kitchen appliance,thiết bị nhà bếp,"thiết bị nhà bếp, đồ điện nhà bếp",
+Refrigerator,tủ lạnh,"tủ lạnh, tủ đông",Kitchen appliance
+Shrimp,tôm,"tôm, con tôm",Seafood
+Door,cửa,"cửa, cánh cửa, cửa ra vào",
+Shirt,áo sơ mi,"áo sơ mi, sơ mi, áo",Clothing
+Billboard,biển quảng cáo,"biển quảng cáo, bảng quảng cáo, pa nô",
+Cheese,phô mai,"phô mai, pho mát",Food
+Seafood,hải sản,"hải sản, đồ biển",Food
+Hat,mũ,"mũ, nón, chiếc mũ",Clothing
+Wall clock,đồng hồ treo tường,"đồng hồ, đồng hồ treo tường",
+Bicycle wheel,bánh xe đạp,"bánh xe đạp, vành xe đạp",Wheel
+Canoe,xuồng,"xuồng, ca nô, thuyền nhỏ, ghe",Boat
+Picture frame,khung ảnh,"khung ảnh, khung tranh",
+Vase,bình hoa,"bình hoa, lọ hoa, bình cắm hoa",
+Helmet,mũ bảo hiểm,"mũ bảo hiểm, nón bảo hiểm",Clothing
+Candy,kẹo,"kẹo, bánh kẹo, viên kẹo",Food
+Mobile phone,điện thoại,"điện thoại, điện thoại di động, smartphone",
+Sun hat,mũ rộng vành,"mũ rộng vành, nón lá, mũ che nắng",Hat
+Kitchen utensil,dụng cụ nhà bếp,"dụng cụ nhà bếp, đồ dùng nhà bếp, dụng cụ nấu ăn",
+Lemon,chanh,"chanh, quả chanh, trái chanh",Fruit
+Coffee cup,tách cà phê,"tách cà phê, ly cà phê, cốc cà phê",Tableware
+Tie,cà vạt,"cà vạt, ca vát",Clothing
+Drum,trống,"trống, cái trống, dàn trống",
+Strawberry,dâu tây,"dâu tây, quả dâu, trái dâu",Fruit
+Truck,xe tải,"xe tải, xe container, xe ben, xe đầu kéo",Land vehicle
+Sculpture,tượng,"tượng, bức tượng, tượng đài, điêu khắc",
+Sunflower,hoa hướng dương,"hoa hướng dương, hướng dương",Flower
+Office building,tòa nhà văn phòng,"tòa nhà văn phòng, cao ốc văn phòng",Building
+Computer keyboard,bàn phím,"bàn phím, bàn phím máy tính",
+Mixing bowl,tô trộn,"tô trộn, thau trộn, bát trộn",Tableware
+Office supplies,văn phòng phẩm,"văn phòng phẩm, đồ dùng văn phòng",
+Tea,trà,"trà, chè, nước trà, tách trà",Drink
+Street light,đèn đường,"đèn đường, cột đèn, đèn cao áp",
+Airplane,máy bay,"máy bay, phi cơ, tàu bay",Vehicle
+Jeans,quần jean,"quần jean, quần bò, quần jeans",Clothing
+Ice cream,kem,"kem, cây kem, ly kem",Dessert
+Fast food,đồ ăn nhanh,"đồ ăn nhanh, thức ăn nhanh, hamburger, burger",Food
+Convenience store,cửa hàng tiện lợi,"cửa hàng tiện lợi, siêu thị mini, tạp hóa",
+Rose,hoa hồng,"hoa hồng, bông hồng",Flower
+Lantern,đèn lồng,"đèn lồng, lồng đèn",
+Egg,trứng,"trứng, quả trứng, trứng gà",Food
+Cattle,bò,"bò, con bò, trâu, đàn bò, gia súc",Animal
+Dog,chó,"chó, con chó, cún",Animal
+Cat,mèo,"mèo, con mèo, mèo rừng",Animal
+Horse,ngựa,"ngựa, con ngựa, chú ngựa",Animal
+Bird,chim,"chim, con chim, đàn chim, cò, vịt, gà",Animal
+Fork,nĩa,"nĩa, dĩa ăn, cái nĩa",Tableware
+Microphone,micro,"micro, mic, micrô",
+Cocktail,cocktail,"cocktail, đồ uống pha chế",Drink
+Baked goods,bánh,"bánh, bánh nướng, bánh mì, bánh ngọt",Food
+Sushi,sushi,"sushi, cơm cuộn",Food
+Oven,lò nướng,"lò nướng, lò vi sóng, lò",Kitchen appliance
+Kitchen knife,dao,"dao, con dao, dao thái, dao bếp",Kitchen utensil
+Cucumber,dưa chuột,"dưa chuột, dưa leo",Vegetable
+Cutting board,thớt,"thớt, tấm thớt, thớt gỗ",Kitchen utensil
+Balloon,bóng bay,"bóng bay, khinh khí cầu, quả bóng bay",
+Sports uniform,đồng phục thể thao,"đồng phục thể thao, áo đấu, áo cầu thủ",Clothing
+Umbrella,ô,"ô, dù, cây dù, chiếc ô",
+Juice,nước ép,"nước ép, nước trái cây, sinh tố",Drink
+Carrot,cà rốt,"cà rốt, củ cà rốt",Vegetable
+Bed,giường,"giường, cái giường, giường bệnh",
+Crab,cua,"cua, con cua, ghẹ",Seafood
+Bus,xe buýt,"xe buýt, xe bus, xe khách",Land vehicle
+Camera,máy ảnh,"máy ảnh, máy quay, camera",
+Television,ti vi,"ti vi, tivi, màn hình, tv",
+Ball,quả bóng,"quả bóng, trái bóng, bóng",
+Curtain,rèm,"rèm, rèm cửa, màn cửa",
+Plastic bag,túi ni lông,"túi ni lông, túi nhựa, bao ni lông",
+Handbag,túi xách,"túi xách, giỏ xách, túi",Fashion accessory
+Insect,côn trùng,"côn trùng, sâu bọ, con bọ",Animal

@@ -20,6 +20,7 @@ Dùng trong code:
 """
 
 import argparse
+import re
 from pathlib import Path
 
 import numpy as np
@@ -67,6 +68,56 @@ def object_score(row_ids, labels_yeu_cau, channel: dict) -> np.ndarray:
     w = sub.score.values * sub.label.map(idf).fillna(0.0).values
     tong = pd.Series(w).groupby(sub.row_id.values).sum()
     return tong.reindex(row_ids, fill_value=0.0).values.astype(np.float32)
+
+
+def nap_bang_nhan(f=None) -> pd.DataFrame:
+    """Bảng ánh xạ tiếng Việt -> nhãn OpenImages (`dev/label_vi_en.csv`).
+
+    Không có bảng này thì kênh objects KHÔNG BAO GIỜ kích hoạt được từ một
+    truy vấn tiếng Việt — `object_score()` nhận nhãn tiếng Anh, mà đề thi ra
+    tiếng Việt.
+
+    Chỉ dịch 100 nhãn phổ biến nhất: đo trên `objects.parquet` ngưỡng 0,5
+    (473 nhãn, 597.357 detection) thì **top 100 đã phủ 96,8%**.
+    """
+    f = Path(f) if f else Path(__file__).resolve().parent.parent / "dev" / "label_vi_en.csv"
+    if not f.exists():
+        raise SystemExit(f"Chưa có {f} — xem PHẦN D1.6 của kế hoạch.")
+    d = pd.read_csv(f).fillna("")
+    d["tu"] = d.dong_nghia.map(
+        lambda s: [x.strip().lower() for x in s.split(",") if x.strip()])
+    return d
+
+
+def nhan_tu_truy_van(cau: str, bang: pd.DataFrame, keo_cha: bool = True) -> list[str]:
+    """Truy vấn tiếng Việt -> danh sách nhãn OpenImages để đưa vào `object_score`.
+
+    Khớp theo CỤM TỪ chính xác (n-gram 1..4 từ), không khớp theo chuỗi con.
+    Khớp chuỗi con rất nguy hiểm với tiếng Việt: "cá" nằm trong "cá nhân",
+    "bàn" nằm trong "bàn bạc". N-gram vẫn còn nhập nhằng ở mức từ, nhưng đó là
+    nhập nhằng của chính ngôn ngữ — và vô hại ở đây vì `object_score` CHO ĐIỂM
+    MỀM, không lọc cứng.
+
+    `keo_cha` kéo theo nhãn cha (cột `cha`). Cần vì thứ bậc OpenImages KHÔNG tự
+    gộp: `Car`, `Land vehicle`, `Vehicle` là ba nhãn riêng biệt, nên truy vấn
+    "ô tô" mà không kéo cha sẽ bỏ sót hai nhãn kia.
+
+        >>> nhan_tu_truy_van("người phụ nữ thái cà chua bên chảo", bang)
+        ['Clothing', 'Food', 'Frying pan', 'Kitchen utensil', 'Person',
+         'Tomato', 'Vegetable', 'Woman', 'Wok']
+    """
+    tu = [t for t in re.split(r"[^\w]+", cau.lower()) if t]
+    cum = {" ".join(tu[i:i + n]) for n in range(1, 5) for i in range(len(tu) - n + 1)}
+
+    ra = {r.nhan_en for r in bang.itertuples() if cum & set(r.tu)}
+    if keo_cha:
+        cha = bang.set_index("nhan_en")["cha"].to_dict()
+        while True:
+            them = {cha[x] for x in ra if cha.get(x)} - ra
+            if not them:
+                break
+            ra |= them
+    return sorted(ra)
 
 
 def dem_nhan(row_ids, label, channel: dict) -> np.ndarray:

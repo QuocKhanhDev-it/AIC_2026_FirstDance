@@ -961,14 +961,30 @@ phổ biến và nhãn hiếm.
 > được làm **tín hiệu tương đối để xếp hạng**, nhưng **câu hỏi đếm phải để VLM
 > nhìn ảnh trả lời**. Xem `src/objects.py::dem_nhan()`.
 
-**Việc còn lại — `dev/label_vi_en.csv` (chưa có).** Truy vấn thi đấu là tiếng
-Việt, nhãn là tiếng Anh. Không cần dịch cả 514 nhãn: **top ~150 nhãn phủ ~95%
-detection**, dịch tay chừng đó mất ~1 giờ. Cột `nhan_en, nhan_vi, dong_nghia`
-(nhiều từ Việt cho một nhãn: `Wok` → "chảo, chảo gang, chảo sâu lòng").
+**`dev/label_vi_en.csv` — ĐÃ CÓ.** 135 nhãn, **phủ 98,1% detection**. Kèm
+`objects.nhan_tu_truy_van()` biến câu tiếng Việt thành danh sách nhãn.
 
-⚠️ Thứ bậc OpenImages **không tự gộp**: `Car`, `Land vehicle`, `Vehicle` là ba
-nhãn riêng. Phải khai báo quan hệ cha-con thủ công cho các cụm quan trọng, nếu
-không truy vấn "ô tô" sẽ bỏ sót.
+Không cần dịch hết 473 nhãn. Đo thật ở ngưỡng 0,5 (597.357 detection): top 30
+phủ 86,2% — top 50: 91,6% — **top 100: 96,8%** — top 150: 98,6%. Bảng hiện tại
+lấy top 100 cộng ~35 nhãn ngoài top nhưng hay xuất hiện trong truy vấn (`Cat`,
+`Dog`, `Balloon`, `Kitchen knife`, `Cutting board`, `Bus`...).
+
+Bốn cột `nhan_en, nhan_vi, dong_nghia, cha`:
+
+- **`dong_nghia` là cột quan trọng nhất**, không phải cột dịch. Truy vấn dùng
+  cách nói nào không đoán trước được: `Canoe` phải bắt cả *"ghe"*, `Person`
+  phải bắt cả *"cán bộ", "công an", "phóng viên"*. Đo thật — chưa thêm từ chỉ
+  nghề nghiệp thì *"cán bộ công an ngồi ghi biên bản"* trả về **rỗng**.
+- **`cha` xử lý chỗ thứ bậc OpenImages không tự gộp.** `Car`, `Land vehicle`,
+  `Vehicle` là ba nhãn riêng biệt — truy vấn *"ô tô"* mà không kéo cha thì bỏ
+  sót hai nhãn kia.
+
+⚠️ **Khớp theo CỤM TỪ, không khớp chuỗi con.** Chuỗi con rất nguy hiểm với
+tiếng Việt: *"cá"* nằm trong *"cá nhân"*, *"bàn"* nằm trong *"bàn bạc"*.
+
+`tests/test_objects.py` chốt cả bốn thứ: không nhãn chết (gõ nhầm tên nhãn thì
+kênh im lặng chết mà không ai biết), cột `cha` trỏ đúng, sáu truy vấn thật
+khớp đúng, và kéo cha có hoạt động.
 
 ---
 
@@ -1196,7 +1212,7 @@ python src\tap_dev.py --file dev\tap_dev.jsonl --kiem
 | # | Việc | Ai | Ghi chú |
 | --- | --- | --- | --- |
 | 2 | **`src/bm25.py`** — kênh 2 (metadata) + kênh 3 (OCR/ASR) | TV3 | metadata đã phủ 100%, 955 ký tự/video. Kênh 3 cần **hai chế độ**: lọc cứng cho token hiếm + BM25 hòa RRF (A8.5) |
-| 3 | **`dev/label_vi_en.csv`** — dịch top ~150 nhãn | TV2 | ~1 giờ, mở khóa nốt kênh 4 (D1.6) |
+| 3 | ~~`dev/label_vi_en.csv`~~ — **XONG**, 135 nhãn phủ 98,1% | — | **Kênh 4 nay dùng được từ truy vấn tiếng Việt.** Còn nên: người Việt đọc lại cột `dong_nghia`, thêm cách nói vùng miền |
 | 4 | **Tối ưu `trich_day`: gộp cả cửa sổ vào MỘT lệnh ffmpeg** | TV2 | đã đo: **nhanh gấp 8,7 lần** (169 → 19 ms/khung). Nằm trên đường găng TRAKE |
 | 5 | **Commit script vá `kf_path`** | Khánh | máy nào tải `index/` từ Drive cũng gặp (A5.5); đừng để mỗi người viết lại |
 | 6 | **Gán nhãn 400 mẫu `ocr_v2` + điền `roi_v2.yaml`** | TV4 | đang **0/400**. ROI: ranh giới là **dải chữ chạy cuối cùng**, KHÔNG phải "bỏ nửa dưới" — băng rôn tiêu đề có liên quan tới hình |
