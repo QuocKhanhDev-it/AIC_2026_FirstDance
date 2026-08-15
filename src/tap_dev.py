@@ -129,6 +129,27 @@ def kiem(cau: list[CauHoi], index_dir=GOC / "index") -> list[str]:
     return loi
 
 
+def _bung(duong_dan: list) -> list[Path]:
+    """Bung `*.jsonl` và thư mục thành danh sách file.
+
+    ⚠️ PowerShell KHÔNG bung dấu sao cho chương trình ngoài (khác bash) — gõ
+    `--gop thu_muc\\*.jsonl` thì Python nhận đúng chuỗi `*.jsonl`, đọc không ra
+    file nào, và **gộp ra 0 câu mà không báo lỗi gì**. Phải tự bung ở đây.
+    """
+    ra = []
+    for d in duong_dan:
+        p = Path(d)
+        if p.is_dir():
+            ra += sorted(p.glob("*.jsonl"))
+        elif any(k in str(d) for k in "*?["):
+            ra += sorted(Path(p.parent or ".").glob(p.name))
+        else:
+            ra.append(p)
+    if not ra:
+        raise SystemExit(f"Không khớp file nào: {duong_dan}")
+    return ra
+
+
 def gop(cac_file: list, index_dir=GOC / "index") -> tuple[list[CauHoi], list[str]]:
     """Gộp tập dev của nhiều người thành một.
 
@@ -141,7 +162,7 @@ def gop(cac_file: list, index_dir=GOC / "index") -> tuple[list[CauHoi], list[str
     (`kis-L21-001`) là hết trùng mà còn nhìn ra phân bố ngay trên id.
     """
     ra, thay, loi = [], {}, []
-    for f in cac_file:
+    for f in _bung(cac_file):
         for c in doc(f):
             if c.id in thay:
                 loi.append(f"id '{c.id}' có ở cả {thay[c.id]} và {Path(f).name}")
