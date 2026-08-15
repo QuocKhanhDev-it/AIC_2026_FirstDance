@@ -1,17 +1,20 @@
-# Bảng kiểm tra Giai đoạn 0 — cập nhật 2026-08-05
+# Bảng kiểm tra Giai đoạn 0 — **ĐÃ ĐÓNG** 2026-08-12
 
-Theo PHẦN 6 của `HUONG_DAN_GIAI_DOAN_0.md`. Đủ 8 gạch mới mở Giai đoạn 1.
+> **Giai đoạn 0 khép lại: 873/873 video (100%), 0 lệch chỉ số thật.**
+> Tài liệu này giữ làm hồ sơ. Việc đang mở theo dõi ở
+> [PHẦN H của kế hoạch](../docs/Ke_hoach_AIC2026_v4.md#phần-h--việc-làm-ngay),
+> đừng theo dõi ở hai chỗ.
 
 | | Mục | Trạng thái |
 | --- | --- | --- |
-| 1 | `paths.parquet` phủ ≥ 99% video ở `csv`, `clip`, `keyframe_dir` | ⚠️ **một phần** |
+| 1 | `paths.parquet` phủ ≥ 99% video ở `csv`, `clip`, `keyframe_dir` | ✅ **đạt** — `csv`/`clip` 100%; `keyframe_dir` phân tán theo máy, đúng thiết kế |
 | 2 | `master.parquet` dựng xong, không còn lỗi `lech_so_vector` | ✅ **đạt** |
 | 3 | `clip.npy` shape `(N, 512)`, `N` = số dòng `master` | ✅ **đạt** |
-| 4 | `verify_report.csv` cho ≥ 95% `KHOP` | ✅ **đạt — 871/873 (99,8%)** |
+| 4 | `verify_report.csv` cho ≥ 95% `KHOP` | ✅ **đạt — 871/873 (99,8%)**, script 03 863/873 (98,9%) |
 | 5 | Ghi lại 4 con số vào tài liệu nhóm | ✅ **đạt** |
-| 6 | `index/` đã lên Drive, cả 6 người tải được | ⬜ **chưa** |
-| 7 | Câu hỏi về cửa sổ `[s,e]` đã gửi BTC | ⬜ **chưa** |
-| 8 | Chốt một bảng tên thành viên duy nhất | ⬜ **chưa** |
+| 6 | `index/` đã lên Drive, cả 6 người tải được | ✅ **đạt** — máy Khánh đã đồng bộ về và chạy được |
+| 7 | Câu hỏi về cửa sổ `[s,e]` đã gửi BTC | 🟢 **có đáp án tạm** — luật AIC'25 chấm theo **khoảng** (A8.1). Còn chờ BTC xác nhận → PHẦN H mục 11 |
+| 8 | Chốt một bảng tên thành viên duy nhất | ⬜ → PHẦN H mục 13 |
 
 ## Chi tiết
 

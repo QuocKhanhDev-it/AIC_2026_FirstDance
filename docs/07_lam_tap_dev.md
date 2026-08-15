@@ -102,25 +102,46 @@ sau, ghi vào đầu file:
 > Đáp án sai trong tập dev còn tệ hơn không có tập dev: nó làm mọi cấu hình bị
 > chấm sai theo cùng một hướng mà không ai biết.
 
-Đường dẫn ảnh gốc lấy từ bảng cái:
+Tra `row_id` đọc trên sheet ra đường dẫn ảnh gốc — nhận nhiều số một lần,
+thêm `--mo` để mở luôn bằng trình xem ảnh mặc định:
 
 ```powershell
-python -c "import pandas as pd; m=pd.read_parquet('index/master.parquet'); print(m.kf_path.iloc[713])"
+python scripts\10_contact_sheet.py --tra 593 605 713 809 --mo
 ```
 
-### Bẫy riêng của kho này: dòng chữ chạy dưới đáy màn hình
+```text
+  row_id  video_id      kf  frame_idx      giây  đường dẫn ảnh gốc
+     593  L21_V003      25       2220     88.80  C:\Code\aic_data\...\L21_V003\025.jpg
+     605  L21_V003      37       3620    144.80  C:\Code\aic_data\...\L21_V003\037.jpg
+```
 
-Kho toàn bản tin, và **dòng chữ chạy ở đáy KHÔNG liên quan gì tới hình đang
-chiếu**. Đo thật trên hai keyframe:
+Nó in kèm **khung JSONL điền sẵn** `row_id_dung` và `nguon` — chỉ còn phải gõ
+`cau_hoi`, và gõ **sau khi** đã xem ảnh gốc. Nhớ sửa `000` trong `id` thành số
+thứ tự thật.
 
-| Hình | Dòng chữ chạy |
-| --- | --- |
-| Đập Hòa Bình xả lũ | *"chủ trương đầu tư cao tốc TP.HCM - Mộc Bài..."* |
-| Một con ngựa con | *"Đà Nẵng: Ô tô 'điên' tông văng 6 xe máy..."* |
+### Bẫy riêng của kho này: BA vùng chữ, chỉ hai vùng dùng được
 
-**Đừng bao giờ viết câu hỏi dựa vào dòng chữ chạy.** Chỉ dùng chữ **nằm trong
-cảnh** (biển hiệu, chữ trên thân đập, bảng tỷ số). Đây cũng chính là lý do
-kênh OCR cần cắt ROI bỏ vùng đáy.
+Bản tin có **ba** loại chữ trên màn hình, và chúng khác nhau hoàn toàn về mức
+đáng tin. Phân biệt sai là viết câu hỏi trật:
+
+| Vùng | Ví dụ đo thật | Có liên quan tới hình? |
+| --- | --- | --- |
+| **Chữ trong cảnh** — biển hiệu, chữ trên công trình, biển số | `THỦY ĐIỆN HÒA BÌNH` trên thân đập; `CHÙA LIÊN HOA` trên cổng chùa; biển số `63-B3 366.32` | ✅ **có** — dùng thoải mái |
+| **Băng rôn tiêu đề** — dải đỏ lớn kèm logo `60 giây` | `BẮC NINH: CHÁY NHÀ 5 TẦNG TRONG ĐÊM RẰM THÁNG 7` trên đúng cảnh cháy nhà | ✅ **có** — nhưng xem cảnh báo dưới |
+| **Dòng chữ chạy ở đáy** | Ảnh đập Hòa Bình đi kèm *"cao tốc TP.HCM - Mộc Bài"*; ảnh con ngựa con đi kèm *"Đà Nẵng: Ô tô 'điên' tông văng 6 xe máy"*; ảnh dung nham đi kèm *"Tòa án Indonesia yêu cầu hãng dược phẩm bồi thường"* | ❌ **KHÔNG** — tin chạy độc lập |
+
+**Tuyệt đối không viết câu hỏi dựa vào dòng chữ chạy.** Nó là luồng tin riêng,
+chạy song song và không dính gì tới cảnh đang chiếu.
+
+**Băng rôn tiêu đề thì có liên quan, nhưng đừng chép nguyên văn vào câu hỏi.**
+Chép nguyên si thì kênh OCR trúng ngay mà chẳng đo được gì về thị giác — câu
+hỏi thành bài kiểm tra chép chữ. Hãy tả **cảnh**, và nếu muốn đo OCR thì làm
+hẳn một câu `QA` riêng lấy đáp án từ chữ đó.
+
+> **Hệ quả cho kênh OCR (kênh 3):** cắt ROI **không phải** là "bỏ nửa dưới màn
+> hình". Băng rôn tiêu đề và dòng chữ chạy nằm sát nhau ở đáy nhưng một cái
+> vàng một cái độc. Ranh giới đúng là **dải chữ chạy cuối cùng**, không phải
+> toàn bộ vùng đáy.
 
 ---
 
@@ -273,6 +294,55 @@ Có con số đó rồi thì mọi giả thuyết của bản 4.1 mới bắt đ
 | RRF nhiều kênh có lợi không? | CLIP vs RRF(CLIP, BM25, objects) |
 | SigLIP2 có đáng encode toàn kho không? | ViT-B/32 vs SigLIP2 vs RRF cả hai |
 | Đi bộ theo thời gian có cứu được Q&A không? | có vs không `lan_can` |
+
+---
+
+## §10. Sáu người cùng soạn thì chia thế nào
+
+### Nguyên tắc chia: ai giữ nhóm L nào thì soạn câu cho nhóm đó
+
+Không phải để chia đều cho công bằng, mà vì **bước 3 của §4 bắt buộc mở ảnh
+gốc kiểm lại** — và chỉ máy đang giữ gói `Keyframes_*` mới mở được ảnh gốc ở
+độ phân giải đầy đủ. Người khác chỉ có contact sheet 320 px, mà §4 đã cho thấy
+320 px đánh lừa được mắt.
+
+| Việc | Ai | Gửi gì |
+| --- | --- | --- |
+| Dựng contact sheet nhóm L mình giữ | mỗi máy | `dev/sheets/` lên Drive (~240 MB cả kho) |
+| Soạn câu cho nhóm L mình giữ | mỗi máy | `dev/tap_dev_<nhóm>.jsonl` — **vài KB, gửi qua chat được** |
+| Gộp + soát + cất tập test | một người | `dev/tap_dev.jsonl` |
+
+Contact sheet lên Drive vẫn có ích cho **mọi người** — để nhìn ra kho có gì,
+và để người gộp soát chéo. Chỉ việc *viết câu* mới cần ảnh gốc.
+
+### Quy ước `id`: gắn nhóm L vào
+
+```
+kis-L21-001    qa-L25-003    trake-L26-002
+```
+
+Sáu người cùng đánh `kis-001` là trùng ngay. Gắn nhóm L thì vừa hết trùng vừa
+**nhìn ra phân bố ngay trên `id`** — đếm nhanh xem nhóm nào đang thiếu câu.
+
+### Mỗi người soạn bao nhiêu câu
+
+Mục tiêu 60 câu / 10 nhóm L = **6 câu mỗi nhóm**. Ai giữ 2 nhóm thì soạn 12
+câu, giữ 3 nhóm thì 18. Chia theo nhóm L chứ đừng chia theo đầu người — A2:
+L26 có 498 video còn L21 chỉ 30, nhưng **tập dev cần cân bằng theo nhóm**, chứ
+không theo kích thước nhóm.
+
+### Gộp lại
+
+```powershell
+python src\tap_dev.py --gop dev\tap_dev_L21.jsonl dev\tap_dev_L25.jsonl `
+                            dev\tap_dev_L26.jsonl --file dev\tap_dev.jsonl
+python src\tap_dev.py --file dev\tap_dev.jsonl --no-cum
+python src\tap_dev.py --file dev\tap_dev.jsonl --kiem
+```
+
+`--gop` **báo lỗi khi trùng `id` chứ không tự đổi tên**: đổi ngầm thì sau này
+không truy được câu đó của ai. Bảng phân bố in ra ở `--kiem` là chỗ nhìn để
+biết còn thiếu nhóm nào.
 
 ---
 

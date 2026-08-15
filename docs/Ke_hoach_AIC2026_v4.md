@@ -6,7 +6,7 @@
 **Khác v3 ở đâu:** PHẦN A của v3 đo trên 6 file CSV / 8 file `.npy` / 1 video
 và được đánh dấu "không cần tranh luận lại". Giờ đã dựng xong bảng cái, PHẦN A
 được đo lại trên **toàn bộ 873 video / 177.321 keyframe**. Ba con số sai lệch
-đáng kể, một kết luận bị đảo ngược. Xem [PHẦN G](#phần-g--so-sánh-v3--v4).
+đáng kể, một kết luận bị đảo ngược. Xem [PHẦN G](#phần-g--lịch-sử-sửa-đổi).
 
 **Bản sửa 4.1 (2026-08-12) — nguồn bằng chứng mới:** đọc được bài báo hệ thống
 của một đội **mùa AIC'25**, tức đúng cuộc thi này năm trước. Đây là lần đầu ta
@@ -159,7 +159,7 @@ Nhưng có một cái bẫy phân bố:
 
 > **Lọc theo `Person` gần như vô nghĩa** — một nửa kho có nhãn đó. Giá trị
 > phân biệt nằm ở nhãn hiếm. Bắt buộc dùng **trọng số nghịch tần suất (IDF)**,
-> không đếm thô. Xem [PHẦN D1.6](#phần-d16--cách-nâng-objects-lên-kênh-chính).
+> không đếm thô. Xem [PHẦN D1.6](#phần-d16--kênh-objects-đã-cài-xong-srcobjectspy).
 >
 > **→ Objects là KÊNH CHÍNH thứ 4, ngang hàng BM25 OCR/ASR. Vẫn cho điểm mềm,
 > vẫn tuyệt đối không lọc cứng** (lý do lọc mềm của v3 vẫn đúng: OpenImages
@@ -281,92 +281,30 @@ trường hợp cosine ≥ 0,95 nhưng hạng > 1 vì dòng thắng là bản sa
 
 ---
 
-### A5.7 — CỤM FRAME LIÊN TIẾP: vì sao phép kiểm chứng báo động giả ở cuối video
+### A5.7 — CỤM FRAME LIÊN TIẾP: vì sao phép kiểm chứng báo động giả
 
-Lô cuối (L25) lộ ra hiện tượng thứ hai, khác với A5.6. Đo trên toàn kho:
+**Kết luận: 0 lệch chỉ số thật trên 873/873 video.** Mọi cảnh báo `LECH_INDEX`
+đều truy ngược được về tính chất của kho, không phải lỗi ghép.
 
-| Chỉ số | Giá trị |
-| --- | --- |
-| Cặp keyframe cách nhau **≤ 2 frame** | **10.845** (6,12% toàn kho), ở **745/873 video** |
-| Cặp keyframe **cùng hệt `frame_idx`** | **614** (0,35%), ở **192 video** |
-| Cụm dày nằm ở 5 keyframe **cuối** video | 494 cặp, thuộc **132 video** |
+Ba tính chất gây báo động giả, đã đo trên toàn kho:
 
-Cách nhau 1 frame ở 30 fps là **33 mili giây**. `ffmpeg -ss` không định vị
-chính xác đến mức đó. Nên phép kiểm chứng **không phân biệt nổi** ở những chỗ
-này — nhưng `frame_idx` trong bảng cái vẫn đúng, và đó mới là giá trị nộp bài.
+| Hiện tượng | Số đo | Hệ quả |
+| --- | --- | --- |
+| Cặp keyframe cách ≤ 2 frame | 10.845 cặp (6,12%), ở 745/873 video | hai ảnh gần như y hệt, thứ hạng đảo ngẫu nhiên |
+| Keyframe **trùng hệt `frame_idx`** với dòng liền trước | **614 keyframe** (0,35%), ở 192 video | không phép đo nào phân biệt được |
+| Cụm dày ở 5 keyframe cuối video | 132 video | ffmpeg seek mép file kém chính xác |
 
-**614 cặp cùng `frame_idx` còn có mặt tích cực:** ở đó đáp án không duy nhất,
-nộp `frame_idx` đó là trúng cả hai dòng. Không mất điểm.
+**Vì sao không còn là rủi ro tính điểm:** theo A8.1, `frame_idx` chỉ cần **rơi
+trong khoảng chuẩn**. Hai dòng trùng `frame_idx` thì nộp cái nào cũng trúng.
 
-#### Câu chuyện `L25_V004` — và cách nó được giải
+**Vì sao vẫn phải biết:** chúng **chiếm slot trong top-100**. Đó là lý do có
+`src/dedup.py` (xem PHẦN C mục 6).
 
-Ở lần chạy đầu, `L25_V004` là mẫu **duy nhất trong 872** bị cả hai script độc
-lập cùng gắn cờ. Lần chạy thứ hai bốc trúng **một keyframe khác của cùng
-video**, và mọi thứ sáng tỏ:
-
-| Lần | keyframe | vị trí | 02 corr | 02 biên độ | 03 cosine | 03 hạng |
-| --- | --- | --- | --- | --- | --- | --- |
-| 1 | `345.jpg` | **cuối video** (345/345) | 0,9321 | **−0,0506** | 0,8710 | 2/345 |
-| 2 | `245.jpg` | giữa video | **0,9806** | **+0,9738** | **0,9461** | **1/345** |
-
-Keyframe giữa video khớp với **biên độ khổng lồ** ở cả hai phép kiểm. Kết
-luận: **bảng cái của `L25_V004` đúng**; thất bại ở keyframe 345 là hiện tượng
-mép file, không phải lệch chỉ số.
-
-#### Ba mẫu còn lại — cùng một khuôn
-
-Ba mẫu trượt cuối cùng đều nằm ngay cạnh một keyframe cách 0–1 frame:
-
-```text
-L25_V005  kf 429 -> frame 47660 | kf 430 -> frame 47660   (TRÙNG HỆT)
-L25_V088  kf 340 -> frame 33272 | kf 341 -> frame 33272   (TRÙNG HỆT)
-L25_V049  kf 393 -> frame 40481 | kf 394 -> frame 40482   (cách 1 frame)
-```
-
-Hai trong ba có keyframe kế tiếp **cùng hệt `frame_idx`** — không phép đo nào
-phân biệt được, và cũng không cần: nộp `frame_idx` đó là trúng cả hai. Phép
-kiểm pixel còn cho biên độ **dương** ở `L25_V005` (+0,2424) và `L25_V088`
-(+0,0505), tức dòng đúng vẫn thắng dòng kề.
-
-> **Không mẫu nào trong 873 sống sót qua truy ngược với tư cách lệch chỉ số
-> thật.** Mọi cảnh báo đều quy về một trong hai: keyframe trùng lặp (A5.6)
-> hoặc cụm frame liên tiếp (A5.7).
-
----
-
-**4. ~~Tên file object JSON không liên tục~~ — SAI, đã bác bỏ.**
-
-v3 viết *"tên file object không liên tục (001, 005, 008, 009, 011, 015...)
-→ không phải keyframe nào cũng có object"*. Đếm chính xác: **177.321 file JSON
-= đúng 177.321 dòng CSV**, khớp 1-1 từng video, đánh số liên tục 001, 002,
-003... Cái "001, 005, 008" mà v3 thấy là số hiệu **video** (`L21_V004` không
-tồn tại), không phải số hiệu keyframe.
-
-**"Đếm khớp" không đủ để kết luận — đã kiểm cả TÊN.** Số lượng bằng nhau vẫn
-có thể là ghép lệch. Ba phép kiểm bổ sung:
-
-| Phép kiểm | Kết quả |
-| --- | --- |
-| Video có tên JSON không liên tục `001..n` | **0 / 873** |
-| Lệch tên giữa ảnh keyframe và object JSON (L21+L22) | **0 / 16.896** |
-| Lệch giữa tên JSON và cột `n` (toàn bộ) | **0 / 177.321** |
-
-Kiểm thẳng trên đĩa với chính `L26_V383` — video mà v3 trích dẫn: **157 file,
-tên `001.json` → `157.json`, liên tục hoàn toàn**.
-
-Vẫn khớp theo **tên file** thay vì chỉ số cho an toàn — nhưng không còn phải
-"xử lý thiếu một cách êm", vì không thiếu.
-
-**5. MỚI — đường dẫn trong `master.parquet` là TUYỆT ĐỐI.**
-
-`kf_path`, `obj_path`, `video_path` trỏ vào ổ đĩa của máy dựng index. Mô hình
-chia dữ liệu nhiều máy (xem [B4](#b4-mô-hình-chia-dữ-liệu-nhiều-máy)) làm ba
-cột này đứt trên máy khác, trong khi mọi cột còn lại vẫn chạy — **lỗi im lặng**.
-Cách xử lý ở [docs/01_cai_dat.md](01_cai_dat.md).
-
-**6. MỚI — model CLIP phải là `ViT-B-32-quickgelu`.**
-
-Xem A6.
+> **Bài học phương pháp — thứ tự phán quyết.** `03_verify_CLIP.py` từng xếp
+> *thứ hạng* trước *cosine tuyệt đối*, nên báo động giả hàng loạt. Lệch chỉ số
+> THẬT thì `clip[row_id]` trỏ sang cảnh khác hẳn và cosine rơi về 0,3–0,7 —
+> nên **cosine ≥ 0,95 chứng minh ghép đúng bất kể thứ hạng**. Đảo lại thứ tự
+> phán quyết là hết báo động giả. Sinh ra phán quyết `KHOP_TRUNG_LAP`.
 
 ### A6. Chiều vector = 512 → CLIP **ViT-B/32**, bản **QuickGELU**
 
@@ -822,170 +760,40 @@ tận mắt). Đây là lần **duy nhất** nên kiểm bằng mắt — để 
 | 0.d | Phân bố nhãn objects | TV2 | ✅ **xong** — `index/label_top60.csv`, 514 nhãn |
 | 0.e | **MỚI** — chia dữ liệu, chốt ai giữ nhóm L nào | cả nhóm | ⬜ chưa |
 
-#### D0.3 — Chốt VLM cho Q&A: kết quả đợt 1
+#### D0.3 — Chốt VLM cho Q&A: **XONG (đợt 2)**
 
-Harness của Khánh, **10 câu × 2 ngôn ngữ, `--runs 1`**:
+*Báo cáo đầy đủ: `Test VLM AIC/BAO_CAO_BENCH_VLM_2026-08-13.md`. Dưới đây chỉ
+là kết luận đã chốt.*
 
-| # | Model | Đúng (vi/en) | Format đúng | Latency p50 |
-| --- | --- | --- | --- | --- |
-| 1 | `gemini-3.1-flash-lite` | **50% / 40%** | **100%** | ~8–10s |
-| 2 | `gemini-3.5-flash-lite` | 40% / 40% | **100%** | **~7,5s** |
-| 3 | `gemma-4-26b-a4b` | 30% / 40% | 90% | ~14–15s |
+**Chốt `gemini-3.1-flash-lite`, `temperature = 0`.**
 
-Chưa đủ dữ liệu để xếp hạng:
-
-| Model | Vấn đề |
+| Kết luận | Bằng chứng |
 | --- | --- |
-| `gemini-3.6-flash` | hết quota giữa chừng (24/60), phần `vi` đạt 50% (4/8) |
-| `nemotron-nano-12b-vl` | chỉ xong 9/20 lượt, bị 429 giữa chừng |
-| `gemma-4-31b` | 0/20, rate-limit thượng nguồn — **chưa hề được đánh giá** |
+| **`temperature = 0` là BẮT BUỘC** | API mặc định 1,0 — đó là lý do đồng thuận thấp ở mọi đợt trước, không phải model kém. Hạ về 0: đồng thuận **50% → 100%**, lại còn nhanh hơn |
+| **`3.5-flash-lite` không tái lập được** | ngay ở `temp = 0` vẫn **7/10 câu đổi đáp án** giữa 3 lượt. `3.1` thì 10/10 giống hệt. Nghi do hạ tầng nhà cung cấp chứ không phải model kém — cần thì **thử lại**, chưa loại vĩnh viễn |
+| **Gemma loại vì FORMAT, không phải độ đúng** | `gemma-4-31b-it` tuân thủ format **0%** — nhả nguyên chuỗi suy luận. PHẦN C mục 4: sai định dạng = 0 điểm |
+| **Gọi thẳng Google nhanh hơn OpenRouter 4–5 lần** | 7,5s → 1,4s. Với 100 câu × nhiều vòng trong 4 tuần là hàng giờ |
 
-**Ba nhận xét trước khi chốt:**
+**Ba điều quan trọng hơn việc chọn model:**
 
-**1. Cỡ mẫu quá nhỏ để xếp hạng.** 10 câu/ngôn ngữ nghĩa là 50% vs 40% chỉ
-khác nhau **đúng một câu**. Với n=10, khoảng tin cậy 95% của tỷ lệ 50% trải
-từ ~19% đến ~81% — ba model hiện **không phân biệt được về mặt thống kê**.
-Đừng chốt model dựa trên bảng này.
+1. **Trần độ đúng ~30–50% ở MỌI model.** Khoảng cách giữa các model (10–20
+   điểm) **nhỏ hơn khoảng cách tới mức dùng được**. Đừng tối ưu việc chọn
+   model — đầu tư vào **ngữ cảnh đưa vào** (3–5 frame ±2s + đoạn ASR), đúng
+   thiết kế ở Giai đoạn 2 Bước 4.
+2. **Cỡ mẫu 10 câu không xếp hạng được gì.** Với n=10, khoảng tin cậy 95% của
+   tỷ lệ 50% trải từ ~19% đến ~81%. Cần ≥ 50 câu — dùng chính tập dev Q&A.
+3. **Quota free sẽ không đủ.** Ba model đã chết vì rate-limit trong một đợt
+   test 20 lượt. Bài thi cần 100 câu × nhiều lần. **Phải chốt: trả phí hay
+   chạy local.**
 
-**2. Cột "Đồng thuận" hiện vô nghĩa** vì `--runs 1`. Đây là chỉ số quan trọng
-nhất của harness: model trả lời khác nhau giữa các lượt thì không dùng được
-cho bài thi, dù độ đúng trung bình cao.
-
-**3. Điểm đáng chú ý nhất không phải thứ hạng, mà là TRẦN.** Cả ba model đều
-ở khoảng **30–50%**. Khoảng cách giữa các model (10–20 điểm) **nhỏ hơn khoảng
-cách tới mức dùng được**. Nghĩa là:
-
-> Đừng tối ưu việc chọn model. Đầu tư vào **ngữ cảnh đưa vào model** —
-> 3–5 frame trong cửa sổ ±2s + đoạn ASR tương ứng, đúng như thiết kế ở
-> Giai đoạn 2, Bước 4. Đó mới là chỗ có thể
-> đẩy 40% lên mức thi đấu được.
-
-**4. Format đúng 100% có thể quan trọng hơn độ đúng.** Theo PHẦN C: `answer`
-sai định dạng → 0 điểm bất kể frame đúng. `gemma-4-26b-a4b` thỉnh thoảng thêm
-màu vào số (`"6 chiếc vàng"`, `"5 yellow"`) — vi phạm quy tắc "tối đa 4 từ,
-không kèm chữ định tính". Hai model Gemini giữ format tuyệt đối. Đây là lợi
-thế thật, không phải chi tiết nhỏ.
-
-#### Mở rộng danh sách model — kiểm tra ĐIỀU KIỆN CẦN trước khi test
-
-Bài Q&A đưa **3–5 ảnh frame + câu hỏi** vào model. Nghĩa là model **bắt buộc
-phải nhìn được ảnh**. Đây là bộ lọc đầu tiên, và nó loại luôn một số cái tên
-hay được nhắc tới:
-
-| Nhà | Dòng model | Nhìn được ảnh? | Ghi chú |
-| --- | --- | --- | --- |
-| Google | Gemini Flash / Flash-Lite | ✅ có | đang test, format 100% |
-| Google | Gemma (open weights) | ⚠️ tùy bản | chỉ bản có hậu tố thị giác mới nhìn được ảnh |
-| NVIDIA | Nemotron **-vl** | ✅ có | hậu tố `vl` = vision-language |
-| OpenAI | GPT-4o / GPT-5 dòng đa phương thức | ✅ có | trả phí, quota ổn định |
-| **DeepSeek** | **deepseek-chat, deepseek-reasoner (V3/R1)** | ❌ **KHÔNG** | **thuần văn bản — không dùng được cho Q&A ảnh** |
-| DeepSeek | deepseek-vl2 | ✅ có | nhưng ít nhà cung cấp phục vụ qua API |
-| Anthropic | Claude dòng Opus/Sonnet | ✅ có | trả phí |
-| Qwen | Qwen-VL | ✅ có | mã nguồn mở, chạy local được |
-
-> **Cảnh báo về DeepSeek:** model chủ lực của DeepSeek (`deepseek-chat`,
-> `deepseek-reasoner`) là **thuần văn bản, không nhận ảnh**. Đưa vào harness
-> sẽ hoặc lỗi, hoặc tệ hơn: model đoán mò từ mỗi câu hỏi mà không thấy hình,
-> ra một con số độ đúng trông có vẻ hợp lệ nhưng vô nghĩa. Chỉ `deepseek-vl2`
-> mới nhìn được ảnh, và không phải nhà cung cấp nào cũng phục vụ nó.
-
-**Quy tắc trước khi thêm bất kỳ model nào vào harness:**
-
-1. Lọc theo **modality = image+text** trên trang model của OpenRouter. Đừng
-   thêm theo tên nghe quen.
-2. **Chạy một lượt thử với ảnh có nội dung rõ ràng** và hỏi "trong ảnh có gì".
-   Model trả lời chung chung không dính dáng tới ảnh → nó không thật sự nhìn
-   thấy. Đây là bài kiểm tra 30 giây, làm trước khi chạy 60 lượt.
-3. Ghi lại **ngày test** — ID model và quota thay đổi liên tục.
-
-**Kiểm chứng ID model trước khi chạy.** Tên model đổi nhanh; đừng chép ID từ
-tài liệu cũ. Lấy ID trực tiếp từ danh sách model của nhà cung cấp tại thời
-điểm chạy.
-
-#### Kết quả đợt 2 — đo trực tiếp qua Google API, `--runs 3`
-
-Harness: `scripts/05_bench_vlm.py`. 10 câu hỏi đếm trên keyframe thật, mỗi
-model 3 lượt. **Không đo độ đúng** (lý do ở phần đính chính D1.6 — bộ nhận
-diện đếm thiếu nên không làm đáp án được). Đo ba thứ khách quan:
-
-| Model | temp | Format | **Đồng thuận** | p50 | p95 |
-| --- | --- | --- | --- | --- | --- |
-| **`gemini-3.1-flash-lite`** | **0** | **100%** | **100%** | **1,7s** | 3,7s |
-| `gemini-3.1-flash-lite` | 1,0 | 100% | 50% | 2,8s | 6,2s |
-| `gemini-3.5-flash-lite` | **0** | 100% | **30%** | 1,3s | 1,9s |
-| `gemini-3.5-flash-lite` | 1,0 | 100% | 40% | 1,4s | 1,7s |
-| `gemini-3.6-flash` | 1,0 | 94,7% | 70% | 7,0s | 11,4s |
-| `gemma-4-31b-it` | 0 | **0%** | 90% | 12,3s | 19,8s |
-
-**Bốn kết luận, theo thứ tự quan trọng:**
-
-**1. `temperature = 0` là bắt buộc.** API mặc định `temperature = 1,0` — đó là
-lý do đồng thuận thấp trong mọi đợt test trước, không phải model kém.
-`gemini-3.1-flash-lite` nhảy từ **50% lên 100%** khi hạ về 0, và nhanh hơn.
-Chi phí sửa: một dòng `generationConfig`.
-
-**2. `gemini-3.5-flash-lite` KHÔNG tái lập được, kể cả ở `temperature = 0`.**
-Đây là phát hiện quyết định.
-
-*Về nguyên nhân:* nhiều khả năng là hạ tầng phía nhà cung cấp (gộp lô, định
-tuyến MoE) chứ **không phải bản thân model kém hơn**. Ghi rõ điều này để sau
-này nếu cần `3.5` thì biết là đi **thử lại**, không phải đã loại vĩnh viễn.
-Quyết định không đổi — tính tái lập là yêu cầu thật của bài thi. Cùng ảnh, cùng câu hỏi, 3 lượt:
-
-```text
-                    lượt 1  lượt 2  lượt 3
-gemini-3.1-flash-lite (temp 0)          gemini-3.5-flash-lite (temp 0)
-  Bicycle      12    12    12             Bicycle      10    12    11
-  Chair         8     8     8             Chair        14    14    11
-  Man          13    13    13             Man          10    13    13
-  Motorcycle   13    13    13             Motorcycle   16    15    17
-  Person        4     4     4             Person        4     5     4
-  -> 10/10 giống hệt                      -> 7/10 câu đổi đáp án
-```
-
-Bài thi nộp file rồi chấm — pipeline cho kết quả khác nhau mỗi lần chạy thì
-không gỡ lỗi được, không tin được, và không tái lập được điểm dev.
-**Chọn `gemini-3.1-flash-lite`.**
-
-Lưu ý: bảng của đợt 1 (OpenRouter) cho `3.5` gần bằng `3.1` về độ đúng và
-nhanh hơn — nhìn vào đó dễ chọn `3.5`. Chỉ số đồng thuận mới lộ ra khác biệt
-thật, và nó ngược chiều.
-
-**3. Gemma bị loại vì format, không phải vì độ đúng.** `gemma-4-31b-it` tuân
-thủ format **0%** — nó nhả nguyên chuỗi suy luận bằng tiếng Anh:
-
-```text
-"Okay, let's count the cars in the image.  1. Scanning the road from left to
- right: there's a white car here: `{"point": [410, 414], "label"...
-```
-
-Theo PHẦN C, `answer` sai định dạng = 0 điểm bất kể frame đúng. Chậm gấp 7
-lần cũng không giúp gì. Vẫn có thể cứu bằng prompt ép format chặt hơn, nhưng
-đó là công sức đổ vào model đang thua ở mọi mặt khác.
-
-**4. `gemma-4-31b` chạy tốt qua Google API** — trong khi qua OpenRouter nó
-thất bại 0/20 vì *"temporarily rate-limited upstream"*. **Model không tệ, nó
-chưa từng được đánh giá.** Bài học chung: lỗi hạ tầng của nhà trung gian dễ
-bị đọc nhầm thành model kém.
-
-**Và một phát hiện về hạ tầng:** gọi thẳng Google nhanh hơn OpenRouter **4–5
-lần** (`3.5-flash-lite`: 7,5s → 1,4s). Với 100 câu × nhiều vòng thử nghiệm
-trong 4 tuần, đây là hàng giờ đồng hồ.
-
-**Việc tiếp theo cho 0.c** — theo thứ tự:
-
-1. **Tăng cỡ mẫu lên ≥ 50 câu** trước khi so sánh model. Dùng chính tập dev
-   Q&A của Khánh khi có (15 câu là chưa đủ, cần mở rộng).
-2. Chạy lại `gemini-3.1-flash-lite` và `gemini-3.5-flash-lite` với `--runs 3`
-   để đo đồng thuận thật.
-3. **Thử với ngữ cảnh thật** (3–5 frame + ASR), không phải chỉ 1 frame — vì
-   đó mới là input của hệ thống cuối.
-4. Thử lại `gemma-4-31b` và `nemotron-nano-12b-vl` lúc khác (rate-limit
-   thượng nguồn thường hết sau vài chục phút–vài giờ).
-5. Thử lại `gemini-3.6-flash` vào ngày mới (quota Gemini free reset theo ngày).
-6. **Chốt phương án quota.** Ba model đã chết vì rate-limit trong một đợt test
-   20 lượt. Bài thi cần chạy 100 câu × nhiều lần — quota free sẽ không đủ.
-   Phải quyết định sớm: trả phí, hay chạy model local.
+> **Bộ lọc bắt buộc trước khi thêm bất kỳ model nào vào harness:** model phải
+> **nhìn được ảnh**. Cạm bẫy cụ thể: `deepseek-chat` và `deepseek-reasoner` là
+> **thuần văn bản** — đưa vào harness thì model đoán mò từ câu hỏi mà không
+> thấy hình, ra một con số độ đúng trông hợp lệ nhưng vô nghĩa. Chỉ
+> `deepseek-vl2` mới nhìn được ảnh.
+>
+> Kiểm 30 giây: đưa một ảnh nội dung rõ ràng, hỏi "trong ảnh có gì". Trả lời
+> chung chung không dính tới ảnh → nó không thật sự nhìn thấy.
 
 ---
 
@@ -1047,7 +855,7 @@ RRF có thể bị ba kênh kia dìm xuống dưới hạng 20; lọc thì khôn
 
 #### TV2 — Kênh 4: Objects *(nâng từ kênh phụ ở v3)*
 
-Xem [PHẦN D1.6](#phần-d16--cách-nâng-objects-lên-kênh-chính) bên dưới.
+Xem [PHẦN D1.6](#phần-d16--kênh-objects-đã-cài-xong-srcobjectspy) bên dưới.
 
 #### Kênh 5: Caption / mô tả cảnh bằng VLM *(MỚI ở 4.1 — A8.4)*
 
@@ -1124,115 +932,43 @@ Giữ nguyên v3, thêm **hai ràng buộc mới**:
 
 ---
 
-### PHẦN D1.6 — Cách nâng objects lên kênh chính
+### PHẦN D1.6 — Kênh objects: **ĐÃ CÀI XONG** (`src/objects.py`)
 
-*Sáu việc, ước tính 1,5 ngày, không phải một tuần.*
+Còn lại đúng **một** việc: bảng ánh xạ Việt → Anh (xem cuối mục).
 
-#### 1. Chọn ngưỡng: **0,5**
-
-| Ngưỡng | Phủ keyframe | Detection/keyframe | Đánh giá |
-| --- | --- | --- | --- |
-| 0,3 | 95,0% | 6,3 | nhiều nhiễu ở đuôi |
-| **0,5** | **89,6%** | **3,4** | **điểm cân bằng** |
-| 0,7 | 73,2% | 1,6 | sạch nhưng mất 27% keyframe |
-
-Dựng lại `objects.parquet` ở ngưỡng 0,5 **không cần dựng lại bảng cái**:
-
-```powershell
-python scripts\01_build_index.py --out .\index --objects-only --min-obj-score 0.5
-```
-
-Giữ luôn bản 0,3 để thử nghiệm — chi phí chỉ là một file 45 MB.
-
-#### 2. Tính IDF cho 514 nhãn — **việc quan trọng nhất**
-
-`Person` xuất hiện 161.352 lần, `Wok` 3.161 lần. Đếm thô thì `Person` át tất
-cả. Trọng số nghịch tần suất sửa điều đó:
-
-```python
-# src/objects.py
-import numpy as np, pandas as pd
-
-def build_label_idf(objects: pd.DataFrame, n_keyframe: int) -> pd.Series:
-    """IDF theo số keyframe chứa nhãn, không phải số detection."""
-    df = objects.groupby("label")["row_id"].nunique()
-    return np.log(n_keyframe / (df + 1))
-```
-
-Giá trị thật đã tính (`index/label_idf.parquet`, 514 nhãn):
-
-| Nhãn | Số keyframe chứa | IDF |
+| Quyết định | Chốt | Lý do |
 | --- | --- | --- |
-| Clothing | 86.819 | **0,714** |
-| Person | 82.431 | **0,766** |
-| Boat | 3.497 | 3,926 |
-| Wok | 2.531 | 4,249 |
-| Car | 2.371 | 4,314 |
-| Chopsticks | 1.857 | **4,558** |
+| Ngưỡng detection | **0,5** | phủ 89,6% keyframe, 3,4 detection/keyframe. Ngưỡng 0,3 nhiễu đuôi, 0,7 mất 27% keyframe |
+| Trọng số | **IDF theo số KEYFRAME chứa nhãn**, không theo số detection | một ảnh có 5 người vẫn chỉ tính 1 cho `Person`; tính theo detection thì nhãn hay lặp trong một hình bị phạt oan |
+| Cách dùng | **cho điểm mềm, TUYỆT ĐỐI không lọc cứng** | OpenImages không có nhãn cho mọi khái niệm — xóa cứng là xóa mất đáp án đúng, không thuật toán nào cứu lại |
 
-Chênh **6 lần** giữa nhãn phổ biến và nhãn hiếm. Lưu ý IDF của `Person` là
-**0,77 chứ không phải ~0,1** — `log(177321/82432)` không thể nhỏ hơn thế. Nhãn
-người vẫn đóng góp một chút, chỉ là ít hơn nhãn hiếm nhiều lần.
-
-#### 3. Bảng ánh xạ Việt → Anh
-
-Truy vấn thi đấu là tiếng Việt, nhãn là tiếng Anh. Không cần dịch cả 514 nhãn:
-**top ~150 nhãn phủ khoảng 95% detection**, dịch tay chừng đó là đủ, mất ~1 giờ.
-
-Lưu `dev/label_vi_en.csv` với cột `nhan_en, nhan_vi, dong_nghia` (nhiều từ
-tiếng Việt cho một nhãn: `Wok` → "chảo, chảo gang, chảo sâu lòng").
-
-Lưu ý thứ bậc OpenImages không tự gộp: `Car`, `Land vehicle`, `Vehicle` là
-**ba nhãn riêng biệt**. Phải khai báo quan hệ cha-con thủ công cho các cụm
-quan trọng, nếu không truy vấn "ô tô" sẽ bỏ sót.
-
-#### 4. Hàm cho điểm
-
-```python
-def object_score(row_ids, labels_yeu_cau, objects, idf, min_score=0.5):
-    """Điểm mềm, KHÔNG lọc cứng. Trả về mảng cùng thứ tự row_ids."""
-    sub = objects[(objects.score >= min_score) &
-                  (objects.label.isin(labels_yeu_cau))]
-    w = sub.assign(w=sub.score * sub.label.map(idf))
-    return w.groupby("row_id")["w"].sum().reindex(row_ids, fill_value=0.0).values
-```
-
-Nguyên tắc của v3 giữ nguyên: **cho điểm mềm, tuyệt đối không lọc cứng.**
-OpenImages không có nhãn cho mọi khái niệm — xóa cứng là xóa mất đáp án đúng
-mà không thuật toán nào cứu lại được.
-
-#### 5. Đưa vào RRF như kênh thứ tư ngang hàng
-
-| Kênh | Nguồn | Mạnh ở |
-| --- | --- | --- |
-| CLIP cosine | ma trận TV1 | bối cảnh thị giác tổng thể |
-| BM25 metadata | TV3 | chủ đề, tên riêng, địa danh |
-| BM25 OCR + ASR | TV4 | chữ trên hình, lời dẫn, con số |
-| **Objects + IDF** | **TV2** | **vật thể cụ thể, đếm số lượng** |
+Giá trị thật ở `index/label_idf.parquet` (514 nhãn): `Clothing` 0,714 /
+`Person` 0,766 ... `Wok` 4,249 / `Chopsticks` 4,558 — **chênh 6 lần** giữa nhãn
+phổ biến và nhãn hiếm.
 
 > ⚠️ **Đính chính — objects KHÔNG trả lời được câu hỏi đếm.**
 >
-> Bản đầu của mục này viết "objects là kênh duy nhất cho biết số lượng, đặc
-> biệt mạnh cho câu hỏi đếm". **Sai.** Kiểm bằng cách mở ảnh ra nhìn:
+> Bản đầu viết "objects là kênh duy nhất cho biết số lượng, đặc biệt mạnh cho
+> câu hỏi đếm". **Sai.** Kiểm bằng cách mở ảnh ra nhìn:
 >
 > | Ảnh | Detector (≥0,7) | VLM | Thực tế |
 > | --- | --- | --- | --- |
 > | `L21_V001/073.jpg` | 1 người | 4 | ≥ 4 |
 > | `L21_V031/086.jpg` | 4 người | 13 | > 20 |
 >
-> Bộ nhận diện chỉ bắt vật nổi bật nhất nên **đếm thiếu nghiêm trọng**, và
-> càng đông càng thiếu — đúng loại cảnh mà câu hỏi đếm hay rơi vào.
->
-> Số hộp vẫn dùng được làm **tín hiệu tương đối để xếp hạng** (5 hộp `Boat`
-> gần như chắc chắn nhiều thuyền hơn 1 hộp), nhưng **câu hỏi đếm phải để VLM
-> nhìn ảnh trả lời**. Xem cảnh báo trong `src/objects.py::dem_nhan()`.
+> Bộ nhận diện chỉ bắt vật nổi bật nhất nên **đếm thiếu nghiêm trọng**, càng
+> đông càng thiếu — đúng loại cảnh mà câu hỏi đếm hay rơi vào. Số hộp vẫn dùng
+> được làm **tín hiệu tương đối để xếp hạng**, nhưng **câu hỏi đếm phải để VLM
+> nhìn ảnh trả lời**. Xem `src/objects.py::dem_nhan()`.
 
-#### 6. Đo trên tập dev, giữ hay bỏ theo số
+**Việc còn lại — `dev/label_vi_en.csv` (chưa có).** Truy vấn thi đấu là tiếng
+Việt, nhãn là tiếng Anh. Không cần dịch cả 514 nhãn: **top ~150 nhãn phủ ~95%
+detection**, dịch tay chừng đó mất ~1 giờ. Cột `nhan_en, nhan_vi, dong_nghia`
+(nhiều từ Việt cho một nhãn: `Wok` → "chảo, chảo gang, chảo sâu lòng").
 
-Đúng nguyên tắc Giai đoạn 3 của v3: **chỉ giữ cái nào tăng điểm đo được.**
-Đo Final Score trước/sau khi thêm kênh objects. Nếu không tăng thì hạ lại
-thành kênh phụ — nhưng lần này là quyết định dựa trên số đo, không phải suy
-đoán từ một file JSON.
+⚠️ Thứ bậc OpenImages **không tự gộp**: `Car`, `Land vehicle`, `Vehicle` là ba
+nhãn riêng. Phải khai báo quan hệ cha-con thủ công cho các cụm quan trọng, nếu
+không truy vấn "ô tô" sẽ bỏ sót.
 
 ---
 
@@ -1399,25 +1135,13 @@ chưa từng nhìn.
 
 ---
 
-## PHẦN G — SO SÁNH v3 → v4
+## PHẦN G — LỊCH SỬ SỬA ĐỔI
 
-| Hạng mục | v3 | v4 |
-| --- | --- | --- |
-| Cơ sở của PHẦN A | 6 CSV, 8 npy, 1 video | **873 video, 177.321 keyframe** |
-| Mật độ keyframe | 109 frame, 1,15% cặp ≤10 | **55 frame, 12,62%** |
-| Trần R-Score TRAKE | ~0,09 | **~0,15** |
-| Objects | "nhiễu nặng, kênh phụ, 2 giờ ở tuần 2" | **kênh chính thứ 4, IDF, 1,5 ngày** |
-| Tên file object JSON | "không liên tục" | **liên tục 1-1, 100% phủ** |
-| fps | "25 và 30" | **25 / 26,44 / 29,97 / 30** |
-| Model CLIP | "ViT-B/32" | **`ViT-B-32-quickgelu`** (kèm bằng chứng) |
-| Phân bố nhóm L | không nêu | **L26 chiếm 57% → lấy mẫu phân tầng** |
-| Nội dung kho | giả định tin tức/giao thông | **lệch ẩm thực: cà chua > ô tô ×2,5** |
-| Metadata | "mạnh, đang bị bỏ quên" | **xác nhận: 955 ký tự/video, 99,7% có dấu** |
-| Hạ tầng Parquet+DuckDB | quyết định trên lý thuyết | **đã kiểm chứng thực tế** |
-| Chia dữ liệu | không nêu | **PHẦN B4 — mô hình nhiều máy** |
-| Đường găng | bắt đầu từ bảng cái | **bảng cái xong; nút thắt là tải dữ liệu** |
-| Chốt VLM | chưa làm | **đợt 1 xong, kèm cảnh báo cỡ mẫu** |
-| Kiểm chứng bảng cái | 1 phép (ảnh↔CSV) | **2 phép** (thêm CLIP↔CSV) |
+**v3 → v4.** PHẦN A của v3 đo trên 6 CSV / 8 `.npy` / 1 video; v4 đo lại trên
+**toàn bộ 873 video, 177.321 keyframe**. Ba con số sai lệch đáng kể và một kết
+luận bị đảo ngược: mật độ keyframe 109 → **55 frame**; fps "25 và 30" →
+**25 / 26,44 / 29,97 / 30**; model "ViT-B/32" → **`ViT-B-32-quickgelu`**; và
+objects từ "nhiễu nặng, kênh phụ" → **kênh chính thứ tư**.
 
 ### G2 — Sửa đổi v4 → v4.1 (nguồn: bài báo AIC'25, xem A8)
 
@@ -1445,65 +1169,57 @@ chưa từng nhìn.
 
 ## PHẦN H — VIỆC LÀM NGAY
 
-1. **Cả nhóm — chốt ai giữ nhóm L nào** và bắt đầu tải. Đây là nút thắt duy
-   nhất hiện tại; hai phụ thuộc nặng nhất (#2, #3) đều chờ nó.
-2. **~~Mỗi máy chạy `02` + `03`~~ — XONG.** Độ phủ **873/873 (100%)**, đủ 10/10
-   nhóm L, **0 lệch chỉ số thật**. Giai đoạn 0 khép lại.
-3. **Khánh — xem trước video của ≥ 4 nhóm L khác nhau** trước khi viết tập dev
-   (A7). **Tập dev giờ là đường găng thật**: bản 4.1 thêm 6 giả thuyết từ bài
-   báo AIC'25 (G2) mà **không cái nào được giữ nếu không đo được** — không có
-   tập dev thì cả A8 chỉ là đọc truyện.
-4. **TV5 — mở rộng harness VLM lên ≥ 50 câu, `--runs 3`**, và test với ngữ
-   cảnh thật (3–5 frame + ASR). Chốt phương án quota.
-5. **TV2 — dựng `src/objects.py`** (IDF + `object_score`) theo D1.6. Việc này
-   **không chờ tải dữ liệu** vì objects đã phủ 100% từ đầu — làm được ngay.
-6. **TV1 — dựng ma trận CLIP + text encoder** với tag `ViT-B-32-quickgelu` và
-   assert kiểm tra. Cũng **không chờ tải dữ liệu**.
-7. **Cả nhóm — chốt một bảng tên thành viên duy nhất** (TV1..TV5 + Khánh).
-8. **~~Giao 30 video `29.97`~~ — XONG.** Cả `26.44` lẫn `29.97` đã kiểm và đạt
-   (A5.3). Rủi ro fps đã đóng.
-9. **~~L24+L30 chạy `--n 139`~~ / ~~Bổ sung mẫu L26~~ / ~~L25+L28~~ — XONG.**
-   Toàn bộ 873/873.
-10. **Máy giữ L23+L26+L27 tải lại gói `Keyframes_L21`.** 8 mẫu báo
-   `loi_doc_anh` và 5 mẫu `khong_trich_duoc` — thiếu file cục bộ, không
-   phải lỗi bảng cái.
+*Giai đoạn 0 đã đóng (873/873, 0 lệch chỉ số thật). Mọi việc dưới đây thuộc
+Giai đoạn 1.*
 
-### Việc MỚI từ bản 4.1 (nguồn: A8)
+### H1. Đường găng — chặn mọi thứ khác
 
-11. **Khánh — gửi BTC BA câu, không phải một.** Câu 0.a giờ đã có mặc định hợp
-    lý (A8.1) nên đây là xác nhận, không còn là chặn:
-    - **0.a** — `frame_idx` chấm theo khoảng hay theo frame chính xác? *(luật
-      AIC'25: theo khoảng)*
-    - **0.d MỚI** — TRAKE có điểm từng phần theo số sự kiện khớp không?
-    - **0.e MỚI** — **Vòng Chung kết có phải thi tương tác** (người gõ truy vấn
-      trực tiếp) như AIC'25 không? Câu này quyết định có dựng giao diện hay
-      không, tức quyết định cả một mảng công việc.
-12. **~~TV1 — dựng `src/dedup.py`~~ — XONG** (A8.8), cùng với `schema.py`,
-    `dense.py`, `rrf.py`, `lan_can.py`, `thoi_gian.py` và `tests/test_dense.py`
-    (7/7 qua). Xem bảng ở [B3](#b3-cấu-trúc-thư-mục).
-    **Còn lại của TV1:** `src/bm25.py` và `src/run.py`.
-13. **TV1 — đo thử embedding thứ hai trên ~2.000 ảnh** (GIAI ĐOẠN 1 việc *(b)*).
-    So ba cấu hình ViT-B/32 / model mới / RRF hai cái. **Đừng encode toàn kho
-    trước khi biết kết quả.**
-14. **TV5 hoặc Khánh — thêm Qwen2.5-VL-3B vào bench OCR** (A8.4), chấm bằng
-    thước đo truy hồi đã có ở `retrieval_v2.py`. Nếu thắng thì một lần chạy ra
-    cả OCR lẫn caption.
-15. **TV4 — thêm chế độ LỌC cho kênh OCR** (A8.5), song song chế độ BM25.
-16. **~~`src/lan_can.py` và `src/thoi_gian.py`~~ — XONG.** Kèm phát hiện tiện
-    lợi: `master.parquet` đã sắp theo **cả `row_id` lẫn `(video_id, frame_idx)`**
-    nên "khung lân cận" chỉ là số học trên `row_id`, không cần tra cứu gì.
-17. **MỚI — `scripts/08_encode.py` đã viết xong** (việc 1 của
-    [kế hoạch GPU](06_ke_hoach_encode_GPU.md)). Đã chạy thử đầu-cuối trên CPU
-    với `ViT-B-32-quickgelu`: 605 keyframe, và vector sinh ra **trùng khít
-    `clip.npy` của BTC — trung vị cosine 0,9994, 605/605 đạt ≥ 0,95**. Phép
-    kiểm lệch hàng đã thử cả hai chiều: **6/6 đạt** trên ma trận đúng,
-    **0/6 và thoát mã 1** trên ma trận cố ý dịch một bậc.
-    **Máy GPU chỉ còn phải cài `torch` bản CUDA và tải ảnh.**
+| # | Việc | Ai | Vì sao chặn |
+| --- | --- | --- | --- |
+| **1** | **Tập dev ~60 câu, phân tầng 10 nhóm L** | **cả nhóm, Khánh gộp** | Bản 4.1 thêm 6 giả thuyết từ bài báo AIC'25 và **không cái nào được giữ nếu không đo được**. Việc 8 của kế hoạch GPU cũng chặn ở đây |
 
-> **Làm được ngay hôm nay, không chờ băng thông:** mục 5, 6, 12, 13, 16.
-> Đừng để cả nhóm ngồi chờ tải dữ liệu.
->
-> **Kỷ luật cho toàn bộ việc mới:** mọi thứ ở bản 4.1 đến từ **một bài báo,
-> một đội, một mùa, không ablation** (A8.2). Dựng thì dựng, nhưng **chỉ giữ
-> cái nào tăng điểm đo được trên tập dev** — đúng nguyên tắc GIAI ĐOẠN 3. Đó
-> là lý do mục 3 (tập dev) quan trọng hơn tất cả mục 12–16 cộng lại.
+Hiện có **13 câu / 2 nhóm L**. Mỗi người soạn **6 câu cho mỗi nhóm L mình
+giữ** — chỉ máy giữ gói `Keyframes_*` mới mở được ảnh gốc để kiểm lại. Quy
+trình đầy đủ: [07_lam_tap_dev.md](07_lam_tap_dev.md).
+
+```powershell
+python scripts\10_contact_sheet.py --nhom <L của mình> --thua 10
+python scripts\10_contact_sheet.py --tra <row_id...> --mo
+# soạn vào dev/tap_dev_thanh_vien/tap_dev_<nhóm>.jsonl
+python src\tap_dev.py --gop dev\tap_dev_thanh_vien\*.jsonl --file dev\tap_dev.jsonl
+python src\tap_dev.py --file dev\tap_dev.jsonl --no-cum
+python src\tap_dev.py --file dev\tap_dev.jsonl --kiem
+```
+
+### H2. Làm được ngay, không chờ ai
+
+| # | Việc | Ai | Ghi chú |
+| --- | --- | --- | --- |
+| 2 | **`src/bm25.py`** — kênh 2 (metadata) + kênh 3 (OCR/ASR) | TV3 | metadata đã phủ 100%, 955 ký tự/video. Kênh 3 cần **hai chế độ**: lọc cứng cho token hiếm + BM25 hòa RRF (A8.5) |
+| 3 | **`dev/label_vi_en.csv`** — dịch top ~150 nhãn | TV2 | ~1 giờ, mở khóa nốt kênh 4 (D1.6) |
+| 4 | **Tối ưu `trich_day`: gộp cả cửa sổ vào MỘT lệnh ffmpeg** | TV2 | đã đo: **nhanh gấp 8,7 lần** (169 → 19 ms/khung). Nằm trên đường găng TRAKE |
+| 5 | **Commit script vá `kf_path`** | Khánh | máy nào tải `index/` từ Drive cũng gặp (A5.5); đừng để mỗi người viết lại |
+| 6 | **Gán nhãn 400 mẫu `ocr_v2` + điền `roi_v2.yaml`** | TV4 | đang **0/400**. ROI: ranh giới là **dải chữ chạy cuối cùng**, KHÔNG phải "bỏ nửa dưới" — băng rôn tiêu đề có liên quan tới hình |
+| 7 | **`src/run.py`** — đường ống đầu-cuối | TV5 | chỉ đáng viết khi đã có ≥ 2 kênh |
+
+### H3. Chờ tập dev xong
+
+| # | Việc | Ai |
+| --- | --- | --- |
+| 8 | Đo A/B/C cho SigLIP2 — **nhớ `be_chung()`**, xem [06 §5](06_ke_hoach_encode_GPU.md) | Khánh |
+| 9 | Đo `dedup.py` / RRF / `lan_can.py` — giữ hay bỏ theo số | TV1 |
+| 10 | Mở rộng bench VLM lên ≥ 50 câu, test với ngữ cảnh thật | TV5 |
+
+### H4. Việc người, không tự động hóa được
+
+| # | Việc | Ai |
+| --- | --- | --- |
+| 11 | Gửi BTC **ba câu**: 0.a (khoảng hay frame chính xác), 0.d (TRAKE điểm từng phần), **0.e (Chung kết có thi tương tác không)** — 0.e quyết định có dựng giao diện | Khánh |
+| 12 | Chốt phương án quota VLM: trả phí hay chạy local | TV5 |
+| 13 | Chốt một bảng tên thành viên duy nhất | cả nhóm |
+| 14 | Máy giữ L23+L26+L27 tải lại gói `Keyframes_L21` (thiếu 8 file ảnh) | — |
+
+> **Kỷ luật cho toàn bộ bản 4.1:** mọi thứ lấy từ bài báo AIC'25 là **một bài
+> báo, một đội, một mùa, không ablation** (A8.2). Dựng thì dựng, nhưng **chỉ
+> giữ cái nào tăng điểm đo được trên tập dev**. Đó là lý do việc 1 quan trọng
+> hơn việc 2–10 cộng lại.

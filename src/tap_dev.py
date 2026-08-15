@@ -129,6 +129,28 @@ def kiem(cau: list[CauHoi], index_dir=GOC / "index") -> list[str]:
     return loi
 
 
+def gop(cac_file: list, index_dir=GOC / "index") -> tuple[list[CauHoi], list[str]]:
+    """Gộp tập dev của nhiều người thành một.
+
+    Mỗi người soạn câu cho nhóm L MÌNH GIỮ — vì chỉ họ mới mở được ảnh gốc để
+    kiểm lại (bước bắt buộc ở §4 của docs/07_lam_tap_dev.md). File `.jsonl`
+    chỉ vài KB nên gửi qua chat cũng được, không cần Drive.
+
+    Trùng `id` giữa hai người là lỗi phải sửa tay, không tự đổi tên: đổi ngầm
+    thì sau này không ai truy được câu đó của ai. Đặt `id` theo nhóm L
+    (`kis-L21-001`) là hết trùng mà còn nhìn ra phân bố ngay trên id.
+    """
+    ra, thay, loi = [], {}, []
+    for f in cac_file:
+        for c in doc(f):
+            if c.id in thay:
+                loi.append(f"id '{c.id}' có ở cả {thay[c.id]} và {Path(f).name}")
+                continue
+            thay[c.id] = Path(f).name
+            ra.append(c)
+    return ra, loi
+
+
 def phan_bo(cau: list[CauHoi], index_dir=GOC / "index") -> pd.DataFrame:
     """Phân bố theo nhóm L và theo loại câu.
 
@@ -148,7 +170,19 @@ def main():
     ap.add_argument("--index", default=GOC / "index", type=Path)
     ap.add_argument("--kiem", action="store_true")
     ap.add_argument("--no-cum", action="store_true", help="nở cụm trùng lặp rồi ghi đè")
+    ap.add_argument("--gop", nargs="+", default=None,
+                    help="gộp nhiều file .jsonl của các thành viên vào --file")
     a = ap.parse_args()
+
+    if a.gop:
+        cau, loi = gop(a.gop, a.index)
+        if loi:
+            print(f"❌ {len(loi)} id trùng — sửa tay rồi gộp lại:")
+            for x in loi:
+                print("   ", x)
+            raise SystemExit(1)
+        ghi(cau, a.file)
+        print(f"Gộp {len(a.gop)} file -> {len(cau)} câu -> {a.file}\n")
 
     cau = doc(a.file)
     if not cau:

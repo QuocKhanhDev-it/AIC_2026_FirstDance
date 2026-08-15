@@ -24,6 +24,7 @@ máy dựng cho nhóm L mình giữ rồi đẩy lên, cả nhóm cùng duyệt 
 """
 
 import argparse
+import json
 from pathlib import Path
 
 import pandas as pd
@@ -75,6 +76,45 @@ def dung_sheet(lat: pd.DataFrame, ra: Path, tieu_de: str) -> Path | None:
     return ra
 
 
+def tra_cuu(master: pd.DataFrame, row_ids: list[int], mo: bool) -> None:
+    """Từ `row_id` đọc trên sheet -> đường dẫn ảnh GỐC + khung JSONL điền sẵn.
+
+    Bước bắt buộc ở §4 của docs/07_lam_tap_dev.md: ô sheet chỉ rộng 320 px và
+    đánh lừa được mắt. Đã vấp thật — ô 713 nhìn tưởng "xe container va chạm xe
+    máy", mở ảnh gốc ra chỉ là cảnh dừng chờ đèn đỏ.
+    """
+    n = len(master)
+    xau = [r for r in row_ids if not 0 <= r < n]
+    if xau:
+        raise SystemExit(f"row_id ngoài khoảng [0, {n}): {xau}")
+
+    lat = master.iloc[row_ids]
+    print(f"{'row_id':>8}  {'video_id':<10} {'kf':>5} {'frame_idx':>10} "
+          f"{'giây':>9}  đường dẫn ảnh gốc")
+    print("-" * 118)
+    for r in lat.itertuples():
+        co = isinstance(r.kf_path, str) and Path(r.kf_path).exists()
+        print(f"{r.row_id:>8}  {r.video_id:<10} {r.kf_n:>5} {r.frame_idx:>10} "
+              f"{r.pts_time:>9.2f}  {r.kf_path if co else '(chưa tải ảnh về máy này)'}")
+        if mo and co:
+            try:
+                import os
+                os.startfile(r.kf_path)              # Windows
+            except Exception:
+                import subprocess
+                subprocess.run(["xdg-open", r.kf_path], check=False)
+
+    print("\nDán vào dev/tap_dev_<nhóm>.jsonl rồi điền `cau_hoi` "
+          "(SAU KHI đã mở ảnh gốc xem):\n")
+    for r in lat.itertuples():
+        print(json.dumps({
+            "id": f"kis-{r.video_id[:3]}-000", "loai": "KIS", "cau_hoi": "",
+            "row_id_dung": [int(r.row_id)], "dap_an": "",
+            "nguon": f"sheet {r.video_id}, đã mở ảnh gốc {r.kf_name} kiểm lại",
+            "ghi_chu": "",
+        }, ensure_ascii=False))
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--index", default=GOC / "index", type=Path)
@@ -85,9 +125,15 @@ def main():
                     help="lấy 1 ảnh mỗi N keyframe (mặc định 10)")
     ap.add_argument("--tu", type=int, default=None, help="chỉ từ kf_n này")
     ap.add_argument("--den", type=int, default=None, help="đến kf_n này")
+    ap.add_argument("--tra", type=int, nargs="+", default=None,
+                    help="tra row_id đọc trên sheet -> đường dẫn ảnh gốc + khung JSONL")
+    ap.add_argument("--mo", action="store_true",
+                    help="mở luôn ảnh gốc bằng trình xem mặc định")
     a = ap.parse_args()
 
     m = pd.read_parquet(a.index / "master.parquet")
+    if a.tra:
+        return tra_cuu(m, a.tra, a.mo)
     m = m[m.kf_path.notna()]
     if m.empty:
         raise SystemExit(
