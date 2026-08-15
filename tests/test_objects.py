@@ -72,6 +72,82 @@ def test_keo_nhan_cha(bang):
     assert {"Land vehicle", "Vehicle"} & khong == set()
 
 
+@pytest.mark.parametrize("cau, khong_duoc_co", [
+    ("cái ấm đun nước", "Cabbage"),        # "cai" <- "cải", không phải "cái"
+    ("bàn tay người cầm dao", "Orange"),   # "cam" <- "cầm", không phải quả cam
+    ("ô tô màu đỏ", "Boat"),               # "do"  <- "đò",  không phải "đỏ"
+    ("bàn tay người cầm dao", "Table"),    # cụm dài "bàn tay" phải nuốt "bàn"
+])
+def test_co_dau_thi_khong_duoc_nhap_nhem(bang, cau, khong_duoc_co):
+    """Bỏ dấu vô điều kiện là GỘP NHẦM những từ khác hẳn nhau.
+
+    Tiếng Việt dùng dấu để phân biệt từ. Ba ca dưới đây đều là lỗi thật đã đo
+    được khi bỏ dấu vô điều kiện. Truy vấn CÓ dấu phải khớp có dấu.
+    """
+    from objects import nhan_tu_truy_van
+    assert khong_duoc_co not in nhan_tu_truy_van(cau, bang)
+
+
+@pytest.mark.parametrize("cau, phai_co", [
+    ("ca chua va chao", {"Tomato", "Wok"}),
+    ("can bo cong an", {"Person"}),
+    ("xe may tren duong", {"Motorcycle"}),
+    ("trai thom chin", {"Pineapple"}),
+])
+def test_khong_dau_van_phuc_vu_duoc(bang, cau, phai_co):
+    """Người gõ nhanh trong phiên thi hay bỏ dấu — và đề thi cũng có thể ra
+    không dấu (bài báo AIC'25 có truy vấn "giai phong khi hidro")."""
+    from objects import nhan_tu_truy_van
+    ra = set(nhan_tu_truy_van(cau, bang))
+    assert phai_co <= ra, f"thiếu {phai_co - ra}"
+
+
+@pytest.mark.parametrize("cau, khong_duoc_co", [
+    ("mùi thơm của món ăn", "Pineapple"),      # "thơm" = có mùi dễ chịu
+    ("bản cam kết", "Orange"),                 # "cam" trong "cam kết"
+    ("người dân cam chịu", "Orange"),
+    ("chỗ trống trong phòng", "Drum"),         # "trống" = rỗng
+    ("chia ly", "Wine glass"),                 # "ly" = rời xa
+])
+def test_tu_da_nghia_khong_keo_nham(bang, cau, khong_duoc_co):
+    """Từ đa nghĩa: chỉ giữ cụm ĐÃ KHỬ NHẬP NHẰNG, bỏ dạng trần.
+
+    Đây là chỗ ngược với trực giác "tách cụm từ ghép cho dễ khớp". Với từ đa
+    nghĩa thì **cụm có từ loại mới là thứ khử nhập nhằng**: giữ "trái thơm",
+    "quả cam", "dàn trống", "ly nước" — bỏ "thơm", "cam", "trống", "ly".
+    """
+    from objects import nhan_tu_truy_van
+    assert khong_duoc_co not in nhan_tu_truy_van(cau, bang)
+
+
+@pytest.mark.parametrize("cau, phai_co", [
+    ("trái thơm chín", "Pineapple"),
+    ("quả cam vàng", "Orange"),
+    ("dàn trống trong lễ hội", "Drum"),
+    ("ly nước trên bàn", "Wine glass"),
+])
+def test_bo_dang_tran_van_khop_duoc_cum_that(bang, cau, phai_co):
+    from objects import nhan_tu_truy_van
+    assert phai_co in nhan_tu_truy_van(cau, bang)
+
+
+def test_cum_chong_lan_giu_ca_hai(bang):
+    """"chiếc ô tô": cụm "chiếc ô" và "ô tô" chồng lấn MỘT PHẦN.
+
+    Ăn token tham lam trái-sang-phải thì "chiếc ô" chặn mất "ô tô" và `Car`
+    biến mất. Đã đo lỗi thật đó. Chỉ được bỏ cụm nằm HẲN trong cụm khác.
+    """
+    from objects import nhan_tu_truy_van
+    assert "Car" in nhan_tu_truy_van("chiếc ô tô màu đỏ", bang)
+
+
+def test_cum_dai_thang_cum_ngan(bang):
+    from objects import nhan_tu_truy_van
+    assert "Human hand" in nhan_tu_truy_van("bàn tay", bang)
+    assert "Table" not in nhan_tu_truy_van("bàn tay", bang)
+    assert "Table" in nhan_tu_truy_van("cái bàn", bang)
+
+
 def test_khop_theo_cum_tu_khong_phai_chuoi_con(bang):
     """"cá" nằm trong "cá nhân" — khớp chuỗi con là sai.
 

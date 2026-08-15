@@ -86,7 +86,7 @@ Kitchen utensil,dụng cụ nhà bếp,"dụng cụ nhà bếp, đồ dùng nhà
 Lemon,chanh,"chanh, quả chanh, trái chanh",Fruit
 Coffee cup,tách cà phê,"tách cà phê, ly cà phê, cốc cà phê",Tableware
 Tie,cà vạt,"cà vạt, ca vát",Clothing
-Drum,trống,"trống, cái trống, dàn trống",
+Drum,trống,"cái trống, dàn trống, mặt trống, tay trống",
 Strawberry,dâu tây,"dâu tây, quả dâu, trái dâu",Fruit
 Truck,xe tải,"xe tải, xe container, xe ben, xe đầu kéo",Land vehicle
 Sculpture,tượng,"tượng, bức tượng, tượng đài, điêu khắc",
@@ -121,7 +121,7 @@ Cucumber,dưa chuột,"dưa chuột, dưa leo",Vegetable
 Cutting board,thớt,"thớt, tấm thớt, thớt gỗ",Kitchen utensil
 Balloon,bóng bay,"bóng bay, khinh khí cầu, quả bóng bay",
 Sports uniform,đồng phục thể thao,"đồng phục thể thao, áo đấu, áo cầu thủ",Clothing
-Umbrella,ô,"ô, dù, cây dù, chiếc ô",
+Umbrella,ô,"dù, cây dù, cái ô, chiếc dù, ô che nắng",
 Juice,nước ép,"nước ép, nước trái cây, sinh tố",Drink
 Carrot,cà rốt,"cà rốt, củ cà rốt",Vegetable
 Bed,giường,"giường, cái giường, giường bệnh",
@@ -134,3 +134,17 @@ Curtain,rèm,"rèm, rèm cửa, màn cửa",
 Plastic bag,túi ni lông,"túi ni lông, túi nhựa, bao ni lông",
 Handbag,túi xách,"túi xách, giỏ xách, túi",Fashion accessory
 Insect,côn trùng,"côn trùng, sâu bọ, con bọ",Animal
+Cabbage,bắp cải,"bắp cải, cải bắp, cải",Vegetable
+Pineapple,dứa,"dứa, khóm, quả dứa, trái dứa, trái thơm, trái khóm",Fruit
+Potato,khoai tây,"khoai tây, củ khoai tây",Vegetable
+Pumpkin,bí đỏ,"bí đỏ, bí ngô, quả bí",Vegetable
+Mushroom,nấm,"nấm, cây nấm, nấm rơm",Vegetable
+Orange,cam,"quả cam, trái cam, múi cam, cam sành",Fruit
+Banana,chuối,"chuối, quả chuối, trái chuối, nải chuối",Fruit
+Apple,táo,"táo, quả táo, trái táo",Fruit
+Mango,xoài,"xoài, quả xoài, trái xoài",Fruit
+Watermelon,dưa hấu,"dưa hấu, quả dưa hấu, trái dưa hấu",Fruit
+Wine glass,ly,"cốc, ly rượu, ly thủy tinh, ly nước, cái ly",Tableware
+Mug,cốc,"cốc, ly sứ, cái cốc",Tableware
+Jug,bình rót,"bình rót, ca nước, bình nước",Tableware
+Kettle,ấm,"ấm, ấm đun nước, ấm nước, siêu nước",Kitchen appliance

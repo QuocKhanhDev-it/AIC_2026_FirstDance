@@ -21,6 +21,7 @@ Dùng trong code:
 
 import argparse
 import re
+import unicodedata
 from pathlib import Path
 
 import numpy as np
@@ -86,30 +87,93 @@ def nap_bang_nhan(f=None) -> pd.DataFrame:
     d = pd.read_csv(f).fillna("")
     d["tu"] = d.dong_nghia.map(
         lambda s: [x.strip().lower() for x in s.split(",") if x.strip()])
+    d["tu_kd"] = d.tu.map(lambda ts: [bo_dau(t) for t in ts])
     return d
 
 
+def bo_dau(s: str) -> str:
+    """Chuẩn hóa: thường hóa, bỏ dấu thanh và dấu mũ, `đ` -> `d`.
+
+    Vì sao cần: người gõ nhanh trong phiên thi thường bỏ dấu, và **chính đề
+    thi cũng có thể không dấu** — ví dụ trong bài báo AIC'25 là truy vấn
+    `"giai phong khi hidro"`. Không chuẩn hóa thì `"ca chua"` không khớp
+    `"cà chua"` và cả kênh im lặng trả 0.
+
+    Chuẩn hóa ở ĐÂY chứ không nhồi biến thể không dấu vào CSV: một chỗ sửa,
+    phủ mọi từ, và không làm phình bảng lên gấp đôi.
+
+    `đ` phải xử riêng — nó là ký tự độc lập trong Unicode, không phải `d` cộng
+    dấu, nên `NFD` không tách ra được.
+    """
+    s = unicodedata.normalize("NFD", s.strip().lower())
+    s = "".join(c for c in s if unicodedata.category(c) != "Mn")
+    return unicodedata.normalize("NFC", s).replace("đ", "d")
+
+
 def nhan_tu_truy_van(cau: str, bang: pd.DataFrame, keo_cha: bool = True) -> list[str]:
-    """Truy vấn tiếng Việt -> danh sách nhãn OpenImages để đưa vào `object_score`.
+    """Truy vấn tiếng Việt -> danh sách nhãn OpenImages cho `object_score`.
 
-    Khớp theo CỤM TỪ chính xác (n-gram 1..4 từ), không khớp theo chuỗi con.
-    Khớp chuỗi con rất nguy hiểm với tiếng Việt: "cá" nằm trong "cá nhân",
-    "bàn" nằm trong "bàn bạc". N-gram vẫn còn nhập nhằng ở mức từ, nhưng đó là
-    nhập nhằng của chính ngôn ngữ — và vô hại ở đây vì `object_score` CHO ĐIỂM
-    MỀM, không lọc cứng.
+    Ba quy tắc:
 
-    `keo_cha` kéo theo nhãn cha (cột `cha`). Cần vì thứ bậc OpenImages KHÔNG tự
-    gộp: `Car`, `Land vehicle`, `Vehicle` là ba nhãn riêng biệt, nên truy vấn
-    "ô tô" mà không kéo cha sẽ bỏ sót hai nhãn kia.
+    1. **Khớp theo CỤM TỪ, không theo chuỗi con.** Chuỗi con rất nguy hiểm với
+       tiếng Việt: "cá" nằm trong "cá nhân", "bàn" nằm trong "bàn bạc".
+    2. **Cụm dài thắng cụm ngắn** (maximal munch). "bàn tay" phải ra
+       `Human hand`, KHÔNG được đồng thời kéo `Table` vì chữ "bàn". Đã đo:
+       không có quy tắc này thì "bàn tay người cầm dao" lôi cả `Table` vào.
+    3. **Bỏ dấu CHỈ KHI truy vấn vốn đã không dấu.**
+
+    Quy tắc 3 là chỗ dễ làm sai nhất. Bỏ dấu vô điều kiện nghe có vẻ tiện hơn,
+    nhưng tiếng Việt dùng dấu để phân biệt từ, nên bỏ dấu là **gộp nhầm những
+    từ khác hẳn nhau**. Đã đo, cả ba đều là lỗi thật:
+
+        "cái ấm đun nước"        -> Cabbage   ("cai" <- "cải", không phải "cái")
+        "bàn tay người cầm dao"  -> Orange    ("cam" <- "cầm", không phải quả cam)
+        "ô tô màu đỏ"            -> Boat      ("do"  <- "đò",  không phải "đỏ")
+
+    Nên: truy vấn CÓ dấu thì khớp có dấu (chính xác); truy vấn KHÔNG dấu thì
+    mới hạ xuống khớp không dấu. Người gõ nhanh trong phiên thi vẫn được phục
+    vụ, mà người gõ đúng chính tả không bị phạt. Đề thi cũng có thể ra không
+    dấu — bài báo AIC'25 có truy vấn `"giai phong khi hidro"`.
+
+    `keo_cha` kéo theo nhãn cha. Cần vì thứ bậc OpenImages KHÔNG tự gộp:
+    `Car`, `Land vehicle`, `Vehicle` là ba nhãn riêng biệt. Quy tắc 2 nuốt mất
+    cụm ngắn, nhưng `cha` bù lại đúng phần đáng bù: "xe máy" -> `Motorcycle`
+    -> `Land vehicle` -> `Vehicle`.
 
         >>> nhan_tu_truy_van("người phụ nữ thái cà chua bên chảo", bang)
-        ['Clothing', 'Food', 'Frying pan', 'Kitchen utensil', 'Person',
-         'Tomato', 'Vegetable', 'Woman', 'Wok']
+        ['Food', 'Frying pan', 'Kitchen utensil', 'Person', 'Tomato',
+         'Vegetable', 'Woman', 'Wok']
     """
-    tu = [t for t in re.split(r"[^\w]+", cau.lower()) if t]
-    cum = {" ".join(tu[i:i + n]) for n in range(1, 5) for i in range(len(tu) - n + 1)}
+    khong_dau = bo_dau(cau) == cau.strip().lower()
+    cot = "tu_kd" if khong_dau else "tu"
+    tu = [t for t in re.split(r"[^\w]+", bo_dau(cau) if khong_dau else cau.lower()) if t]
 
-    ra = {r.nhan_en for r in bang.itertuples() if cum & set(r.tu)}
+    tra = {}
+    for r in bang.itertuples():
+        for t in getattr(r, cot):
+            tra.setdefault(t, set()).add(r.nhan_en)
+
+    # Thu MỌI cụm khớp được, rồi mới bỏ cụm nằm LỌT TRONG cụm khác.
+    #
+    # ⚠️ Đừng "ăn" token theo kiểu tham lam trái-sang-phải. Đã đo lỗi thật:
+    # "chiếc ô tô màu đỏ" — "chiếc ô" (Umbrella) khớp trước ở vị trí 0-1, ăn
+    # mất vị trí 1, chặn luôn "ô tô" (Car) ở vị trí 1-2. Kết quả ra
+    # {Bowl, Umbrella} mà không có Car.
+    #
+    # Chỉ bỏ cụm nằm HẲN trong cụm khác ("bàn" trong "bàn tay"). Hai cụm chồng
+    # lấn một phần thì GIỮ CẢ HAI — đó là nhập nhằng thật của tiếng Việt, và
+    # `object_score` cho điểm mềm nên giữ cả hai an toàn hơn là đoán bừa.
+    khop = []
+    for n in range(4, 0, -1):
+        for i in range(len(tu) - n + 1):
+            nhan = tra.get(" ".join(tu[i:i + n]))
+            if nhan:
+                khop.append((i, i + n, nhan))
+
+    ra = {x for i, j, nhan in khop
+          if not any(a <= i and j <= b and (b - a) > (j - i) for a, b, _ in khop)
+          for x in nhan}
+
     if keo_cha:
         cha = bang.set_index("nhan_en")["cha"].to_dict()
         while True:
