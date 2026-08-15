@@ -119,10 +119,22 @@ def encode(a):
     else:
         print(f"\nGPU: {torch.cuda.get_device_name(0)}")
 
-    model, _, pre = open_clip.create_model_and_transforms(a.model, pretrained=a.pretrained)
+    # `pretrained` là đường dẫn file cục bộ (không phải tag) -> open_clip
+    # không tự merge preprocess_cfg của tag, ảnh sẽ bị resize sai kích cỡ
+    # (mặc định 224) trong khi kiến trúc model đòi kích cỡ khác. --image-size
+    # ép đúng kích cỡ theo bảng model ở docs/06_ke_hoach_encode_GPU.md §2.
+    model, _, pre = open_clip.create_model_and_transforms(
+        a.model, pretrained=a.pretrained,
+        force_image_size=a.image_size if a.image_size else None)
     model = model.to(thiet_bi).eval()
+
+    # cỡ ảnh của model, để tensor thăm dò/thay thế đều khớp shape (chốt bẫy:
+    # hardcode 224 nổ ngay với model đòi kích cỡ khác, vd 378 của SigLIP2)
+    cx = getattr(model.visual, "image_size", 224)
+    cx = int(cx[0] if isinstance(cx, (tuple, list)) else cx)
+
     chieu = model.visual.output_dim if hasattr(model.visual, "output_dim") else \
-        model.encode_image(torch.zeros(1, 3, 224, 224).to(thiet_bi)).shape[1]
+        model.encode_image(torch.zeros(1, 3, cx, cx).to(thiet_bi)).shape[1]
     print(f"{a.model} / {a.pretrained}  ->  {chieu} chiều")
 
     kieu = np.float16 if a.fp16 else np.float32
@@ -148,10 +160,6 @@ def encode(a):
     if len(thieu):
         xong[thieu] = True
         print(f"{len(thieu):,} keyframe chưa tải ảnh -> để vector 0, giữ nguyên dòng")
-
-    # cỡ ảnh của model, để tensor thay thế lúc ảnh hỏng khớp shape
-    cx = getattr(model.visual, "image_size", 224)
-    cx = int(cx[0] if isinstance(cx, (tuple, list)) else cx)
 
     ds = BoAnh(master.kf_path.values[row_ids].tolist(), row_ids, pre, cx)
     dl = torch.utils.data.DataLoader(
@@ -297,6 +305,9 @@ def main():
     ap.add_argument("--fp16", action="store_true", default=True)
     ap.add_argument("--fp32", dest="fp16", action="store_false")
     ap.add_argument("--out", type=Path, default=GOC / "index" / "clip_moi.npy")
+    ap.add_argument("--image-size", type=int, default=None,
+                    help="ép kích cỡ ảnh đầu vào — cần khi --pretrained là "
+                         "file cục bộ (mất preprocess_cfg đi kèm tag)")
     ap.add_argument("--kiem-lech-hang", type=Path, default=None,
                     help="chạy riêng phép kiểm hàng, không encode")
     ap.add_argument("--so-mau", type=int, default=200)
