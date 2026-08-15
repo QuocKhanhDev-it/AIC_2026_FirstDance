@@ -97,6 +97,19 @@ mốc "3,1 giây CPU cho 300 frame" của v3 vì mốc đó đo trên một máy
 > luồng ảnh nối tiếp**, phải tách theo header từng ảnh; và **cache theo từng
 > frame vẫn giữ nguyên** — chỉ đổi cách lấy khi cache trượt, không đổi cấu
 > trúc cache.
+>
+> **ĐÃ CÀI (H2 #4). Đo lại sau khi cài: 199 → ~48 ms/khung, nhanh ~4 lần.**
+>
+> ⚠️ **Bẫy khi tự đo lại — LƯỢT ĐẦU LUÔN CHẬM.** Ba lượt liên tiếp cùng một
+> lệnh cho **90 → 51 → 45 ms/khung**. Lượt đầu tốn thêm ~3 giây chỉ để đọc
+> vùng video từ đĩa; lượt sau đọc từ bộ đệm hệ điều hành. **Bỏ lượt đầu, lấy
+> từ lượt hai trở đi** — không thì sẽ kết luận tối ưu chỉ nhanh 2 lần trong
+> khi thực tế 4 lần.
+>
+> *Một giả thuyết đã bị bác:* nghi `-vcodec png` tốn CPU nén nên thử `bmp`.
+> Đo thật: PNG **33,8** ms/khung, BMP **28,6** — chỉ hơn 15%, dù luồng BMP
+> nặng gấp 4,6 lần (161 MB so với 35 MB). **Không đáng đổi.** Chi phí thật
+> nằm ở seek và decode, không phải ở mã hóa ảnh trung gian.
 
 ### A2. Kho dữ liệu lệch nặng về một nhóm L
 
@@ -1194,7 +1207,8 @@ Giai đoạn 1.*
 | --- | --- | --- | --- |
 | **1** | **Tập dev ~60 câu, phân tầng 10 nhóm L** | **cả nhóm, Khánh gộp** | Bản 4.1 thêm 6 giả thuyết từ bài báo AIC'25 và **không cái nào được giữ nếu không đo được**. Việc 8 của kế hoạch GPU cũng chặn ở đây |
 
-Hiện có **13 câu / 2 nhóm L**. Mỗi người soạn **6 câu cho mỗi nhóm L mình
+Hiện có **40 câu / 5 nhóm L** (L21, L22, L23, L26, L27) — còn thiếu **L24,
+L25, L28, L29, L30**. Mỗi người soạn **6 câu cho mỗi nhóm L mình
 giữ** — chỉ máy giữ gói `Keyframes_*` mới mở được ảnh gốc để kiểm lại. Quy
 trình đầy đủ: [07_lam_tap_dev.md](07_lam_tap_dev.md).
 
@@ -1202,7 +1216,7 @@ trình đầy đủ: [07_lam_tap_dev.md](07_lam_tap_dev.md).
 python scripts\10_contact_sheet.py --nhom <L của mình> --thua 10
 python scripts\10_contact_sheet.py --tra <row_id...> --mo
 # soạn vào dev/tap_dev_thanh_vien/tap_dev_<nhóm>.jsonl
-python src\tap_dev.py --gop dev\tap_dev_thanh_vien\*.jsonl --file dev\tap_dev.jsonl
+python src\tap_dev.py --gop dev\tap_dev_thanh_vien --file dev\tap_dev.jsonl
 python src\tap_dev.py --file dev\tap_dev.jsonl --no-cum
 python src\tap_dev.py --file dev\tap_dev.jsonl --kiem
 ```
@@ -1212,8 +1226,8 @@ python src\tap_dev.py --file dev\tap_dev.jsonl --kiem
 | # | Việc | Ai | Ghi chú |
 | --- | --- | --- | --- |
 | 2 | **`src/bm25.py`** — kênh 2 (metadata) + kênh 3 (OCR/ASR) | TV3 | metadata đã phủ 100%, 955 ký tự/video. Kênh 3 cần **hai chế độ**: lọc cứng cho token hiếm + BM25 hòa RRF (A8.5) |
-| 3 | ~~`dev/label_vi_en.csv`~~ — **XONG**, 135 nhãn phủ 98,1% | — | **Kênh 4 nay dùng được từ truy vấn tiếng Việt.** Còn nên: người Việt đọc lại cột `dong_nghia`, thêm cách nói vùng miền |
-| 4 | **Tối ưu `trich_day`: gộp cả cửa sổ vào MỘT lệnh ffmpeg** | TV2 | đã đo: **nhanh gấp 8,7 lần** (169 → 19 ms/khung). Nằm trên đường găng TRAKE |
+| 3 | ~~`dev/label_vi_en.csv`~~ — **XONG**, 156 nhãn phủ 98,3% | — | **Kênh 4 nay dùng được từ truy vấn tiếng Việt.** Còn nên: người Việt đọc lại cột `dong_nghia`, thêm cách nói vùng miền |
+| 4 | ~~Tối ưu `trich_day`: gộp cả cửa sổ vào MỘT lệnh ffmpeg~~ | TV2 | ✅ **XONG** — `trich_nhieu()` trong `src/trich_day.py`, áp dụng lại cho `scripts/09_trich_day_batch.py`. Đo lại sau khi cài: **28 ms/khung** so với 169–284 ms/khung cũ. Cờ `-vsync 0` đã bị GỠ ở ffmpeg 9.0, đổi sang `-fps_mode passthrough` |
 | 5 | **Commit script vá `kf_path`** | Khánh | máy nào tải `index/` từ Drive cũng gặp (A5.5); đừng để mỗi người viết lại |
 | 6 | **Gán nhãn 400 mẫu `ocr_v2` + điền `roi_v2.yaml`** | TV4 | đang **0/400**. ROI: ranh giới là **dải chữ chạy cuối cùng**, KHÔNG phải "bỏ nửa dưới" — băng rôn tiêu đề có liên quan tới hình |
 | 7 | **`src/run.py`** — đường ống đầu-cuối | TV5 | chỉ đáng viết khi đã có ≥ 2 kênh |
