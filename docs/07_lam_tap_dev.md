@@ -260,6 +260,64 @@ chứng độc lập cho khuyến nghị chọn **SigLIP2 đa ngôn ngữ** ở 
 
 ---
 
+## §7b. Chấm theo CỬA SỔ, đừng chấm theo `row_id` chính xác
+
+BTC xác nhận (A9) đáp án là **cửa sổ `[s,e]` rộng 4 giây đến 5 phút**. Nếu ta
+so `row_id` chính xác thì một keyframe cách đáp án 2 giây bị tính **sai**,
+trong khi BTC tính **đúng**.
+
+Đo thật trên 21 câu có bản dịch tiếng Anh:
+
+| Chấm ở | Điểm CLIP |
+| --- | --- |
+| `row_id` chính xác | 0,5048 |
+| ±2s *(cửa sổ 4s — hẹp nhất BTC nêu)* | 0,5238 |
+| ±5s | 0,5619 |
+| ±15s | 0,5905 |
+| ±90s *(cửa sổ 3 phút)* | **0,6095** |
+
+**Chấm chặt hạ điểm mất 0,10.** Để so sánh: toàn bộ lợi ích đội AIC'25 thu
+được khi thêm SigLIP2 chỉ là **+0,07**. Sai lệch do chấm chặt **lớn hơn thứ
+đang cần đo**, và nó hạ **không đều** giữa các cấu hình — cấu hình nào hay trả
+về keyframe lân cận bị phạt nặng hơn, nên thứ hạng có thể **đảo ngược**.
+
+```python
+a = cham(dev, chay_A, master=kenh.master, dung_sai_giay=2)
+b = cham(dev, chay_B, master=kenh.master, dung_sai_giay=2)
+```
+
+**Dùng ±2s làm con số chính** (bảo thủ — mức hẹp nhất BTC nêu), rồi kiểm lại ở
+±15s. Nếu kết luận đổi giữa hai mức thì kết luận đó **phụ thuộc vào một ẩn số
+BTC chưa chốt** và phải ghi rõ điều đó.
+
+## §7c. Tập dev hiện KHÔNG kiểm được `dedup.py`
+
+Đo `dedup` ở mọi mức dung sai: **0 thắng – 0 thua – 21 hòa.** Không đổi một câu
+nào.
+
+Nhưng đó **không phải bằng chứng dedup vô dụng** — mà là bằng chứng **tập dev
+sai chỗ để đo nó**. Keyframe trùng lặp dồn hết vào L25 (**49,82%**), còn các
+nhóm khác chỉ 0,27–2,16%. Tập dev hiện có L21, L22, L23, L26, L27 — **không có
+câu L25 nào**, tức đang đo dedup ở nơi gần như không có trùng lặp.
+
+→ **Muốn kết luận về `dedup` thì phải có câu L25.** Đây là một lý do cụ thể để
+ưu tiên nhóm L25 khi phân công soạn tiếp.
+
+## §7d. Thiếu hẳn một dạng câu: ĐẾM SỐ LƯỢNG
+
+BTC nêu thẳng dạng này khi trả lời (A9):
+
+> *"Các trường hợp thường gặp là về bài toán **đếm số lượng**, 1 cái frame có
+> thể không đếm được hết... 1 em bé được bế bởi 4 người liên tiếp, dựa trên
+> keyframe thì chỉ có 3."*
+
+Tập dev hiện **không có câu đếm nào**, nên ta sẽ không bao giờ phát hiện được
+điểm yếu này. Cần **ít nhất 3–5 câu**, và đáp án phải lấy từ **video**, không
+phải từ một keyframe.
+
+Đây cũng là dạng câu duy nhất mà `trich_day` thật sự cần thiết — không có câu
+đếm thì không đo được nó có đáng giữ hay không.
+
 ## §8. Cất tập test
 
 Giai đoạn 3 yêu cầu kiểm cuối trên tập **chưa từng nhìn**. Với 50 câu mà chia
