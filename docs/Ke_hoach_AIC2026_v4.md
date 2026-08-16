@@ -669,6 +669,38 @@ có đáng không" mà là đường thoát cho kênh 1.**
 > §3 của [07_lam_tap_dev.md](07_lam_tap_dev.md): **câu hỏi dev phải viết bằng
 > đúng ngôn ngữ đề thi**, nếu không ta tự giấu điểm yếu của chính mình.
 
+#### A10.3 — Đã ĐO end-to-end: SigLIP2 thay hẳn được bước dịch
+
+Encode `ViT-B-16-SigLIP2-256` cho **11 video** (3.135 keyframe) rồi so ba cấu
+hình trên **cùng một bể ứng viên** (`dense.be_chung`) và **cùng 21 câu**:
+
+| # | Cấu hình | ±2s | ±15s |
+| --- | --- | --- | --- |
+| **A** | CLIP + tiếng Việt *(hiện tại)* | 0,0095 | 0,0857 |
+| **B** | CLIP + **bản dịch tay** sang Anh | 0,8190 | 0,8952 |
+| **C** | **SigLIP2 + tiếng Việt** | **0,8571** | **0,9429** |
+
+| So | Hiệu | Thắng–thua–hòa | Kết luận |
+| --- | --- | --- | --- |
+| C so với A | **+0,8476** | **21–0–0** | ✅ **ổn định** |
+| C so với B | +0,0381 / +0,0476 | 8–5–8 | 🟡 yếu |
+
+**C thắng A ở cả 21/21 câu, không thua câu nào.** Và C **ngang hoặc nhỉnh hơn**
+B — tức SigLIP2 đọc thẳng tiếng Việt **tốt bằng CLIP đọc bản dịch tay**, mà bỏ
+được hẳn khâu dịch.
+
+> ⚠️ **Đừng đọc con số tuyệt đối 0,86–0,94 là năng lực hệ thống.** Bể ứng viên
+> ở đây chỉ 3.135 keyframe / 11 video, dễ hơn toàn kho 177.321 rất nhiều — đúng
+> hiệu ứng thổi phồng đã đo ở `be_chung()`. **Chỉ phần SO SÁNH là dùng được**,
+> vì cả ba cấu hình chạy trên cùng bể.
+
+Kiểm lệch hàng trước khi tin: **16/16 cặp khớp**, trung vị cosine 0,9886.
+
+> **Ghi chú về model.** Đây là `ViT-B-16-SigLIP2-256` — bản **nhỏ nhất** của họ
+> SigLIP2, chọn vì chạy được trên CPU (1,9 ảnh/giây). Kế hoạch GPU chốt
+> `ViT-SO400M-14-SigLIP2-378` (1152 chiều) mạnh hơn nhiều. Nếu bản nhỏ nhất đã
+> lật ngược được kênh 1 thì bản lớn không thể tệ hơn.
+
 ---
 
 ## PHẦN B — QUYẾT ĐỊNH HẠ TẦNG
@@ -1382,7 +1414,7 @@ python src\tap_dev.py --file dev\tap_dev.jsonl --kiem
 
 | # | Việc | Ai | Ghi chú |
 | --- | --- | --- | --- |
-| **1b** | 🔴 **CỨU KÊNH 1** — đổi sang SigLIP2, hoặc cài bước dịch truy vấn | TV1 + máy GPU | **A10: CLIP được 0,0000 trên 100/100 câu tiếng Việt.** Đây không phải tối ưu, là **sửa lỗi chết kênh**. SigLIP2 đã kiểm: biên độ hiểu tiếng Việt **+0,2201** so với **−0,0394** của CLIP |
+| **1b** | 🔴 **CỨU KÊNH 1 — encode SigLIP2 toàn kho** | **máy GPU (Khánh)** | **ĐÃ CHỨNG MINH (A10.3), không còn là giả thuyết.** SigLIP2 + tiếng Việt thắng CLIP + tiếng Việt **21/21 câu**, và ngang bản dịch tay. Chỉ còn thiếu ma trận toàn kho — máy GPU ước ~2 giờ. Bỏ luôn được khâu dịch truy vấn |
 | 2 | **`src/bm25.py`** — kênh 2 (metadata) + kênh 3 (OCR/ASR) | TV3 | metadata đã phủ 100%, 955 ký tự/video. Kênh 3 cần **hai chế độ**: lọc cứng cho token hiếm + BM25 hòa RRF (A8.5) |
 | 3 | ~~`dev/label_vi_en.csv`~~ — **XONG**, 156 nhãn phủ 98,3% | — | **Kênh 4 nay dùng được từ truy vấn tiếng Việt.** Còn nên: người Việt đọc lại cột `dong_nghia`, thêm cách nói vùng miền |
 | 4 | ~~Tối ưu `trich_day`: gộp cả cửa sổ vào MỘT lệnh ffmpeg~~ | TV2 | ✅ **XONG** — `trich_nhieu()` trong `src/trich_day.py`, áp dụng lại cho `scripts/09_trich_day_batch.py`. Đo lại sau khi cài: **28 ms/khung** so với 169–284 ms/khung cũ. Cờ `-vsync 0` đã bị GỠ ở ffmpeg 9.0, đổi sang `-fps_mode passthrough` |
