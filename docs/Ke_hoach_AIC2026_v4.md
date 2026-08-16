@@ -55,9 +55,11 @@ phải lệch chỉ số.
 | % cặp cách ≤ 10 frame | 1,15% | **12,62%** |
 | Xác suất keyframe có sẵn rơi trúng cửa sổ 10 frame | ~9% | **14,6%** |
 
-> **→ Vẫn BẮT BUỘC có module trích xuất frame dày. Vẫn là đường găng.**
-> 14,6% nghĩa là R-Score trần ~0,15 dù thuật toán dóng hàng hoàn hảo. Kết
-> luận của v3 đúng; chỉ độ lớn thay đổi.
+> 🛑 **BỊ BÁC BỞI TRẢ LỜI CỦA BTC (15/08) — xem A9.** Con số 14,6% và "trần
+> R-Score ~0,15" tính trên giả định **cửa sổ rộng 10 frame**, lấy từ ví dụ
+> `[500,510]` trong thể lệ. BTC xác nhận cửa sổ thật là **4 giây đến 5 phút**.
+> Ở cửa sổ ≥ 10 giây, keyframe có sẵn phủ **100%**. Bảng trên giữ lại làm lịch
+> sử; **đừng dùng nó để ước lượng trần điểm nữa.**
 
 **Nhưng con số này đổi cách TV2 làm module.** Khoảng cách trung vị 55 frame
 (~1,8s ở 30fps) chứ không phải 109 (~4,4s) — cửa sổ cần trích hẹp hơn, chi
@@ -546,6 +548,77 @@ hưởng với ràng buộc đa dạng đã có ở PHẦN C mục 2 — nhưng 
 
 `index/trung_lap.parquet` (dựng ở Giai đoạn 0) đã có sẵn `max_cos` từng
 keyframe tới bản giống nhất cùng video. Nguyên liệu có rồi.
+
+---
+
+### A9 — BTC TRẢ LỜI (15/08): cửa sổ rộng 4 giây–5 phút, không phải 10 frame
+
+*Đây là bằng chứng mạnh nhất ta có — nguồn chính thức, không phải suy luận từ
+bài báo hay đo gián tiếp. Nó **bác bỏ một con số nền** của kế hoạch.*
+
+#### A9.1 — Nguyên văn ba câu trả lời
+
+| Hỏi | BTC trả lời |
+| --- | --- |
+| Độ rộng cửa sổ `[s,e]` | *"Chắc có thể là **3 phút hoặc 5 phút** (an toàn cho BTC), **ngắn nhất 10s hoặc 4s** tuỳ trường hợp"* |
+| Nguồn sinh đáp án | *"Keyframe chỉ là **giải pháp mẫu**, cái đáp án **có thể nằm giữa 2 frame**"* |
+| Đề mẫu / GT | *"Sẽ có **query mẫu**, không có GT hoặc chỉ có **GT từ các năm trước**"* |
+
+Ví dụ `[500,510]` trong thể lệ khiến cả nhóm hiểu cửa sổ là **10 frame**. Sai
+hai bậc độ lớn: đơn vị thực tế là **giây tới phút**.
+
+#### A9.2 — Đo lại tác động: từ 14,6% lên 86–100%
+
+Cửa sổ rộng `W` giây trượt (không chứa keyframe nào) chỉ khi nó nằm **trọn
+trong một khoảng trống** giữa hai keyframe. Đo trên 176.448 khoảng trống thật:
+
+```text
+trung vị 2,16s | trung bình 2,65s | p90 5,57s | p99 6,76s | LỚN NHẤT 8,0s
+```
+
+| Cửa sổ | ≈ frame @25fps | Keyframe có sẵn phủ được |
+| --- | --- | --- |
+| 0,4s *(10 frame — giả định cũ)* | 10 | **13,9%** |
+| **4s** *(hẹp nhất BTC nêu)* | 100 | **86,1%** |
+| **10s** | 250 | **100%** |
+| 30s – 5 phút | 750 – 7.500 | **100%** |
+
+**Khoảng trống lớn nhất trong TOÀN KHO chỉ 8,0 giây.** Nên mọi cửa sổ từ 10
+giây trở lên **chắc chắn** chứa ít nhất một keyframe ta đã có.
+
+#### A9.3 — Ba hệ quả, theo thứ tự quan trọng
+
+**1. Trần điểm TRAKE ~0,15 KHÔNG còn đúng.** Nó tính trên cửa sổ 10 frame. Với
+dung sai thật, keyframe có sẵn đã phủ 86–100%, nên trần bị giới hạn bởi **chất
+lượng truy hồi**, không phải mật độ keyframe. PHẦN E phụ thuộc #2 phải sửa.
+
+**2. `trich_day` ĐỔI LÝ DO TỒN TẠI, không mất đi.** Nó không còn cần để *bắn
+trúng cửa sổ* — nhưng BTC nêu một lý do khác, cụ thể hơn và ta chưa tính tới:
+
+> *"Các trường hợp thường gặp là về bài toán **đếm số lượng**, 1 cái frame có
+> thể không đếm được hết... Ví dụ 1 em bé được bế bởi 4 người liên tiếp trong
+> bản tin, dựa trên keyframe thì chỉ có 3 nên không đảm bảo."*
+
+Tức trích dày cần cho **nhìn thấy nội dung**, không phải cho **trúng chỉ số**.
+Phạm vi hẹp hơn (chỉ câu Q&A dạng đếm và TRAKE nhiều sự kiện) nhưng ở đó thì
+không thay thế được. Ăn khớp với đo đạc riêng của ta ở D1.6: bộ nhận diện đếm
+thiếu nghiêm trọng, **câu hỏi đếm phải để VLM nhìn nhiều frame trả lời**.
+
+**3. Việc khó chuyển hẳn sang CHỌN ĐÚNG KHOẢNH KHẮC.** Khi trúng cửa sổ gần
+như miễn phí, điểm số phụ thuộc gần như hoàn toàn vào truy hồi: đúng video, và
+đúng vùng trong video. Đó là kênh 1–5 và RRF, **không phải** ffmpeg.
+
+> ⚠️ **Vẫn còn một ẩn số:** BTC nói "3 phút hoặc 5 phút... ngắn nhất 10s hoặc
+> 4s **tuỳ trường hợp**" — tức độ rộng **thay đổi theo câu**, và ta không biết
+> phân bố. Ở mức 4s vẫn còn 13,9% trượt. Nên **đừng bỏ hẳn trích dày**; chỉ hạ
+> nó khỏi vị trí đường găng.
+
+#### A9.4 — Việc mở ra từ câu trả lời thứ ba
+
+*"Sẽ có query mẫu... hoặc chỉ có GT từ các năm trước"* — **đề và đáp án các mùa
+trước có thể xin được.** Đó đúng là thứ §1 của [07_lam_tap_dev.md](07_lam_tap_dev.md)
+gọi là "mười phút đáng giá nhất": một tập dev đúng phân bố, đúng văn phong,
+đúng độ khó, và **không dính thiên lệch nào của ta**. Hỏi lại BTC xin cụ thể.
 
 ---
 
@@ -1128,20 +1201,28 @@ chưa từng nhìn.
 | # | Cầu nối | Nếu đứt | Trạng thái |
 | --- | --- | --- | --- |
 | **1** | **Bảng cái → tất cả** | mọi module sai mà không ai biết tới tuần 4 | ✅ **đã chứng minh đúng** |
-| **2** | **TV2 (trích dày) → Bước 4 TRAKE** | TRAKE trần điểm ở ~0,15 | ⬜ chặn bởi tải video |
-| **3** | **Khánh (tập dev) → toàn bộ GĐ3** | rerank thành đoán mò | ⬜ chặn bởi tải video |
+| 2 | TV2 (trích dày) → câu Q&A dạng **ĐẾM** | không đếm đủ số lượng → `answer` sai → 0 điểm | 🟡 **hạ khỏi đường găng (A9)** — cửa sổ rộng 4s–5 phút nên keyframe có sẵn đã phủ 86–100%; trích dày nay để **NHÌN THẤY NỘI DUNG**, không phải để trúng chỉ số |
+| **3** | **Khánh (tập dev) → toàn bộ GĐ3** | rerank thành đoán mò | ⬜ **đường găng số 1** |
 | 4 | TV3 (BM25 metadata) → Bước 2 TRAKE | sai video → 0 điểm | ✅ dữ liệu đã đủ (100%) |
 | 5 | 0.c (VLM) → Bước 4 Q&A | `answer` sai định dạng → 0 điểm | 🟡 đang test |
 | 6 | TV1 (ma trận CLIP) → cả 2 mũi nhọn | cả hai mũi nhọn tắc | ✅ dữ liệu đã đủ (100%) |
 | **7** | **MỚI — tải đủ video/keyframe → #2, #3** | **hai phụ thuộc quan trọng nhất đều tắc** | ✅ **100% đã kiểm chứng** |
 
-**Đường găng:**
-`Bảng cái ✅ → tải dữ liệu ⬜ → TV2 (trích dày) → Khánh (DP + tập dev) → GĐ3`
+**Đường găng (sửa theo A9):**
+`Bảng cái ✅ → tập dev ⬜ → đo 5 kênh + RRF → GĐ3`
 
-> **Nút thắt đã dịch chuyển.** Ở v3, đường găng bắt đầu từ bảng cái. Bảng cái
-> nay đã xong và được chứng minh. Nút thắt mới là **tải dữ liệu**: chỉ 387/873
-> video có keyframe và video gốc, mà cả #2 lẫn #3 — hai phụ thuộc nặng nhất —
-> đều cần chúng. Đây là việc cần dồn người vào ngay.
+> **Nút thắt đã dịch chuyển HAI LẦN.**
+>
+> Ở v3, đường găng bắt đầu từ bảng cái — nay đã xong và được chứng minh.
+>
+> Ở v4, nút thắt là **tải dữ liệu**, vì trích dày cần video và người ta tin
+> trích dày quyết định trần điểm TRAKE.
+>
+> **Ở v4.2, BTC bác bỏ tiền đề đó (A9): cửa sổ rộng 4 giây–5 phút chứ không
+> phải 10 frame, nên keyframe có sẵn đã phủ 86–100%.** Trích dày hạ xuống vai
+> trò hẹp hơn (nhìn nội dung cho câu đếm). Nút thắt thật bây giờ là **tập
+> dev** — không có nó thì không đo được kênh nào đáng giữ, mà chất lượng truy
+> hồi mới là thứ quyết định điểm.
 
 ---
 
@@ -1151,7 +1232,8 @@ chưa từng nhìn.
 | --- | --- | --- |
 | **Chia dữ liệu nhiều máy làm đứt đường dẫn tuyệt đối** | `kf_path` trỏ file không tồn tại | Thống nhất đường dẫn dữ liệu giống nhau trên mọi máy, hoặc remap (xem A5.5). Riêng việc **gộp kết quả** thì an toàn: `row_id` như nhau trên mọi máy (đã đo 765/765 trên năm lô) |
 | **Không ai chạy verify cho nhóm L mình giữ** | 873/873 video được kiểm chứng — 100% | Bắt buộc mỗi máy chạy `02`+`03` cho phần mình, báo kết quả |
-| ~~BTC dùng cửa sổ `[s,e]` hẹp cho cả KIS~~ | — | 🟢 **hạ cấp** — luật AIC'25 chấm `frame_idx` rơi **trong một khoảng** (A8.1). Vẫn hỏi BTC để xác nhận, nhưng không còn chặn thiết kế |
+| ~~BTC dùng cửa sổ `[s,e]` hẹp cho cả KIS~~ | — | ✅ **ĐÓNG (A9)** — BTC xác nhận cửa sổ **4 giây–5 phút**. Keyframe có sẵn phủ 86–100%. Rủi ro biến mất |
+| **MỚI — câu Q&A dạng ĐẾM không đếm đủ** | tập dev có câu đếm, mọi cấu hình đều sai số lượng | BTC nêu thẳng ca này (A9.3): *"1 em bé được bế bởi 4 người liên tiếp, dựa trên keyframe thì chỉ có 3"*. Cần `trich_day` + VLM nhìn nhiều frame. **Tập dev phải có ít nhất 3–5 câu đếm**, nếu không ta không bao giờ phát hiện điểm yếu này |
 | **MỚI — thi tương tác mà ta không có giao diện** | BTC công bố thể thức Chung kết | Hỏi BTC cùng câu 0.a. Nếu có: dựng UI tối thiểu ở GIAI ĐOẠN 2 (A8.6), tuyệt đối không phình |
 | **MỚI — thiếu kênh mô tả cảnh** | truy vấn tả *quan hệ* trong cảnh ("vòng elip bằng gạch") đều trượt trên tập dev | Kênh 5 — Qwen2.5-VL làm cả OCR lẫn caption (A8.4). Đo trên 200 ảnh trước khi cam kết |
 | **MỚI — chép module của đội AIC'25 mà không đo** | tốn tuần cho Rocchio/Temporal rồi điểm dev không nhúc nhích | Bài của họ **không có ablation nào**, và điểm/câu còn *giảm* ở vòng thêm hai module đó (A8.2). Mọi thứ lấy từ A8 phải qua tập dev mới được giữ |
@@ -1188,6 +1270,19 @@ objects từ "nhiễu nặng, kênh phụ" → **kênh chính thứ tư**.
 | Xếp hạng theo thời gian | chỉ có DP ở Bước 5 TRAKE | **thêm Bước 2b `O(K log K)`** chạy được toàn kho |
 | Giao diện | **không nhắc tới** | **một mục riêng** — có thể là một phần của điểm |
 | Milvus/Elasticsearch | loại, lập luận lý thuyết | **loại, có đối chứng**: 16,7 ms vét cạn |
+
+### G3 — Sửa đổi v4.1 → v4.2 (nguồn: BTC trả lời 15/08, xem A9)
+
+*Đây là nguồn **chính thức**, mạnh hơn A8. Nó bác một con số nền.*
+
+| Hạng mục | Trước | **v4.2** |
+| --- | --- | --- |
+| Độ rộng cửa sổ `[s,e]` | 10 frame *(hiểu nhầm từ ví dụ `[500,510]`)* | **4 giây – 5 phút** |
+| Keyframe có sẵn phủ cửa sổ | **14,6%** | **86,1%** (cửa sổ 4s) → **100%** (từ 10s) |
+| Trần R-Score TRAKE | ~0,15, chặn bởi mật độ keyframe | **bỏ mốc đó** — chặn bởi chất lượng truy hồi |
+| `trich_day` | **đường găng**, để bắn trúng cửa sổ | **hạ khỏi đường găng**; lý do mới là **nhìn thấy nội dung** cho câu ĐẾM |
+| Nguồn sinh đáp án | không rõ | **từ video**, keyframe chỉ là giải pháp mẫu |
+| Đề mẫu | không có | **sẽ có query mẫu**, và **có thể xin GT các mùa trước** |
 
 > **Cách đọc G2:** mọi dòng đều đến từ *một* bài báo *một* đội *một* mùa. Bài
 > không có ablation (A8.2). Nên đây là **giả thuyết có căn cứ**, không phải sự
@@ -1244,7 +1339,7 @@ python src\tap_dev.py --file dev\tap_dev.jsonl --kiem
 
 | # | Việc | Ai |
 | --- | --- | --- |
-| 11 | Gửi BTC **ba câu**: 0.a (khoảng hay frame chính xác), 0.d (TRAKE điểm từng phần), **0.e (Chung kết có thi tương tác không)** — 0.e quyết định có dựng giao diện | Khánh |
+| 11 | ~~Gửi BTC câu 0.a~~ — **ĐÃ TRẢ LỜI (A9)**. Còn lại: **xin GT các mùa trước** (BTC nói có), và hỏi **0.e — Chung kết có thi tương tác không** | Khánh |
 | 12 | Chốt phương án quota VLM: trả phí hay chạy local | TV5 |
 | 13 | Chốt một bảng tên thành viên duy nhất | cả nhóm |
 | 14 | Máy giữ L23+L26+L27 tải lại gói `Keyframes_L21` (thiếu 8 file ảnh) | — |

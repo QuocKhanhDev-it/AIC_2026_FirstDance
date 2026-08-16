@@ -61,23 +61,64 @@ def _hang(ket_qua, dung: set, gioi_han: int = 100) -> int | None:
     return None
 
 
-def cham(tap_dev, chay, gioi_han: int = 100) -> pd.DataFrame:
+def no_cua_so(row_ids, master, dung_sai_giay: float) -> set:
+    """Nở đáp án ra MỌI keyframe cùng video nằm trong ±`dung_sai_giay`.
+
+    ⚠️ **Không có hàm này thì ta chấm CHẶT HƠN BTC** và mọi so sánh đều lệch.
+
+    BTC xác nhận (A9) đáp án là một **cửa sổ `[s,e]` rộng 4 giây đến 5 phút**,
+    không phải một frame. Keyframe cách đáp án 2 giây vẫn được BTC tính ĐÚNG,
+    nhưng `_hang()` so `row_id` chính xác nên tính SAI. Chấm chặt hơn thật thì
+    mọi cấu hình đều bị hạ điểm, và hạ **không đều** — cấu hình nào hay trả về
+    keyframe lân cận bị phạt nặng hơn, tức thứ hạng giữa các cấu hình có thể
+    ĐẢO NGƯỢC so với điểm thi thật.
+
+    Dùng `pts_time` chứ không dùng `frame_idx`: fps khác nhau giữa các video
+    (25 / 26,44 / 29,97 / 30) nên cùng một số frame là những khoảng thời gian
+    khác nhau.
+    """
+    ra = set(row_ids)
+    for r in row_ids:
+        g = master.iloc[r]
+        cung = master[(master.video_id == g.video_id)
+                      & ((master.pts_time - g.pts_time).abs() <= dung_sai_giay)]
+        ra |= set(int(x) for x in cung.row_id)
+    return ra
+
+
+def cham(tap_dev, chay, gioi_han: int = 100,
+         master=None, dung_sai_giay: float | None = None) -> pd.DataFrame:
     """Chấm một cấu hình trên cả tập dev.
 
     `chay(cau_hoi) -> list[Candidate]` là cấu hình đang đo — có thể là một kênh
     đơn lẻ, hoặc kết quả RRF nhiều kênh. Hàm này không cần biết bên trong.
 
+    `dung_sai_giay` mô phỏng cửa sổ `[s,e]` của BTC: kết quả cách đáp án không
+    quá chừng đó giây (cùng video) được tính ĐÚNG. Cần `master`.
+    **Để None là chấm chặt hơn BTC** — xem `no_cua_so()`.
+
+    BTC nói cửa sổ rộng "4 giây đến 5 phút, tuỳ trường hợp" nên **không có một
+    con số đúng duy nhất**. Hãy chấm ở vài mức và xem kết luận có đổi không —
+    nếu đổi thì kết luận đó phụ thuộc vào một ẩn số, phải ghi rõ.
+
     Trả về một dòng mỗi câu, để so theo cặp về sau.
     """
+    if dung_sai_giay is not None and master is None:
+        raise ValueError("dung_sai_giay cần `master` để tra pts_time")
+
+    def _dung(row_ids):
+        return (no_cua_so(row_ids, master, dung_sai_giay)
+                if dung_sai_giay is not None else set(row_ids))
+
     dong = []
     for c in tap_dev:
         if c.loai == "TRAKE":
             kq = chay(c)
-            hang = [_hang(kq, set(b), gioi_han) for b in c.row_id_dung]
+            hang = [_hang(kq, _dung(b), gioi_han) for b in c.row_id_dung]
             d, h = diem_trake(hang), None
         else:
             kq = chay(c)
-            h = _hang(kq, set(c.row_id_dung), gioi_han)
+            h = _hang(kq, _dung(c.row_id_dung), gioi_han)
             d = diem_cau(h)
             # PHẦN C mục 4: `answer` sai -> 0 điểm bất kể frame đúng
             if c.loai == "QA" and c.dap_an:
@@ -95,6 +136,90 @@ def tom_tat(bang: pd.DataFrame) -> pd.DataFrame:
     tong = pd.DataFrame({"so_cau": [len(bang)], "diem_tb": [bang.diem.mean()]},
                         index=["TỔNG"])
     return pd.concat([theo, tong]).round(4)
+
+
+# Hai mốc dung sai để báo cáo. BTC nói cửa sổ rộng "4 giây đến 5 phút, TUỲ
+# TRƯỜNG HỢP" (A9) — không có một con số đúng duy nhất, nên phải báo hai mức:
+#   CHINH   ±2s  = cửa sổ 4s, mức HẸP NHẤT BTC nêu -> con số bảo thủ để báo cáo
+#   KIEM    ±15s = cửa sổ 30s, mức rộng vừa phải   -> để kiểm kết luận có đổi không
+# Kết luận đổi giữa hai mức = kết luận phụ thuộc vào ẩn số BTC chưa chốt.
+DUNG_SAI_CHINH = 2.0
+DUNG_SAI_KIEM = 15.0
+# ⚠️ TÊN PHẢI KHÁC `MOC`. `MOC = (1, 5, 20, 50, 100)` ở đầu file là các mốc
+# R@k của công thức chấm BTC. Đặt trùng tên là ĐÈ MẤT nó, và `diem_cau()` sẽ
+# lặng lẽ tính trung bình R@2 và R@15 thay vì R@{1,5,20,50,100} — điểm sai mà
+# không có gì báo. Đã vấp thật: bảng đo ra 0,3810 thay vì 0,5238, và tôi suýt
+# sửa nhầm tài liệu theo con số hỏng đó. `test_bac_thang_dung_cong_thuc_btc`
+# là thứ bắt được.
+MOC_DUNG_SAI = (DUNG_SAI_CHINH, DUNG_SAI_KIEM)
+
+
+def cham_nhieu_muc(tap_dev, chay, master, moc=MOC_DUNG_SAI,
+                   gioi_han: int = 100) -> dict:
+    """Chấm cùng một cấu hình ở nhiều mức dung sai. Trả `{dung_sai: DataFrame}`."""
+    return {ds: cham(tap_dev, chay, gioi_han, master, ds) for ds in moc}
+
+
+def _hieu(a: pd.DataFrame, b: pd.DataFrame):
+    g = a.merge(b, on=["id", "loai"], suffixes=("_a", "_b"))
+    h = g.diem_b - g.diem_a
+    se = (h.std(ddof=1) / len(g) ** 0.5) if len(g) > 1 else 0.0
+    return g, h, se
+
+
+def bao_cao_do_nhay(tap_dev, cau_hinh: dict, master, moc=MOC_DUNG_SAI,
+                    gioi_han: int = 100) -> str:
+    """So nhiều cấu hình ở nhiều mức dung sai, và **báo kết luận có ỔN ĐỊNH không**.
+
+    `cau_hinh` là `{"tên": hàm_chạy}`. Cấu hình ĐẦU TIÊN làm mốc nền, mọi cấu
+    hình sau so theo cặp với nó.
+
+    Vì sao cần: BTC chưa chốt độ rộng cửa sổ, mà độ rộng đó đổi điểm tới 0,10 —
+    lớn hơn khác biệt giữa các cấu hình đang cần đo. Một kết luận chỉ đáng tin
+    khi nó **giữ nguyên dấu ở cả hai mức** và vượt nhiễu ở ít nhất một mức.
+
+    Ba kết luận có thể ra:
+
+    | Ký hiệu | Nghĩa |
+    | --- | --- |
+    | `ON DINH` | cùng dấu ở cả hai mức, và vượt 2 sai số chuẩn ở ít nhất một mức |
+    | `YEU`     | cùng dấu nhưng chưa vượt nhiễu ở mức nào — cần thêm câu hỏi |
+    | `DAO DAU` | **đổi dấu giữa hai mức** — kết luận phụ thuộc vào ẩn số, KHÔNG được dùng để quyết |
+    """
+    bang = {ten: cham_nhieu_muc(tap_dev, f, master, moc, gioi_han)
+            for ten, f in cau_hinh.items()}
+    ten_moc = next(iter(cau_hinh))
+
+    ra = [f"{len(tap_dev)} câu | mốc nền: {ten_moc}", ""]
+    ra.append("ĐIỂM TRUNG BÌNH")
+    ra.append(f"  {'cấu hình':<22}" + "".join(f"{'±' + str(ds) + 's':>12}" for ds in moc))
+    ra.append("  " + "-" * (22 + 12 * len(moc)))
+    for ten, d in bang.items():
+        ra.append(f"  {ten:<22}" + "".join(f"{d[ds].diem.mean():>12.4f}" for ds in moc))
+
+    ra += ["", f"SO THEO CẶP với `{ten_moc}`  (hiệu / thắng-thua-hòa / ngưỡng nhiễu)"]
+    for ten in list(cau_hinh)[1:]:
+        ra.append(f"\n  {ten}")
+        dau, manh = [], False
+        for ds in moc:
+            g, h, se = _hieu(bang[ten_moc][ds], bang[ten][ds])
+            tb = h.mean()
+            dau.append(0 if tb == 0 else (1 if tb > 0 else -1))
+            vuot = abs(tb) > 2 * se > 0
+            manh |= vuot
+            ra.append(f"    ±{ds:<5g}s  {tb:>+8.4f}   "
+                      f"{int((h > 0).sum())}-{int((h < 0).sum())}-{int((h == 0).sum())}"
+                      f"   ngưỡng {2 * se:.4f}{'  <= vượt nhiễu' if vuot else ''}")
+        if len(set(d for d in dau if d)) > 1:
+            ket = "❌ DAO DAU — phụ thuộc ẩn số độ rộng cửa sổ, KHÔNG dùng để quyết"
+        elif not any(dau):
+            ket = "⚪ KHÔNG ĐỔI GÌ — cấu hình này không tác động trên tập dev này"
+        elif manh:
+            ket = "✅ ON DINH"
+        else:
+            ket = "🟡 YEU — cùng dấu nhưng chưa vượt nhiễu, cần thêm câu hỏi"
+        ra.append(f"    -> {ket}")
+    return "\n".join(ra)
 
 
 def so_sanh_cap(a: pd.DataFrame, b: pd.DataFrame,

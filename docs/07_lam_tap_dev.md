@@ -260,6 +260,108 @@ chứng độc lập cho khuyến nghị chọn **SigLIP2 đa ngôn ngữ** ở 
 
 ---
 
+## §7b. Chấm theo CỬA SỔ, đừng chấm theo `row_id` chính xác
+
+BTC xác nhận (A9) đáp án là **cửa sổ `[s,e]` rộng 4 giây đến 5 phút**. Nếu ta
+so `row_id` chính xác thì một keyframe cách đáp án 2 giây bị tính **sai**,
+trong khi BTC tính **đúng**.
+
+Đo thật trên 21 câu có bản dịch tiếng Anh:
+
+| Chấm ở | Điểm CLIP |
+| --- | --- |
+| `row_id` chính xác | **0,5048** |
+| ±2s *(cửa sổ 4s — hẹp nhất BTC nêu)* | 0,5238 |
+| ±5s | 0,5619 |
+| ±15s | 0,5905 |
+| ±90s *(cửa sổ 3 phút)* | **0,6095** |
+
+**Chấm chặt hạ điểm mất 0,10.** Để so sánh: toàn bộ lợi ích đội AIC'25 thu
+được khi thêm SigLIP2 chỉ là **+0,07**. Sai lệch do chấm chặt **lớn hơn thứ
+đang cần đo**, và nó hạ **không đều** giữa các cấu hình — cấu hình nào hay trả
+về keyframe lân cận bị phạt nặng hơn, nên thứ hạng có thể **đảo ngược**.
+
+> ⚠️ **Một lỗi đã xảy ra thật khi viết mục này, đáng ghi lại.** Hằng số mới
+> `MOC = (2.0, 15.0)` (hai mức dung sai) được đặt trùng tên với
+> `MOC = (1, 5, 20, 50, 100)` — **các mốc R@k của chính công thức chấm BTC** —
+> nên nó **đè mất**, và `diem_cau()` lặng lẽ tính trung bình R@2 với R@15 thay
+> vì R@{1,5,20,50,100}.
+>
+> Kết quả: bảng đo tụt từ 0,5238 xuống 0,3810, và tôi **suýt sửa tài liệu theo
+> con số hỏng đó**. Không có gì crash, không có gì cảnh báo — chỉ là điểm sai.
+>
+> `tests/test_cham_diem.py::test_bac_thang_dung_cong_thuc_btc` là thứ bắt được,
+> vì nó chốt cứng `diem_cau(2) == 0,8`. **Đó chính là lý do phải có test cho
+> thước đo**, dù thước đo "chỉ là mấy phép trung bình".
+
+**Đừng gọi `cham()` tay cho từng mức.** Dùng hàm báo cáo — nó chấm ở cả hai mức
+và tự kết luận độ ổn định:
+
+```python
+from cham_diem import bao_cao_do_nhay
+print(bao_cao_do_nhay(dev, {
+    "CLIP (mốc nền)": chay_clip,
+    "CLIP + dedup":   chay_dedup,
+    "RRF(CLIP, objects)": chay_rrf,
+}, master=kenh.master))
+```
+
+| Kết luận nó in ra | Nghĩa |
+| --- | --- |
+| `✅ ON DINH` | cùng dấu ở cả hai mức **và** vượt 2 sai số chuẩn ở ít nhất một mức |
+| `🟡 YEU` | cùng dấu nhưng chưa vượt nhiễu — cần thêm câu hỏi, **chưa quyết được** |
+| `❌ DAO DAU` | **đổi dấu giữa hai mức** — kết luận phụ thuộc ẩn số BTC chưa chốt, **không dùng để quyết** |
+| `⚪ KHÔNG ĐỔI GÌ` | cấu hình không tác động trên tập dev này |
+
+## §7c. Ba cấu hình đã đo — chưa cấu hình nào kết luận được
+
+Chạy `bao_cao_do_nhay` trên 21 câu, mốc nền là CLIP đơn thuần:
+
+| Cấu hình | ±2s | ±15s | Hiệu (±2s / ±15s) | Kết luận |
+| --- | --- | --- | --- | --- |
+| CLIP *(mốc nền)* | 0,5238 | 0,5905 | — | — |
+| CLIP + `dedup` | 0,5238 | 0,5905 | 0 / 0 | ⚪ **không đổi gì** (0-0-21) |
+| CLIP + ràng buộc đa dạng | 0,4381 | 0,5810 | −0,0857 / −0,0095 | 🟡 yếu |
+| RRF(CLIP, objects) | 0,5429 | 0,5905 | **+0,0190 / −0,0000** | ❌ **ĐẢO DẤU** |
+
+**Chưa cấu hình nào kết luận được.** Với 21 câu, ngưỡng nhiễu là 0,06–0,12 mà
+mọi hiệu đều nằm dưới — đúng điều §7 cảnh báo.
+
+Đáng chú ý nhất là dòng cuối: **RRF(CLIP, objects) đổi dấu giữa hai mức dung
+sai**. Ở ±2s nó có vẻ giúp (+0,019), ở ±15s nó bằng không. Nếu chỉ chấm ở một
+mức thì ta đã kết luận "objects có ích" — và kết luận đó **phụ thuộc hoàn toàn
+vào một con số BTC chưa chốt**. Đây chính là thứ hàm báo cáo sinh ra để bắt.
+
+Việc cần làm không phải chỉnh thuật toán, mà là **thêm câu hỏi**.
+
+### `dedup` chưa kiểm được — vì tập dev sai chỗ
+
+Đo `dedup` ở mọi mức dung sai: **0 thắng – 0 thua – 21 hòa.** Không đổi một câu
+nào.
+
+Nhưng đó **không phải bằng chứng dedup vô dụng** — mà là bằng chứng **tập dev
+sai chỗ để đo nó**. Keyframe trùng lặp dồn hết vào L25 (**49,82%**), còn các
+nhóm khác chỉ 0,27–2,16%. Tập dev hiện có L21, L22, L23, L26, L27 — **không có
+câu L25 nào**, tức đang đo dedup ở nơi gần như không có trùng lặp.
+
+→ **Muốn kết luận về `dedup` thì phải có câu L25.** Đây là một lý do cụ thể để
+ưu tiên nhóm L25 khi phân công soạn tiếp.
+
+## §7d. Thiếu hẳn một dạng câu: ĐẾM SỐ LƯỢNG
+
+BTC nêu thẳng dạng này khi trả lời (A9):
+
+> *"Các trường hợp thường gặp là về bài toán **đếm số lượng**, 1 cái frame có
+> thể không đếm được hết... 1 em bé được bế bởi 4 người liên tiếp, dựa trên
+> keyframe thì chỉ có 3."*
+
+Tập dev hiện **không có câu đếm nào**, nên ta sẽ không bao giờ phát hiện được
+điểm yếu này. Cần **ít nhất 3–5 câu**, và đáp án phải lấy từ **video**, không
+phải từ một keyframe.
+
+Đây cũng là dạng câu duy nhất mà `trich_day` thật sự cần thiết — không có câu
+đếm thì không đo được nó có đáng giữ hay không.
+
 ## §8. Cất tập test
 
 Giai đoạn 3 yêu cầu kiểm cuối trên tập **chưa từng nhìn**. Với 50 câu mà chia
