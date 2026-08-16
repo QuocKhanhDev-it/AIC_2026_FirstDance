@@ -334,11 +334,15 @@ không theo kích thước nhóm.
 ### Gộp lại
 
 ```powershell
-python src\tap_dev.py --gop dev\tap_dev_L21.jsonl dev\tap_dev_L25.jsonl `
-                            dev\tap_dev_L26.jsonl --file dev\tap_dev.jsonl
+python src\tap_dev.py --gop dev\tap_dev_thanh_vien --file dev\tap_dev.jsonl
 python src\tap_dev.py --file dev\tap_dev.jsonl --no-cum
 python src\tap_dev.py --file dev\tap_dev.jsonl --kiem
 ```
+
+Truyền thẳng **thư mục** — đừng gõ `dev\tap_dev_thanh_vien\*.jsonl`.
+**PowerShell không bung dấu sao cho chương trình ngoài** (khác bash), nên
+Python nhận đúng chuỗi `*.jsonl`, đọc không ra file nào, và **gộp ra 0 câu mà
+không báo lỗi gì**. Đã vấp thật một lần.
 
 `--gop` **báo lỗi khi trùng `id` chứ không tự đổi tên**: đổi ngầm thì sau này
 không truy được câu đó của ai. Bảng phân bố in ra ở `--kiem` là chỗ nhìn để
