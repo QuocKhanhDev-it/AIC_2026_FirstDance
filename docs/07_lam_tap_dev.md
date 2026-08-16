@@ -270,7 +270,7 @@ trong khi BTC tính **đúng**.
 
 | Chấm ở | Điểm CLIP |
 | --- | --- |
-| `row_id` chính xác | 0,5048 |
+| `row_id` chính xác | **0,5048** |
 | ±2s *(cửa sổ 4s — hẹp nhất BTC nêu)* | 0,5238 |
 | ±5s | 0,5619 |
 | ±15s | 0,5905 |
@@ -281,16 +281,60 @@ trong khi BTC tính **đúng**.
 đang cần đo**, và nó hạ **không đều** giữa các cấu hình — cấu hình nào hay trả
 về keyframe lân cận bị phạt nặng hơn, nên thứ hạng có thể **đảo ngược**.
 
+> ⚠️ **Một lỗi đã xảy ra thật khi viết mục này, đáng ghi lại.** Hằng số mới
+> `MOC = (2.0, 15.0)` (hai mức dung sai) được đặt trùng tên với
+> `MOC = (1, 5, 20, 50, 100)` — **các mốc R@k của chính công thức chấm BTC** —
+> nên nó **đè mất**, và `diem_cau()` lặng lẽ tính trung bình R@2 với R@15 thay
+> vì R@{1,5,20,50,100}.
+>
+> Kết quả: bảng đo tụt từ 0,5238 xuống 0,3810, và tôi **suýt sửa tài liệu theo
+> con số hỏng đó**. Không có gì crash, không có gì cảnh báo — chỉ là điểm sai.
+>
+> `tests/test_cham_diem.py::test_bac_thang_dung_cong_thuc_btc` là thứ bắt được,
+> vì nó chốt cứng `diem_cau(2) == 0,8`. **Đó chính là lý do phải có test cho
+> thước đo**, dù thước đo "chỉ là mấy phép trung bình".
+
+**Đừng gọi `cham()` tay cho từng mức.** Dùng hàm báo cáo — nó chấm ở cả hai mức
+và tự kết luận độ ổn định:
+
 ```python
-a = cham(dev, chay_A, master=kenh.master, dung_sai_giay=2)
-b = cham(dev, chay_B, master=kenh.master, dung_sai_giay=2)
+from cham_diem import bao_cao_do_nhay
+print(bao_cao_do_nhay(dev, {
+    "CLIP (mốc nền)": chay_clip,
+    "CLIP + dedup":   chay_dedup,
+    "RRF(CLIP, objects)": chay_rrf,
+}, master=kenh.master))
 ```
 
-**Dùng ±2s làm con số chính** (bảo thủ — mức hẹp nhất BTC nêu), rồi kiểm lại ở
-±15s. Nếu kết luận đổi giữa hai mức thì kết luận đó **phụ thuộc vào một ẩn số
-BTC chưa chốt** và phải ghi rõ điều đó.
+| Kết luận nó in ra | Nghĩa |
+| --- | --- |
+| `✅ ON DINH` | cùng dấu ở cả hai mức **và** vượt 2 sai số chuẩn ở ít nhất một mức |
+| `🟡 YEU` | cùng dấu nhưng chưa vượt nhiễu — cần thêm câu hỏi, **chưa quyết được** |
+| `❌ DAO DAU` | **đổi dấu giữa hai mức** — kết luận phụ thuộc ẩn số BTC chưa chốt, **không dùng để quyết** |
+| `⚪ KHÔNG ĐỔI GÌ` | cấu hình không tác động trên tập dev này |
 
-## §7c. Tập dev hiện KHÔNG kiểm được `dedup.py`
+## §7c. Ba cấu hình đã đo — chưa cấu hình nào kết luận được
+
+Chạy `bao_cao_do_nhay` trên 21 câu, mốc nền là CLIP đơn thuần:
+
+| Cấu hình | ±2s | ±15s | Hiệu (±2s / ±15s) | Kết luận |
+| --- | --- | --- | --- | --- |
+| CLIP *(mốc nền)* | 0,5238 | 0,5905 | — | — |
+| CLIP + `dedup` | 0,5238 | 0,5905 | 0 / 0 | ⚪ **không đổi gì** (0-0-21) |
+| CLIP + ràng buộc đa dạng | 0,4381 | 0,5810 | −0,0857 / −0,0095 | 🟡 yếu |
+| RRF(CLIP, objects) | 0,5429 | 0,5905 | **+0,0190 / −0,0000** | ❌ **ĐẢO DẤU** |
+
+**Chưa cấu hình nào kết luận được.** Với 21 câu, ngưỡng nhiễu là 0,06–0,12 mà
+mọi hiệu đều nằm dưới — đúng điều §7 cảnh báo.
+
+Đáng chú ý nhất là dòng cuối: **RRF(CLIP, objects) đổi dấu giữa hai mức dung
+sai**. Ở ±2s nó có vẻ giúp (+0,019), ở ±15s nó bằng không. Nếu chỉ chấm ở một
+mức thì ta đã kết luận "objects có ích" — và kết luận đó **phụ thuộc hoàn toàn
+vào một con số BTC chưa chốt**. Đây chính là thứ hàm báo cáo sinh ra để bắt.
+
+Việc cần làm không phải chỉnh thuật toán, mà là **thêm câu hỏi**.
+
+### `dedup` chưa kiểm được — vì tập dev sai chỗ
 
 Đo `dedup` ở mọi mức dung sai: **0 thắng – 0 thua – 21 hòa.** Không đổi một câu
 nào.
