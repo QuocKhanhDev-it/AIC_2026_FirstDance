@@ -622,6 +622,55 @@ gọi là "mười phút đáng giá nhất": một tập dev đúng phân bố,
 
 ---
 
+### A10 — CLIP ViT-B/32 được **0,0000** trên tập dev tiếng Việt
+
+*Đo 16/08 trên **100 câu tập dev, tiếng Việt nguyên văn** — đúng như đề thi ra.*
+
+| Cấu hình | ±2s | ±15s | Kết luận |
+| --- | --- | --- | --- |
+| **CLIP ViT-B/32** | **0,0000** | 0,0060 | — |
+| CLIP + dedup | 0,0000 | 0,0040 | 🟡 |
+| **Objects + IDF** | **0,0400** | **0,0660** | ✅ ổn định |
+| RRF(CLIP, objects) | 0,0280 | 0,0480 | ✅ ổn định |
+
+**Không phải "yếu" — là không trả về được gì trên 100/100 câu.** Kênh duy nhất
+đang chạy là **objects**, và nó chạy được *chính vì* đi qua bảng nhãn Việt–Anh.
+
+#### A10.1 — Phép thử rẻ nhất, và nó dứt điểm
+
+Không cần encode ảnh nào. Nếu model hiểu tiếng Việt thì vector câu tiếng Việt
+phải **gần bản dịch tiếng Anh** của nó và **xa** một câu vô quan
+(`"a laptop computer on a desk"`):
+
+| Model | cos(việt, anh) | Biên độ so với câu vô quan |
+| --- | --- | --- |
+| `ViT-B-32-quickgelu` | 0,47 – 0,71 | **−0,0394** ❌ |
+| `ViT-B-16-SigLIP2-256` | **0,82 – 0,90** | **+0,2201** ✅ |
+
+Biên độ của CLIP **âm**: câu tiếng Việt còn gần một câu tiếng Anh vô quan hơn
+là gần chính bản dịch của nó. Nó không "kém tiếng Việt" — nó **mù**.
+
+#### A10.2 — Hệ quả: bước dịch KHÔNG phải tính năng phụ, nó LÀ kênh 1
+
+Đo trên tập con có bản dịch tay: **0,0000 → 0,5238**. Toàn bộ giá trị của kênh
+1 nằm ở bước dịch. Hai đường ra, và đường thứ hai bỏ hẳn được bước dịch:
+
+| Cách | Đánh đổi |
+| --- | --- |
+| Dịch truy vấn bằng VLM/LLM | thêm phụ thuộc API + quota, và **chậm ngay trong phiên thi** |
+| **Đổi sang SigLIP2 đa ngôn ngữ** | không cần dịch. Đúng model kế hoạch GPU đã chốt |
+
+→ **Việc 8 của [kế hoạch GPU](06_ke_hoach_encode_GPU.md) không còn là "thử xem
+có đáng không" mà là đường thoát cho kênh 1.**
+
+> **Vì sao phát hiện muộn:** tập dev nhỏ (5 rồi 21 câu) chỉ cho tín hiệu mờ, và
+> mọi phép đo trước đều chạy bằng **bản dịch tay sang tiếng Anh** cho tiện. Tập
+> dev 100 câu tiếng Việt mới lộ ra. Đây là lý do cụ thể nhất cho nguyên tắc ở
+> §3 của [07_lam_tap_dev.md](07_lam_tap_dev.md): **câu hỏi dev phải viết bằng
+> đúng ngôn ngữ đề thi**, nếu không ta tự giấu điểm yếu của chính mình.
+
+---
+
 ## PHẦN B — QUYẾT ĐỊNH HẠ TẦNG
 
 ### B1. Không dùng Supabase / Postgres / Milvus / Elasticsearch — ĐÃ KIỂM CHỨNG
@@ -1271,6 +1320,19 @@ objects từ "nhiễu nặng, kênh phụ" → **kênh chính thứ tư**.
 | Giao diện | **không nhắc tới** | **một mục riêng** — có thể là một phần của điểm |
 | Milvus/Elasticsearch | loại, lập luận lý thuyết | **loại, có đối chứng**: 16,7 ms vét cạn |
 
+### G4 — Sửa đổi v4.2 → v4.3 (nguồn: đo trên 100 câu dev, xem A10)
+
+*Lần đầu đo trên tập dev đủ lớn và **đúng ngôn ngữ đề thi**. Kết quả đảo ngược
+đánh giá về kênh mạnh nhất.*
+
+| Hạng mục | Trước | **v4.3** |
+| --- | --- | --- |
+| Kênh 1 (CLIP `ViT-B/32`) | "kênh chính, mạnh nhất" | **0,0000 trên 100/100 câu tiếng Việt** |
+| Kênh 4 (objects) | kênh phụ nâng lên chính | **kênh DUY NHẤT đang chạy** (0,0400, ổn định) |
+| Bước dịch truy vấn | một gạch đầu dòng trong mục TV1 | **chính là kênh 1** — không có nó thì kênh bằng 0 |
+| SigLIP2 | "thử xem có đáng không" | **đường thoát cho kênh 1** |
+| Bảng nhãn Việt–Anh | tiện ích nhỏ | **thứ duy nhất giữ hệ thống không đứng im** |
+
 ### G3 — Sửa đổi v4.1 → v4.2 (nguồn: BTC trả lời 15/08, xem A9)
 
 *Đây là nguồn **chính thức**, mạnh hơn A8. Nó bác một con số nền.*
@@ -1320,6 +1382,7 @@ python src\tap_dev.py --file dev\tap_dev.jsonl --kiem
 
 | # | Việc | Ai | Ghi chú |
 | --- | --- | --- | --- |
+| **1b** | 🔴 **CỨU KÊNH 1** — đổi sang SigLIP2, hoặc cài bước dịch truy vấn | TV1 + máy GPU | **A10: CLIP được 0,0000 trên 100/100 câu tiếng Việt.** Đây không phải tối ưu, là **sửa lỗi chết kênh**. SigLIP2 đã kiểm: biên độ hiểu tiếng Việt **+0,2201** so với **−0,0394** của CLIP |
 | 2 | **`src/bm25.py`** — kênh 2 (metadata) + kênh 3 (OCR/ASR) | TV3 | metadata đã phủ 100%, 955 ký tự/video. Kênh 3 cần **hai chế độ**: lọc cứng cho token hiếm + BM25 hòa RRF (A8.5) |
 | 3 | ~~`dev/label_vi_en.csv`~~ — **XONG**, 156 nhãn phủ 98,3% | — | **Kênh 4 nay dùng được từ truy vấn tiếng Việt.** Còn nên: người Việt đọc lại cột `dong_nghia`, thêm cách nói vùng miền |
 | 4 | ~~Tối ưu `trich_day`: gộp cả cửa sổ vào MỘT lệnh ffmpeg~~ | TV2 | ✅ **XONG** — `trich_nhieu()` trong `src/trich_day.py`, áp dụng lại cho `scripts/09_trich_day_batch.py`. Đo lại sau khi cài: **28 ms/khung** so với 169–284 ms/khung cũ. Cờ `-vsync 0` đã bị GỠ ở ffmpeg 9.0, đổi sang `-fps_mode passthrough` |

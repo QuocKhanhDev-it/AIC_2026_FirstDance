@@ -43,6 +43,25 @@ LUU_MOI = 10_000        # checkpoint: chạy 2 giờ mà mất điện thì khô
 
 # ----------------------------------------------------------------- chọn video
 
+def chon_theo_tap_dev(master: pd.DataFrame, f_dev) -> np.ndarray:
+    """Encode TRỌN VẸN các video có chứa đáp án của tập dev.
+
+    Đây là cách rẻ nhất để đo một model mới mà không thổi phồng điểm: bể ứng
+    viên là **toàn bộ keyframe của những video đó**, chứ không phải vài ảnh
+    rải rác quanh đáp án. Kết hợp với `dense.be_chung()` khi so sánh.
+    """
+    import json
+    rid = []
+    for d in Path(f_dev).read_text("utf-8").splitlines():
+        if not d.strip():
+            continue
+        r = json.loads(d)["row_id_dung"]
+        rid += [x for b in r for x in b] if isinstance(r[0], list) else r
+    vids = sorted(set(master.video_id.iloc[rid]))
+    print(f"Tập dev đụng {len(vids)} video -> encode trọn vẹn")
+    return master[master.video_id.isin(vids)].row_id.values
+
+
 def chon_video(master: pd.DataFrame, so_video: int | None) -> np.ndarray:
     """Trả về row_id cần encode. `so_video=None` -> toàn kho.
 
@@ -109,7 +128,8 @@ def encode(a):
     import open_clip
 
     master = pd.read_parquet(a.index / "master.parquet")
-    row_ids = chon_video(master, a.videos)
+    row_ids = (chon_theo_tap_dev(master, a.theo_tap_dev) if a.theo_tap_dev
+               else chon_video(master, a.videos))
 
     thiet_bi = "cuda" if torch.cuda.is_available() else "cpu"
     if thiet_bi == "cpu":
@@ -300,6 +320,9 @@ def main():
     ap.add_argument("--pretrained", default="webli")
     ap.add_argument("--videos", type=int, default=None,
                     help="chỉ encode N video, phân tầng theo nhóm L")
+    ap.add_argument("--theo-tap-dev", type=Path, default=None,
+                    help="encode TRỌN VẸN các video có đáp án trong tập dev "
+                         "— cách rẻ nhất để đo một model mới")
     ap.add_argument("--batch", type=int, default=16)
     ap.add_argument("--workers", type=int, default=8)
     ap.add_argument("--fp16", action="store_true", default=True)
