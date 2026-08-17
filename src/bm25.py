@@ -79,9 +79,18 @@ except ImportError:                     # chạy trực tiếp: python src/bm25.
 K1 = 1.5      # bão hòa tần suất — giá trị chuẩn của Okapi BM25
 B = 0.75      # mức phạt tài liệu dài
 
-# Bỏ ký tự không phải chữ/số. Giữ nguyên chữ có dấu (\w trong Python re đã
-# bao chữ Unicode), nên không cần liệt kê bảng chữ cái tiếng Việt.
 _TACH = re.compile(r"\w+", re.UNICODE)
+_RAC = re.compile(r"https?://\S+|#\S+|@\w+", re.UNICODE)
+
+
+def don_metadata(s: str) -> str:
+    """Xóa URL, hashtag, mention trước khi ghép metadata.
+
+    Thay thế bằng '. ' thay vì ' ' để rác đóng vai trò ngắt cụm (cum-breaker),
+    ngăn `tach()` nối hai từ thật ở hai bên rác thành bigram lai (vd: 'tại_nấu').
+    """
+    return _RAC.sub(". ", s or "")
+
 
 
 def bo_dau(s: str) -> str:
@@ -248,8 +257,9 @@ class KenhVanBan:
         for v, sub in g:
             r = sub.iloc[0]
             t = str(r.title or "")
-            van_ban.append(" ".join([t, t, t, str(r.description or ""),
-                                     str(r.keywords or "")]))
+            desc = don_metadata(str(r.description or ""))
+            kw = don_metadata(str(r.keywords or ""))
+            van_ban.append(". ".join([t, t, t, desc, kw]))
             khoa.append(sub.index.to_numpy(dtype=np.int64))
             vids.append(v)
         k = cls(van_ban, khoa, master, ten="metadata", bigram=bigram)

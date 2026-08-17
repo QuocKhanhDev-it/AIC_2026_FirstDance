@@ -34,7 +34,7 @@ GOC = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(GOC / "src"))
 
 import tap_dev                                       # noqa: E402
-from bm25 import KenhVanBan                          # noqa: E402
+from bm25 import KenhVanBan, don_metadata            # noqa: E402
 from cham_diem import bao_cao_do_nhay, cham, MOC_DUNG_SAI, tom_tat  # noqa: E402
 
 
@@ -113,8 +113,9 @@ def main():
     vb, khoa, vids = [], [], []
     for v, sub in g:
         r = sub.iloc[0]
-        vb.append(" ".join([str(r.title or ""), str(r.description or ""),
-                            str(r.keywords or "")]))
+        desc = don_metadata(str(r.description or ""))
+        kw = don_metadata(str(r.keywords or ""))
+        vb.append(". ".join([str(r.title or ""), desc, kw]))
         khoa.append(sub.index.to_numpy(dtype=np.int64))
         vids.append(v)
     khong_t3 = KenhVanBan(vb, khoa, master, ten="metadata")
