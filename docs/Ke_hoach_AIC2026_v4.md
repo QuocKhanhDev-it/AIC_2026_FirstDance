@@ -761,6 +761,101 @@ trường `co_vector` và in rõ "BỂ ỨNG VIÊN THẬT" khi encode xong.
 
 ---
 
+### A12 — Kênh 2 (metadata) chạy: **kênh đầu tiên không được 0 trên tiếng Việt**
+
+`src/bm25.py` + `scripts/15_do_bm25.py`, 97 câu tập dev.
+
+Metadata là **tiếng Việt**, truy vấn là **tiếng Việt**, không có model nào phải
+dịch ở giữa — nên kênh này không dính cái bẫy đã giết kênh 1 (A10).
+
+| Thước đo | Kết quả |
+| --- | ---: |
+| Tìm ra video đúng **ở đâu đó** trong 873 video | **94/97 (97%)** |
+| Video đúng trong **top-10** | 22/97 (22,7%) |
+| Video đúng ở **hạng 1** | 10/97 (10,3%) |
+| Trung vị hạng (khi tìm ra) | 142 / 873 |
+| **Điểm BTC** (trên keyframe) | **0,0103** |
+
+**Phải đọc hai con số này tách bạch, và biết con số nào nói gì.** 0,0103 nghe
+như thất bại, nhưng nó là hệ quả số học của việc metadata mô tả *cả video*:
+trung bình **203 khung/video**, nên dù đoán đúng video ở hạng 1 thì khung đúng
+vẫn nằm đâu đó trong 203 khung theo thứ tự thời gian. Kênh này **không biết và
+không thể biết** khung nào.
+
+> Giá trị của nó nằm ở hợp nhất: **thu hẹp còn vài video, để kênh ảnh chọn
+> khung.** Đó đúng là việc RRF sinh ra để làm. Chưa đo được vì chưa có kênh ảnh
+> nào chạy được tiếng Việt — lại chặn ở `clip_siglip2.npy`.
+
+**Nó mạnh ở đâu và yếu ở đâu — không đều chút nào:**
+
+| Nhóm | Video đúng ở top-10 | |
+| --- | ---: | --- |
+| L24 | 60% | nội dung đa dạng, tiêu đề tả đúng cảnh |
+| L27 | 56% | |
+| L30 | 44% | |
+| L26 | 42% | |
+| L29 | 20% | |
+| **L21, L22, L23, L25, L28** | **0%** | loạt video **cùng một sê-ri**, metadata gần như giống hệt nhau |
+
+L25 là ví dụ rõ nhất: 88 video *"BÍ QUYẾT ÔN THI THPT 2024 — Môn X — Chuyên đề
+Y"*. Metadata phân biệt được **môn học**, không phân biệt được **cảnh trong
+video**. Đây là giới hạn bản chất, không phải lỗi cài đặt — và nó chính là lý
+do kênh 5 (caption) tồn tại.
+
+**Hai nút đã dò, cả hai đều đáng giữ:**
+
+| Cấu hình | Video ở top-10 | Ở hạng 1 |
+| --- | ---: | ---: |
+| đầy đủ | **22**/97 | **10**/97 |
+| bỏ bigram | 19/97 | 7/97 |
+| bỏ title×3 | 20/97 | 9/97 |
+
+*Bigram*: tiếng Việt viết rời từng âm tiết, `"xe máy"` là một từ nhưng hai
+token — chỉ unigram thì nó khớp cả `"máy xay"`. Nối thành `"xe_máy"` cho một
+token hiếm hơn nhiều, IDF tự lo phần còn lại. **Không cần bộ tách từ**
+(`underthesea`/`pyvi`) — thêm phụ thuộc nặng để làm việc IDF đã làm.
+
+*title×3*: BM25 không có khái niệm trường nào quan trọng hơn, mà tiêu đề 62 ký
+tự chìm nghỉm cạnh description 954 ký tự. Lặp là cách tăng trọng số trường mà
+không sửa công thức.
+
+---
+
+### A13 — Kênh 5 (caption VLM): **vướng hai chỗ, đều nằm ngoài code**
+
+Đã cài xong phần làm được: `scripts/14_sinh_caption.py` (bộ sinh) và
+`bm25.KenhVanBan.tu_bang_khung` (phần truy hồi — dùng chung bộ máy với kênh 2,
+không viết lại). `tests/test_bm25.py::test_kenh_5_noi_dung_vao_thuoc_do` chốt
+cả đường ống caption → BM25 → `Candidate` → `cham()`.
+
+**Vướng 1 — chưa có khóa API.** `GOOGLE_API_KEY` chưa đặt, và việc 12 của PHẦN
+H (*trả phí hay chạy local*) vẫn chưa chốt. Bậc miễn phí không làm nổi: ba model
+đã chết vì rate-limit trong một đợt test **20 lượt** (D0.3).
+
+**Vướng 2 — máy này chỉ có ảnh của L21, L22, L27.** Đáp án tập dev trải 10 nhóm;
+trong 19.832 keyframe của các video chứa đáp án thì chỉ **4.086** có ảnh ở đây.
+Bảy nhóm còn lại không thể sinh caption từ máy này — đúng mô hình chia dữ liệu
+ở B4.
+
+**Ước lượng** (`--uoc-tinh`, không gọi API lần nào):
+
+| Tập | Số ảnh | Thời gian tường |
+| --- | ---: | ---: |
+| video chứa đáp án dev *(có ảnh ở máy này)* | 4.086 | 0,4 giờ @ 4 luồng |
+| toàn bộ ảnh có trên máy này | 21.810 | 1,1 giờ @ 8 luồng |
+| **toàn kho** | 177.321 | **8,6 giờ** @ 8 luồng |
+
+> Đơn giá cố ý **không** chôn trong code — `--gia-1k` là tham số. Giá nhà cung
+> cấp đổi, mà một con số bịa nằm trong tài liệu còn tệ hơn không có số.
+
+**Quyết định thiết kế quan trọng nhất của kênh này: caption phải là TIẾNG VIỆT.**
+BM25 khớp *mặt chữ*, không hiểu nghĩa — caption tiếng Anh + truy vấn tiếng Việt
+khớp đúng **0 token**, không có không gian vector chung để bắc cầu như CLIP. Sinh
+caption tiếng Anh là dựng lại nguyên xi lỗi đã cho kênh 1 điểm 0,0000, lần này
+tốn thêm tiền API. Có một bài test giữ điều này.
+
+---
+
 ## PHẦN B — QUYẾT ĐỊNH HẠ TẦNG
 
 ### B1. Không dùng Supabase / Postgres / Milvus / Elasticsearch — ĐÃ KIỂM CHỨNG
@@ -1478,12 +1573,14 @@ python src\tap_dev.py --kiem
 | # | Việc | Ai | Ghi chú |
 | --- | --- | --- | --- |
 | **1b** | 🔴 **CỨU KÊNH 1 — encode SigLIP2 toàn kho** | **máy GPU (Khánh)** | **ĐÃ CHỨNG MINH (A10.3), không còn là giả thuyết.** SigLIP2 + tiếng Việt thắng CLIP + tiếng Việt **21/21 câu**, và ngang bản dịch tay. Chỉ còn thiếu ma trận toàn kho — máy GPU ước ~2 giờ. Bỏ luôn được khâu dịch truy vấn |
-| 2 | **`src/bm25.py`** — kênh 2 (metadata) + kênh 3 (OCR/ASR) | TV3 | metadata đã phủ 100%, 955 ký tự/video. Kênh 3 cần **hai chế độ**: lọc cứng cho token hiếm + BM25 hòa RRF (A8.5) |
+| 2 | ~~**`src/bm25.py`** — bộ máy văn bản~~ | TV1 | ✅ **XONG.** Dùng chung cho kênh 2, 3, 5. Tự viết, không thêm phụ thuộc. **Kênh 2 chạy: 97% tìm ra video đúng, 22,7% ở top-10** (A12) |
+| 2b | **Kênh 3 (OCR/ASR)** — nối vào `KenhVanBan.tu_bang_khung` | TV3 | bộ máy đã sẵn, chỉ cần bảng `(row_id, text)`. Cần **hai chế độ**: lọc cứng cho token hiếm + BM25 hòa RRF (A8.5) |
 | 3 | ~~`dev/label_vi_en.csv`~~ — **XONG**, 156 nhãn phủ 98,3% | — | **Kênh 4 nay dùng được từ truy vấn tiếng Việt.** Còn nên: người Việt đọc lại cột `dong_nghia`, thêm cách nói vùng miền |
 | 4 | ~~Tối ưu `trich_day`: gộp cả cửa sổ vào MỘT lệnh ffmpeg~~ | TV2 | ✅ **XONG** — `trich_nhieu()` trong `src/trich_day.py`, áp dụng lại cho `scripts/09_trich_day_batch.py`. Đo lại sau khi cài: **28 ms/khung** so với 169–284 ms/khung cũ. Cờ `-vsync 0` đã bị GỠ ở ffmpeg 9.0, đổi sang `-fps_mode passthrough` |
 | 5 | **Commit script vá `kf_path`** | Khánh | máy nào tải `index/` từ Drive cũng gặp (A5.5); đừng để mỗi người viết lại |
 | 6 | **Gán nhãn 400 mẫu `ocr_v2` + điền `roi_v2.yaml`** | TV4 | đang **0/400**. ROI: ranh giới là **dải chữ chạy cuối cùng**, KHÔNG phải "bỏ nửa dưới" — băng rôn tiêu đề có liên quan tới hình |
-| 7 | **`src/run.py`** — đường ống đầu-cuối | TV5 | chỉ đáng viết khi đã có ≥ 2 kênh |
+| 7 | **`src/run.py`** — đường ống đầu-cuối | TV5 | ~~chỉ đáng viết khi đã có ≥ 2 kênh~~ — **điều kiện đã thoả**: kênh 2 và kênh 4 đều chạy được từ truy vấn tiếng Việt |
+| 7b | **Kênh 5 (caption VLM)** — bộ sinh đã xong | — | ⛔ **CHẶN ở việc 12** (khóa API) và ở chỗ máy nào giữ ảnh nhóm nào. Xem A13. Chạy được ngay khi có khóa: `python scripts/14_sinh_caption.py --chon tap-dev` |
 
 ### H3. Chờ **ma trận SigLIP2 toàn kho** (không còn chờ tập dev)
 
@@ -1501,12 +1598,13 @@ python src\tap_dev.py --kiem
 
 ### H4. Việc người, không tự động hóa được
 
-| # | Việc | Ai |
-| --- | --- | --- |
-| 11 | ~~Gửi BTC câu 0.a~~ — **ĐÃ TRẢ LỜI (A9)**. Còn lại: **xin GT các mùa trước** (BTC nói có), và hỏi **0.e — Chung kết có thi tương tác không** | Khánh |
-| 12 | Chốt phương án quota VLM: trả phí hay chạy local | TV5 |
-| 13 | Chốt một bảng tên thành viên duy nhất | cả nhóm |
-| 14 | Máy giữ L23+L26+L27 tải lại gói `Keyframes_L21` (thiếu 8 file ảnh) | — |
+| # | Việc | Ai | Ghi chú |
+| --- | --- | --- | --- |
+| 11 | ~~Gửi BTC câu 0.a~~ — **ĐÃ TRẢ LỜI (A9)**. Còn lại: **xin GT các mùa trước** (BTC nói có), và hỏi **0.e — Chung kết có thi tương tác không** | Khánh | |
+| 12 | 🔴 **Chốt phương án quota VLM: trả phí hay chạy local** | TV5 | **Nay chặn hẳn kênh 5** (A13). Bộ sinh đã xong và đo được chi phí; chỉ thiếu quyết định. Local: Qwen2.5-VL-3B 4-bit ≈ 2,5 GB, vừa card 2060 Super — nhưng card đang bận encode SigLIP2 |
+| 12b | 🔴 **Xoá khóa Gemini đã dán vào chat**, tạo khóa mới | — | repo công khai; khóa đã lộ thì coi như của chung |
+| 13 | Chốt một bảng tên thành viên duy nhất | cả nhóm | |
+| 14 | Máy giữ L23+L26+L27 tải lại gói `Keyframes_L21` (thiếu 8 file ảnh) | — | |
 
 > **Kỷ luật cho toàn bộ bản 4.1:** mọi thứ lấy từ bài báo AIC'25 là **một bài
 > báo, một đội, một mùa, không ablation** (A8.2). Dựng thì dựng, nhưng **chỉ
