@@ -854,6 +854,38 @@ khớp đúng **0 token**, không có không gian vector chung để bắc cầu
 caption tiếng Anh là dựng lại nguyên xi lỗi đã cho kênh 1 điểm 0,0000, lần này
 tốn thêm tiền API. Có một bài test giữ điều này.
 
+#### A13.1 — Vì sao kênh 5 tìm bằng BM25 chứ không bằng vector
+
+Câu hỏi tự nhiên: caption là văn bản, sao không embed rồi tìm bằng vector cho
+hiểu nghĩa? Vì khi đó **caption chỉ còn là một nút cổ chai làm mất thông tin** —
+ta vừa dựng một SigLIP2 tệ hơn, tốn thêm một vòng VLM ở giữa. Caption **đáng giá
+chính vì nó lexical**: nó bắt được từ hiếm, tên riêng, con số và chữ đọc trên
+hình — đúng những thứ tìm bằng vector dở nhất. Hai kênh bù nhau, không thay nhau.
+
+**Cái giá của lexical là từ đồng nghĩa, và kho này có sẵn:**
+
+| Cùng nghĩa "quả dứa" | Số video nhắc tới |
+| --- | ---: |
+| dứa | 220 |
+| thơm | 76 |
+| khóm | 3 |
+
+Tiêu đề L27 đúng là *"Trăm Năm làng **Khóm**"*. Truy vấn nói "dứa", caption viết
+"khóm" → BM25 cho **0**.
+
+*(Vài nhóm đồng nghĩa khác đo bị nhiễu vì bỏ dấu — "ly" lẫn "lý", "man" lẫn
+"màn". Không dùng những con số đó.)*
+
+**Chỗ này caption khác hẳn metadata: metadata cho sẵn nên phải chịu, còn caption
+thì TA VIẾT RA.** Nên sửa ngay ở câu nhắc, không tốn thêm lượt gọi nào — bảo VLM
+kèm cách gọi vùng miền trong ngoặc: *"quả dứa (thơm, khóm)"*. Đây là *document
+expansion*, kỹ thuật cổ điển của IR.
+
+> Không miễn phí: thêm chữ là kéo dài tài liệu, mà **BM25 phạt tài liệu dài** —
+> đúng lý do hàm `don()` tồn tại. Bật mặc định (kỹ thuật đã được chứng minh rộng
+> rãi) nhưng **chưa đo trên kho này**, nên có nút `--khong-dong-nghia` để A/B
+> ngay ở lần chạy thật đầu tiên trên 4.086 ảnh thử.
+
 ---
 
 ## PHẦN B — QUYẾT ĐỊNH HẠ TẦNG

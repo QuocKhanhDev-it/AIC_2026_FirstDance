@@ -92,4 +92,13 @@ def test_nhac_yeu_cau_tieng_viet():
     """Caption tiếng Anh + truy vấn tiếng Việt = khớp 0 token. BM25 khớp mặt
     chữ, không có không gian vector chung để bắc cầu như CLIP. Đây là đúng lỗi
     đã làm kênh 1 được 0,0000 (A10)."""
-    assert "tiếng Việt" in sc.NHAC
+    assert "tiếng Việt" in sc.nhac()
+    assert "tiếng Việt" in sc.nhac(dong_nghia=False)
+
+
+def test_nut_dong_nghia_tat_bat_duoc():
+    """Nới từ vựng phải A/B được: nó đánh đổi recall lấy độ dài tài liệu, mà
+    BM25 phạt tài liệu dài. Chưa đo trên kho này nên không được chôn cứng."""
+    bat, tat = sc.nhac(True), sc.nhac(False)
+    assert len(bat) > len(tat)
+    assert "khóm" in bat and "khóm" not in tat

@@ -72,6 +72,36 @@ Yêu cầu:
 - Không suy đoán điều không nhìn thấy. Không bình luận.
 - Trả lời thẳng nội dung mô tả, không thêm gì khác."""
 
+# Nới từ vựng (document expansion). Xem giải thích ở `--dong-nghia`.
+THEM_DONG_NGHIA = """
+- Với những vật có nhiều cách gọi vùng miền, thêm các cách gọi kia trong ngoặc
+  ngay sau lần nhắc đầu: "quả dứa (thơm, khóm)", "con lợn (heo)", "cái bát
+  (chén)". Chỉ làm với vật chính, tối đa 3 lần trong cả đoạn."""
+
+
+def nhac(dong_nghia: bool = True) -> str:
+    """Câu nhắc gửi cho VLM.
+
+    VÌ SAO CÓ NÚT `dong_nghia`. BM25 khớp **mặt chữ**: truy vấn nói "dứa" mà
+    caption viết "khóm" thì điểm bằng 0, không có gì bắc cầu. Kho này có đủ cả
+    ba cách gọi — 220 video dùng "dứa", 76 dùng "thơm", 3 dùng "khóm" (tiêu đề
+    L27 đúng là *"Trăm Năm làng Khóm"*).
+
+    Metadata thì phải chịu vì nó cho sẵn. **Caption thì ta viết ra**, nên sửa
+    được ngay ở đây, không tốn thêm lượt gọi nào. Đây là kỹ thuật *document
+    expansion* cổ điển của IR.
+
+    Nhưng nó KHÔNG miễn phí, và phải nói rõ: thêm chữ là kéo dài tài liệu, mà
+    BM25 **phạt tài liệu dài** — đúng lý do hàm `don()` tồn tại. Nới quá tay thì
+    hạ điểm mọi token thật. Vì vậy giới hạn "vật chính, tối đa 3 lần".
+
+    Bật mặc định vì document expansion là kỹ thuật đã được chứng minh rộng rãi,
+    NHƯNG chưa đo được trên kho này (chưa có khóa API). Lần chạy thật đầu tiên
+    hãy A/B trên 4.086 ảnh thử: sinh hai lượt, `--dong-nghia` và `--khong-dong-
+    nghia`, rồi chấm bằng `cham_diem.bao_cao_do_nhay`.
+    """
+    return NHAC + (THEM_DONG_NGHIA if dong_nghia else "")
+
 
 def chon_row(master: pd.DataFrame, chon: str) -> pd.DataFrame:
     """Chọn tập keyframe cần sinh caption.
@@ -114,12 +144,12 @@ def da_xong(f: Path) -> set:
     return ra
 
 
-def goi(model, key, anh: bytes, timeout=90, thu_lai=4):
+def goi(model, key, anh: bytes, loi_nhac: str, timeout=90, thu_lai=4):
     """Gọi API, lùi thời gian theo cấp số nhân khi 429/503."""
     body = {"contents": [{"parts": [
         {"inline_data": {"mime_type": "image/jpeg",
                          "data": base64.b64encode(anh).decode()}},
-        {"text": NHAC}]}],
+        {"text": loi_nhac}]}],
         "generationConfig": {"temperature": 0.0, "maxOutputTokens": 512}}
     data = json.dumps(body).encode()
     cho = 5
@@ -193,7 +223,11 @@ def main():
                     help="đơn giá cho 1000 ảnh, tự tra rồi truyền vào")
     ap.add_argument("--bien", action="store_true",
                     help="chỉ biên caption.jsonl -> caption.parquet rồi thoát")
+    ap.add_argument("--khong-dong-nghia", action="store_true",
+                    help="tắt nới từ vựng vùng miền (dứa/thơm/khóm). "
+                         "Để A/B trên tập thử — xem hàm nhac()")
     a = ap.parse_args()
+    loi_nhac = nhac(not a.khong_dong_nghia)
 
     log = a.index / "caption.jsonl"
     par = a.index / "caption.parquet"
@@ -239,7 +273,7 @@ def main():
             except queue.Empty:
                 return
             try:
-                cap = don(goi(a.model, key, Path(path).read_bytes()))
+                cap = don(goi(a.model, key, Path(path).read_bytes(), loi_nhac))
             except Exception as e:
                 with khoa:
                     dem["hong"] += 1
