@@ -222,11 +222,20 @@ def encode(a):
 
 def luu(a, mat, xong, chieu, toc, hong):
     np.save(a.out, mat)
+
+    # `da_encode` KHÔNG phải kích thước bể ứng viên. Dòng chưa tải ảnh cũng
+    # được đánh dấu `xong` (xem CHỐT 1 ở trên) nhưng vector vẫn là 0, nên nó
+    # không tìm ra được gì. Đã vấp: sidecar ghi da_encode 18.635 trong khi ma
+    # trận chỉ có 3.135 dòng thật — chênh 6 lần. Ai đọc file này để ước bể sẽ
+    # ước sai, mà sai kích thước bể thì điểm lệch tới +0,2833 (xem be_chung()).
+    co_vector = int((np.abs(mat[:, :8]).sum(1) > 0).sum())
+
     canh = a.out.with_suffix(".json")        # CHỐT 2
     canh.write_text(json.dumps({
         "model": a.model, "pretrained": a.pretrained, "chieu": int(chieu),
         "dtype": str(mat.dtype), "so_dong": int(mat.shape[0]),
-        "da_encode": int(xong.sum()), "anh_hong": int(hong),
+        "da_encode": int(xong.sum()), "co_vector": co_vector,
+        "anh_hong": int(hong),
         "toc_do_anh_moi_giay": round(toc, 1),
         "ngay": time.strftime("%Y-%m-%d %H:%M"),
     }, ensure_ascii=False, indent=2), encoding="utf-8")
@@ -239,6 +248,10 @@ def luu(a, mat, xong, chieu, toc, hong):
           f"({a.out.stat().st_size / 1024**2:.0f} MB)")
     print(f"Đã encode {int(xong.sum()):,}/{mat.shape[0]:,} dòng"
           + (f"  |  {hong:,} ảnh hỏng -> vector 0" if hong else ""))
+    print(f"BỂ ỨNG VIÊN THẬT: {co_vector:,} dòng có vector khác 0"
+          + (f"  ({int(xong.sum()) - co_vector:,} dòng đánh dấu xong nhưng "
+             f"chưa tải ảnh -> vector 0, KHÔNG tìm ra được)"
+             if int(xong.sum()) > co_vector else ""))
     if toc:
         print(f"Tốc độ thật: {toc:.1f} ảnh/giây"
               f"  (toàn kho 177.321 ảnh = {177321 / toc / 3600:.1f} giờ)")

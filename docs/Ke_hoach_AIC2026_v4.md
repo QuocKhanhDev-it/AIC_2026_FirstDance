@@ -703,6 +703,267 @@ Kiểm lệch hàng trước khi tin: **16/16 cặp khớp**, trung vị cosine 
 
 ---
 
+### A11 — Dedup: **hoãn**, và bài học về việc đo trên một kênh đang hỏng
+
+`scripts/13_do_dedup.py`, 97 câu tập dev + 15 truy vấn tiếng Anh đối chứng.
+
+Phép đo đầu tiên trông như một phát hiện lớn:
+
+| Truy vấn | Dedup bỏ | Vị trí lệch | Top-100 trải |
+| --- | ---: | ---: | ---: |
+| **Tiếng Việt** (97 câu tập dev) | **58,4/100** | 77,5 | 40 video |
+| **Tiếng Anh** (15 câu đối chứng) | **0,5/100** | 2,6 | 63 video |
+
+Chênh nhau **117 lần**. Con số 58,4 **không đo lợi ích của dedup** — nó đo cái
+hỏng của kênh 1. CLIP mù tiếng Việt (A10) nên vector truy vấn gần như ngẫu
+nhiên, top-100 đổ dồn vào một cảnh tĩnh duy nhất, và dedup dọn đống đó. Số dùng
+được là **0,5/100**.
+
+> Nếu chỉ chạy trên tập dev tiếng Việt rồi báo "dedup bỏ được 58% ứng viên
+> thừa", ta đã đưa một no-op vào đường ống và tưởng mình vừa tối ưu. Nhóm đối
+> chứng là thứ duy nhất chặn được — script tự cảnh báo khi hai nhóm lệch quá 5
+> lần.
+
+**Vì sao 0,5 chứ không phải 11,83% như A5.6.** Ba lý do chồng lên nhau:
+
+1. **11,83% của toàn kho là con số đánh lừa.** 18.654 trong 20.975 bản sao
+   (**89%**) nằm ở riêng L25. Chín nhóm còn lại đều dưới 2,2%; L21 và L22 chỉ
+   0,45% và 0,27%.
+2. **Bản sao chỉ tính trong cùng video**, mà top-100 của một truy vấn đọc được
+   trải ra 63 video — mỗi video góp một hai frame, hiếm khi hai thành viên cùng
+   cụm gặp nhau trong cùng top-100.
+3. Ép bể **chỉ còn L25** (49,82% trùng lặp, tệ nhất kho) cũng chỉ bỏ **2,5/100**.
+
+Và **hạng 1 không đổi ở bất kỳ phép đo nào** (0/97 và 0/15). R@1 chiếm 1/5 tổng
+điểm; dedup không chạm tới nó.
+
+**Chỗ duy nhất còn đất: khi bật `moi_video`.** Ràng buộc đó giữ tối đa k frame
+mỗi video, và nếu k frame ấy là k bản sao thì cả ngân sách của video phí. Đo với
+`moi_video=3`: bể L25 lệch **30,5/100** vị trí, toàn kho 2,3. Đúng như docstring
+`dedup.py` dự đoán — `gioi_han_moi_video()` **không thay được** dedup, hai cái
+bổ sung cho nhau.
+
+**Chưa kết luận được về điểm**, và phải nói rõ vì sao chứ không im lặng: kênh
+duy nhất đọc được tiếng Việt là SigLIP2, mà ma trận thử của nó mới encode 11
+video L21+L22 — **đúng hai nhóm trùng lặp ít nhất kho**. Đo dedup ở đó là đo chỗ
+nó không có gì để làm. Cả hai ma trận đều ra `⚪ KHÔNG ĐỔI GÌ`.
+
+> **Quyết định.** Giữ module, **không bật mặc định**. Đo lại khi có
+> `clip_siglip2.npy` toàn kho, trên câu L25, với `moi_video` bật:
+> `python scripts/13_do_dedup.py --matrix clip_siglip2.npy --moi-video 3`
+
+**Bẫy phụ tìm ra khi đo.** Sidecar `.json` của `08_encode.py` ghi
+`da_encode: 18.635` trong khi ma trận chỉ có **3.135** dòng thật — chênh 6 lần.
+Nguyên nhân: dòng chưa tải ảnh cũng được đánh dấu `xong` (để giữ nguyên vị trí
+hàng) nhưng vector vẫn là 0. Ai đọc file đó để ước bể ứng viên sẽ ước sai, mà
+sai kích thước bể thì điểm lệch tới **+0,2833** (xem `be_chung()`). Đã thêm
+trường `co_vector` và in rõ "BỂ ỨNG VIÊN THẬT" khi encode xong.
+
+---
+
+### A12 — Kênh 2 (metadata) chạy: **kênh đầu tiên không được 0 trên tiếng Việt**
+
+`src/bm25.py` + `scripts/15_do_bm25.py`, 97 câu tập dev.
+
+Metadata là **tiếng Việt**, truy vấn là **tiếng Việt**, không có model nào phải
+dịch ở giữa — nên kênh này không dính cái bẫy đã giết kênh 1 (A10).
+
+| Thước đo | Kết quả |
+| --- | ---: |
+| Tìm ra video đúng **ở đâu đó** trong 873 video | **94/97 (97%)** |
+| Video đúng trong **top-10** | 22/97 (22,7%) |
+| Video đúng ở **hạng 1** | 10/97 (10,3%) |
+| Trung vị hạng (khi tìm ra) | 142 / 873 |
+| **Điểm BTC** (trên keyframe) | **0,0103** |
+
+**Phải đọc hai con số này tách bạch, và biết con số nào nói gì.** 0,0103 nghe
+như thất bại, nhưng nó là hệ quả số học của việc metadata mô tả *cả video*:
+trung bình **203 khung/video**, nên dù đoán đúng video ở hạng 1 thì khung đúng
+vẫn nằm đâu đó trong 203 khung theo thứ tự thời gian. Kênh này **không biết và
+không thể biết** khung nào.
+
+> Giá trị của nó nằm ở hợp nhất: **thu hẹp còn vài video, để kênh ảnh chọn
+> khung.** Đó đúng là việc RRF sinh ra để làm. Chưa đo được vì chưa có kênh ảnh
+> nào chạy được tiếng Việt — lại chặn ở `clip_siglip2.npy`.
+
+**Nó mạnh ở đâu và yếu ở đâu — không đều chút nào:**
+
+| Nhóm | Video đúng ở top-10 | |
+| --- | ---: | --- |
+| L24 | 60% | nội dung đa dạng, tiêu đề tả đúng cảnh |
+| L27 | 56% | |
+| L30 | 44% | |
+| L26 | 42% | |
+| L29 | 20% | |
+| **L21, L22, L23, L25, L28** | **0%** | loạt video **cùng một sê-ri**, metadata gần như giống hệt nhau |
+
+L25 là ví dụ rõ nhất: 88 video *"BÍ QUYẾT ÔN THI THPT 2024 — Môn X — Chuyên đề
+Y"*. Metadata phân biệt được **môn học**, không phân biệt được **cảnh trong
+video**. Đây là giới hạn bản chất, không phải lỗi cài đặt — và nó chính là lý
+do kênh 5 (caption) tồn tại.
+
+**Hai nút đã dò, cả hai đều đáng giữ:**
+
+| Cấu hình | Video ở top-10 | Ở hạng 1 |
+| --- | ---: | ---: |
+| đầy đủ | **22**/97 | **10**/97 |
+| bỏ bigram | 19/97 | 7/97 |
+| bỏ title×3 | 20/97 | 9/97 |
+
+*Bigram*: tiếng Việt viết rời từng âm tiết, `"xe máy"` là một từ nhưng hai
+token — chỉ unigram thì nó khớp cả `"máy xay"`. Nối thành `"xe_máy"` cho một
+token hiếm hơn nhiều, IDF tự lo phần còn lại. **Không cần bộ tách từ**
+(`underthesea`/`pyvi`) — thêm phụ thuộc nặng để làm việc IDF đã làm.
+
+*title×3*: BM25 không có khái niệm trường nào quan trọng hơn, mà tiêu đề 62 ký
+tự chìm nghỉm cạnh description 954 ký tự. Lặp là cách tăng trọng số trường mà
+không sửa công thức.
+
+---
+
+### A13 — Kênh 5 (caption VLM): **vướng hai chỗ, đều nằm ngoài code**
+
+Đã cài xong phần làm được: `scripts/14_sinh_caption.py` (bộ sinh) và
+`bm25.KenhVanBan.tu_bang_khung` (phần truy hồi — dùng chung bộ máy với kênh 2,
+không viết lại). `tests/test_bm25.py::test_kenh_5_noi_dung_vao_thuoc_do` chốt
+cả đường ống caption → BM25 → `Candidate` → `cham()`.
+
+**Vướng 1 — chưa có khóa API.** `GOOGLE_API_KEY` chưa đặt, và việc 12 của PHẦN
+H (*trả phí hay chạy local*) vẫn chưa chốt. Bậc miễn phí không làm nổi: ba model
+đã chết vì rate-limit trong một đợt test **20 lượt** (D0.3).
+
+**Vướng 2 — máy này chỉ có ảnh của L21, L22, L27.** Đáp án tập dev trải 10 nhóm;
+trong 19.832 keyframe của các video chứa đáp án thì chỉ **4.086** có ảnh ở đây.
+Bảy nhóm còn lại không thể sinh caption từ máy này — đúng mô hình chia dữ liệu
+ở B4.
+
+**Ước lượng** (`--uoc-tinh`, không gọi API lần nào):
+
+| Tập | Số ảnh | Thời gian tường |
+| --- | ---: | ---: |
+| video chứa đáp án dev *(có ảnh ở máy này)* | 4.086 | 0,4 giờ @ 4 luồng |
+| toàn bộ ảnh có trên máy này | 21.810 | 1,1 giờ @ 8 luồng |
+| **toàn kho** | 177.321 | **8,6 giờ** @ 8 luồng |
+
+> Đơn giá cố ý **không** chôn trong code — `--gia-1k` là tham số. Giá nhà cung
+> cấp đổi, mà một con số bịa nằm trong tài liệu còn tệ hơn không có số.
+
+**Quyết định thiết kế quan trọng nhất của kênh này: caption phải là TIẾNG VIỆT.**
+BM25 khớp *mặt chữ*, không hiểu nghĩa — caption tiếng Anh + truy vấn tiếng Việt
+khớp đúng **0 token**, không có không gian vector chung để bắc cầu như CLIP. Sinh
+caption tiếng Anh là dựng lại nguyên xi lỗi đã cho kênh 1 điểm 0,0000, lần này
+tốn thêm tiền API. Có một bài test giữ điều này.
+
+#### A13.1 — Vì sao kênh 5 tìm bằng BM25 chứ không bằng vector
+
+Câu hỏi tự nhiên: caption là văn bản, sao không embed rồi tìm bằng vector cho
+hiểu nghĩa? Vì khi đó **caption chỉ còn là một nút cổ chai làm mất thông tin** —
+ta vừa dựng một SigLIP2 tệ hơn, tốn thêm một vòng VLM ở giữa. Caption **đáng giá
+chính vì nó lexical**: nó bắt được từ hiếm, tên riêng, con số và chữ đọc trên
+hình — đúng những thứ tìm bằng vector dở nhất. Hai kênh bù nhau, không thay nhau.
+
+**Cái giá của lexical là từ đồng nghĩa, và kho này có sẵn:**
+
+| Cùng nghĩa "quả dứa" | Số video nhắc tới |
+| --- | ---: |
+| dứa | 220 |
+| thơm | 76 |
+| khóm | 3 |
+
+Tiêu đề L27 đúng là *"Trăm Năm làng **Khóm**"*. Truy vấn nói "dứa", caption viết
+"khóm" → BM25 cho **0**.
+
+*(Vài nhóm đồng nghĩa khác đo bị nhiễu vì bỏ dấu — "ly" lẫn "lý", "man" lẫn
+"màn". Không dùng những con số đó.)*
+
+**Chỗ này caption khác hẳn metadata: metadata cho sẵn nên phải chịu, còn caption
+thì TA VIẾT RA.** Nên sửa ngay ở câu nhắc, không tốn thêm lượt gọi nào — bảo VLM
+kèm cách gọi vùng miền trong ngoặc: *"quả dứa (thơm, khóm)"*. Đây là *document
+expansion*, kỹ thuật cổ điển của IR.
+
+> Không miễn phí: thêm chữ là kéo dài tài liệu, mà **BM25 phạt tài liệu dài** —
+> đúng lý do hàm `don()` tồn tại. Bật mặc định (kỹ thuật đã được chứng minh rộng
+> rãi) nhưng **chưa đo trên kho này**, nên có nút `--khong-dong-nghia` để A/B
+> ngay ở lần chạy thật đầu tiên trên 4.086 ảnh thử.
+
+---
+
+### A14 — RRF thô **làm TỆ ĐI**, và lý do đo được ngay trong cùng phép chạy
+
+`scripts/16_do_rrf.py`, 97 câu tập dev. Lần đầu RRF đo được — nó cần ≥ 2 kênh
+chạy được tiếng Việt, mà kênh 1 được 0,0000 (A10). Nay có kênh 2 và kênh 4.
+
+| Cấu hình | ±2s | ±15s | so với kênh 4 |
+| --- | ---: | ---: | --- |
+| **kênh 4 — objects** | **0,0412** | **0,0701** | *(mốc nền)* |
+| kênh 2 — metadata | 0,0000 | 0,0103 | −0,0412 · 0–8–89 |
+| **RRF(2, 4)** | 0,0268 | 0,0577 | **−0,0144 · 0–7–90 · ✅ ỔN ĐỊNH** |
+
+**Hợp nhất hai kênh cho kết quả TỆ HƠN kênh mạnh hơn khi đứng một mình.** Thua ở
+cả hai mức dung sai, vượt nhiễu, 0 thắng / 7 thua. Không phải nhiễu.
+
+**Vì sao — đo luôn trong cùng phép chạy, không phải suy đoán:**
+
+| Điều kiện để RRF cộng hưởng | Kết quả |
+| --- | ---: |
+| Hai kênh chung ≥ 1 **KHUNG** | **5/97 câu** |
+| Hai kênh chung ≥ 1 **VIDEO** | **79/97 câu** (trung bình 4,3 video) |
+
+RRF cộng `1/(k + hạng)` từ mỗi kênh, nên một ứng viên chỉ **được lợi khi nhiều
+kênh cùng đề cử ĐÚNG NÓ** — cùng `row_id`. Ở đây điều đó gần như không xảy ra:
+kênh 2 là kênh **cấp video** (trả mọi khung của video khớp), kênh 4 là kênh
+**cấp khung**. Hai kênh nói hai độ mịn khác nhau, trùng đúng `row_id` là chuyện
+hiếm.
+
+Không cộng hưởng thì RRF chỉ **đan xen** hai danh sách — và đan xen thì mỗi ứng
+viên tốt của kênh mạnh bị đẩy lùi một bậc bởi một ứng viên của kênh yếu. Đó
+chính xác là −0,0144 đo được.
+
+> **Bài học chung, không riêng cặp kênh này:** *"gom đủ năm kênh rồi RRF"* là
+> một giả định, không phải một sự thật. RRF chỉ trả công khi các kênh **đồng ý ở
+> cùng độ mịn**. Trước khi thêm kênh nào vào hợp nhất, đo `chồng lấn` trước —
+> `16_do_rrf.py` in sẵn.
+
+#### A14.1 — Hợp nhất hai tầng: **đã cài, đã đo, cũng không cứu được**
+
+79/97 câu hai kênh *có* đồng ý ở cấp video, nên hướng sửa hiển nhiên là RRF hai
+tầng: chọn video ở tầng 1, xếp khung ở tầng 2 (`rrf.hop_nhat_hai_tang`).
+
+| Cấu hình | ±2s | ±15s | so với kênh 4 |
+| --- | ---: | ---: | --- |
+| **kênh 4 objects** | **0,0412** | **0,0701** | *(mốc nền)* |
+| RRF thô (2, 4) | 0,0268 | 0,0577 | −0,0144 ✅ ổn định |
+| 2 tầng, mỗi video 1 | 0,0103 | 0,0412 | −0,0309 🟡 |
+| 2 tầng, mỗi video 3 | 0,0206 | 0,0515 | −0,0186 🟡 |
+| 2 tầng, mỗi video 10 | 0,0433 | 0,0680 | +0,0021 / −0,0021 ❌ **đảo dấu** |
+| *chỉ kênh 4, qua 2 tầng* | 0,0206 | 0,0639 | −0,0206 ✅ ổn định |
+
+**Không cấu hình nào thắng được kênh 4 đứng một mình.** Cái tốt nhất
+(`mỗi video 10`) đảo dấu giữa hai mức dung sai — theo kỷ luật đã đặt ở
+`bao_cao_do_nhay`, đó là **không kết luận được**, không phải "hơi hơn".
+
+Dòng đối chứng *"chỉ kênh 4, qua 2 tầng"* là dòng quan trọng nhất trong bảng:
+chạy **một kênh duy nhất** qua bộ máy hai tầng đã mất **−0,0206**. Tức bản thân
+việc ép rải đều theo video đã tốn điểm, trước khi nói tới chuyện hợp nhất. Không
+có dòng đối chứng này thì mọi thay đổi đều dễ bị quy nhầm cho "hợp nhất".
+
+**Kết luận đúng phạm vi — và phải nói rõ phạm vi:** hợp nhất không cứu được
+**cặp kênh NÀY**, vì kênh 2 được 0,0000 ở ±2s. Một kênh không có thông tin cấp
+khung thì không thể đóng góp gì cho việc xếp khung, ở bất kỳ kiến trúc nào.
+**Điều này KHÔNG chứng minh hợp nhất vô dụng** khi SigLIP2 — một kênh cấp khung
+mạnh — xuất hiện.
+
+> **Quy trình bắt buộc từ nay, thay cho "gom đủ năm kênh rồi RRF":**
+> thêm **từng kênh một**, so với **kênh mạnh nhất hiện có**, và **chỉ giữ cái
+> nào thắng**. Cộng thêm một kênh yếu vào một kênh mạnh là **pha loãng**, đo
+> được, ổn định, và không có kiến trúc hợp nhất nào sửa được.
+
+**Và một con số cần nhớ:** kênh 4 (objects) đang là **kênh mạnh nhất** hiện có
+— 0,0412 / 0,0701, gấp bốn lần kênh 2. Trước A10 ta vẫn nghĩ kênh 1 là xương
+sống.
+
+---
+
 ## PHẦN B — QUYẾT ĐỊNH HẠ TẦNG
 
 ### B1. Không dùng Supabase / Postgres / Milvus / Elasticsearch — ĐÃ KIỂM CHỨNG
@@ -1049,21 +1310,18 @@ EasyOCR / PaddleOCR / VietOCR — **không cái nào biết viết caption**.
 
 #### TV1 + TV2 — Hai việc MỚI làm được NGAY, không chờ tải dữ liệu
 
-**(a) Khử trùng lặp trong cùng video** *(A8.8, PHẦN C mục 6)*
+**(a) Khử trùng lặp trong cùng video** *(A8.8, PHẦN C mục 6)* — ✅ **ĐÃ CÀI, ĐÃ ĐO, HOÃN BẬT**
 
-Nguyên liệu đã có: `clip.npy` trong RAM và `index/trung_lap.parquet` (đã dựng ở
-Giai đoạn 0, chứa `max_cos` từng keyframe tới bản giống nhất cùng video).
+`src/dedup.py` xong, `scripts/13_do_dedup.py` đo xong. Kết quả đầy đủ ở **A11**.
 
-```python
-# src/dedup.py — gộp keyframe gần trùng thành cụm, giữ một đại diện
-# Không cần AutoShot, không cần trích lại gì: chỉ so vector đã có.
-def gom_cum(clip, master, nguong=0.99): ...   # -> cot 'cum_id'
-def loc_top_k(ung_vien, k, moi_cum_toi_da=1): ...
-```
+Tóm tắt: trên truy vấn CLIP **đọc được**, dedup bỏ **0,5/100** ứng viên và
+**không đổi hạng 1 câu nào** — gần như no-op. Con số 58,4/100 đo trên tập dev
+tiếng Việt là **ảo giác**, nó đo cái mù tiếng Việt của CLIP chứ không đo dedup.
+Chỗ duy nhất nó còn tác dụng là khi bật `moi_video` trên bể nhiều bản sao (L25).
 
-Áp **sau khi xếp hạng, trước khi cắt top-K**, để không mất ứng viên ở khâu
-truy hồi. Kiểm hiệu quả trên tập dev của Khánh — nếu không tăng điểm thì bỏ,
-theo kỷ luật của GIAI ĐOẠN 3.
+**Giữ module, không bật mặc định.** Đo lại khi có `clip_siglip2.npy` toàn kho —
+đó mới là lần đo có nghĩa, vì hiện chỉ SigLIP2 đọc được tiếng Việt mà ma trận
+thử của nó nằm đúng hai nhóm ít trùng lặp nhất kho.
 
 **(b) Đo thử một embedding thứ hai** *(A8.4 lỗ hổng 2)*
 
@@ -1390,24 +1648,32 @@ objects từ "nhiễu nặng, kênh phụ" → **kênh chính thứ tư**.
 *Giai đoạn 0 đã đóng (873/873, 0 lệch chỉ số thật). Mọi việc dưới đây thuộc
 Giai đoạn 1.*
 
-### H1. Đường găng — chặn mọi thứ khác
+### H1. Đường găng — ✅ **ĐÃ THÔNG**
 
-| # | Việc | Ai | Vì sao chặn |
-| --- | --- | --- | --- |
-| **1** | **Tập dev ~60 câu, phân tầng 10 nhóm L** | **cả nhóm, Khánh gộp** | Bản 4.1 thêm 6 giả thuyết từ bài báo AIC'25 và **không cái nào được giữ nếu không đo được**. Việc 8 của kế hoạch GPU cũng chặn ở đây |
+**117 câu, đủ cả 10 nhóm L**, đã tách tập test giữ kín:
 
-Hiện có **40 câu / 5 nhóm L** (L21, L22, L23, L26, L27) — còn thiếu **L24,
-L25, L28, L29, L30**. Mỗi người soạn **6 câu cho mỗi nhóm L mình
-giữ** — chỉ máy giữ gói `Keyframes_*` mới mở được ảnh gốc để kiểm lại. Quy
-trình đầy đủ: [07_lam_tap_dev.md](07_lam_tap_dev.md).
+| | KIS | QA | TRAKE | Tổng |
+| --- | ---: | ---: | ---: | ---: |
+| `dev/tap_dev.jsonl` | 55 | 42 | 0 | **97** |
+| `dev/tap_test.jsonl` 🔒 | 10 | 10 | 0 | **20** |
+
+Phân bố dev theo nhóm: L21 7 · L22 11 · L23 7 · L24 5 · L25 10 · L26 19 ·
+L27 9 · L28 10 · L29 10 · L30 9.
+
+**Còn thiếu: câu TRAKE (0 câu) và câu đếm.** `scripts/11_tim_cau_dem.py` lọc
+sẵn ứng viên khung nhiều vật đếm được.
+
+Thêm câu mới thì cứ `--gop` bình thường — **câu mới vào tập dev, tập test giữ
+nguyên**, `gop()` tự loại. **Không chạy lại `--tach-test`** (nó cũng tự từ
+chối). Quy trình đầy đủ: [07_lam_tap_dev.md](07_lam_tap_dev.md).
 
 ```powershell
 python scripts\10_contact_sheet.py --nhom <L của mình> --thua 10
 python scripts\10_contact_sheet.py --tra <row_id...> --mo
 # soạn vào dev/tap_dev_thanh_vien/tap_dev_<nhóm>.jsonl
-python src\tap_dev.py --gop dev\tap_dev_thanh_vien --file dev\tap_dev.jsonl
-python src\tap_dev.py --file dev\tap_dev.jsonl --no-cum
-python src\tap_dev.py --file dev\tap_dev.jsonl --kiem
+python src\tap_dev.py --gop dev\tap_dev_thanh_vien
+python src\tap_dev.py --no-cum
+python src\tap_dev.py --kiem
 ```
 
 ### H2. Làm được ngay, không chờ ai
@@ -1415,29 +1681,39 @@ python src\tap_dev.py --file dev\tap_dev.jsonl --kiem
 | # | Việc | Ai | Ghi chú |
 | --- | --- | --- | --- |
 | **1b** | 🔴 **CỨU KÊNH 1 — encode SigLIP2 toàn kho** | **máy GPU (Khánh)** | **ĐÃ CHỨNG MINH (A10.3), không còn là giả thuyết.** SigLIP2 + tiếng Việt thắng CLIP + tiếng Việt **21/21 câu**, và ngang bản dịch tay. Chỉ còn thiếu ma trận toàn kho — máy GPU ước ~2 giờ. Bỏ luôn được khâu dịch truy vấn |
-| 2 | **`src/bm25.py`** — kênh 2 (metadata) + kênh 3 (OCR/ASR) | TV3 | metadata đã phủ 100%, 955 ký tự/video. Kênh 3 cần **hai chế độ**: lọc cứng cho token hiếm + BM25 hòa RRF (A8.5) |
+| 2 | ~~**`src/bm25.py`** — bộ máy văn bản~~ | TV1 | ✅ **XONG.** Dùng chung cho kênh 2, 3, 5. Tự viết, không thêm phụ thuộc. **Kênh 2 chạy: 97% tìm ra video đúng, 22,7% ở top-10** (A12) |
+| 2b | **Kênh 3 (OCR/ASR)** — nối vào `KenhVanBan.tu_bang_khung` | TV3 | bộ máy đã sẵn, chỉ cần bảng `(row_id, text)`. Cần **hai chế độ**: lọc cứng cho token hiếm + BM25 hòa RRF (A8.5) |
 | 3 | ~~`dev/label_vi_en.csv`~~ — **XONG**, 156 nhãn phủ 98,3% | — | **Kênh 4 nay dùng được từ truy vấn tiếng Việt.** Còn nên: người Việt đọc lại cột `dong_nghia`, thêm cách nói vùng miền |
 | 4 | ~~Tối ưu `trich_day`: gộp cả cửa sổ vào MỘT lệnh ffmpeg~~ | TV2 | ✅ **XONG** — `trich_nhieu()` trong `src/trich_day.py`, áp dụng lại cho `scripts/09_trich_day_batch.py`. Đo lại sau khi cài: **28 ms/khung** so với 169–284 ms/khung cũ. Cờ `-vsync 0` đã bị GỠ ở ffmpeg 9.0, đổi sang `-fps_mode passthrough` |
 | 5 | **Commit script vá `kf_path`** | Khánh | máy nào tải `index/` từ Drive cũng gặp (A5.5); đừng để mỗi người viết lại |
 | 6 | **Gán nhãn 400 mẫu `ocr_v2` + điền `roi_v2.yaml`** | TV4 | đang **0/400**. ROI: ranh giới là **dải chữ chạy cuối cùng**, KHÔNG phải "bỏ nửa dưới" — băng rôn tiêu đề có liên quan tới hình |
-| 7 | **`src/run.py`** — đường ống đầu-cuối | TV5 | chỉ đáng viết khi đã có ≥ 2 kênh |
+| 7 | **`src/run.py`** — đường ống đầu-cuối | TV5 | ~~chỉ đáng viết khi đã có ≥ 2 kênh~~ — **điều kiện đã thoả**: kênh 2 và kênh 4 đều chạy được từ truy vấn tiếng Việt |
+| 7b | **Kênh 5 (caption VLM)** — bộ sinh đã xong | — | ⛔ **CHẶN ở việc 12** (khóa API) và ở chỗ máy nào giữ ảnh nhóm nào. Xem A13. Chạy được ngay khi có khóa: `python scripts/14_sinh_caption.py --chon tap-dev` |
 
-### H3. Chờ tập dev xong
+### H3. Chờ **ma trận SigLIP2 toàn kho** (không còn chờ tập dev)
 
-| # | Việc | Ai |
-| --- | --- | --- |
-| 8 | Đo A/B/C cho SigLIP2 — **nhớ `be_chung()`**, xem [06 §5](06_ke_hoach_encode_GPU.md) | Khánh |
-| 9 | Đo `dedup.py` / RRF / `lan_can.py` — giữ hay bỏ theo số | TV1 |
-| 10 | Mở rộng bench VLM lên ≥ 50 câu, test với ngữ cảnh thật | TV5 |
+| # | Việc | Ai | Trạng thái |
+| --- | --- | --- | --- |
+| 8 | Đo A/B/C cho SigLIP2 — **nhớ `be_chung()`**, xem [06 §5](06_ke_hoach_encode_GPU.md) | Khánh | đã có câu trả lời sớm trên CPU (A10.3); còn xác nhận trên toàn kho |
+| 9 | Đo `dedup.py` — giữ hay bỏ theo số | TV1 | ✅ **ĐÃ ĐO (A11): hoãn bật.** No-op trên truy vấn đọc được (0,5/100, hạng 1 không đổi). Đo lại bằng `13_do_dedup.py --matrix clip_siglip2.npy --moi-video 3` |
+| 9b | ~~Đo RRF~~ | TV1 | ✅ **ĐÃ ĐO (A14): RRF thô LÀM TỆ ĐI** (−0,0144, ổn định). Nguyên nhân đo được: chỉ 5/97 câu hai kênh chung một khung. **Việc mới: hợp nhất hai tầng** (RRF cấp video → xếp khung) |
+| 9c | Đo `lan_can.py` | TV1 | làm được ngay, kênh 4 đã cho mốc nền khác 0 |
+| 10 | Mở rộng bench VLM lên ≥ 50 câu, test với ngữ cảnh thật | TV5 | |
+
+> **Vì sao mọi phép đo đều chặn ở cùng một chỗ.** Kênh 1 chạy CLIP thì được
+> **0,0000** trên tập dev tiếng Việt (A10) — không có gì để cải thiện, nên mọi
+> cấu hình đo trên nó đều ra `⚪ KHÔNG ĐỔI GÌ`. Đó không phải kết luận về cấu
+> hình, đó là kết luận về kênh. **`clip_siglip2.npy` toàn kho mở khóa cả H3.**
 
 ### H4. Việc người, không tự động hóa được
 
-| # | Việc | Ai |
-| --- | --- | --- |
-| 11 | ~~Gửi BTC câu 0.a~~ — **ĐÃ TRẢ LỜI (A9)**. Còn lại: **xin GT các mùa trước** (BTC nói có), và hỏi **0.e — Chung kết có thi tương tác không** | Khánh |
-| 12 | Chốt phương án quota VLM: trả phí hay chạy local | TV5 |
-| 13 | Chốt một bảng tên thành viên duy nhất | cả nhóm |
-| 14 | Máy giữ L23+L26+L27 tải lại gói `Keyframes_L21` (thiếu 8 file ảnh) | — |
+| # | Việc | Ai | Ghi chú |
+| --- | --- | --- | --- |
+| 11 | ~~Gửi BTC câu 0.a~~ — **ĐÃ TRẢ LỜI (A9)**. Còn lại: **xin GT các mùa trước** (BTC nói có), và hỏi **0.e — Chung kết có thi tương tác không** | Khánh | |
+| 12 | 🔴 **Chốt phương án quota VLM: trả phí hay chạy local** | TV5 | **Nay chặn hẳn kênh 5** (A13). Bộ sinh đã xong và đo được chi phí; chỉ thiếu quyết định. Local: Qwen2.5-VL-3B 4-bit ≈ 2,5 GB, vừa card 2060 Super — nhưng card đang bận encode SigLIP2 |
+| 12b | 🔴 **Xoá khóa Gemini đã dán vào chat**, tạo khóa mới | — | repo công khai; khóa đã lộ thì coi như của chung |
+| 13 | Chốt một bảng tên thành viên duy nhất | cả nhóm | |
+| 14 | Máy giữ L23+L26+L27 tải lại gói `Keyframes_L21` (thiếu 8 file ảnh) | — | |
 
 > **Kỷ luật cho toàn bộ bản 4.1:** mọi thứ lấy từ bài báo AIC'25 là **một bài
 > báo, một đội, một mùa, không ablation** (A8.2). Dựng thì dựng, nhưng **chỉ

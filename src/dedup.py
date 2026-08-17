@@ -22,8 +22,41 @@ Dùng:
     from dedup import gom_ban_sao
     sach = gom_ban_sao(ung_vien, kenh.mat)
 
-⚠️ Việc này chưa được chứng minh là tăng điểm. Theo kỷ luật GIAI ĐOẠN 3, đo
-trên tập dev của Khánh: không tăng thì bỏ.
+ĐÃ ĐO — CHƯA ĐƯỢC VÀO ĐƯỜNG ỐNG MẶC ĐỊNH
+=========================================
+
+`scripts/13_do_dedup.py`, 97 câu tập dev + 15 truy vấn tiếng Anh đối chứng.
+
+    truy vấn TIẾNG ANH (CLIP đọc được)   bỏ  0,5/100   lệch  2,6/100 vị trí
+    truy vấn TIẾNG VIỆT (CLIP mù)        bỏ 58,4/100   lệch 77,5/100 vị trí
+
+Con số 58,4 KHÔNG phải lợi ích của dedup. CLIP mù tiếng Việt (A10) nên vector
+truy vấn gần như ngẫu nhiên, top-100 đổ dồn vào một cảnh tĩnh, và dedup dọn
+đống đó. Nó đo cái hỏng của kênh 1. Số dùng được là 0,5/100.
+
+Vì sao nhỏ đến vậy dù kho có 11,83% trùng lặp: bản sao chỉ tính TRONG CÙNG
+video, mà top-100 của một truy vấn đọc được trải ra 63 video khác nhau — mỗi
+video góp một hai frame, hiếm khi hai thành viên cùng cụm gặp nhau trong cùng
+top-100. Ép bể chỉ còn L25 (49,82% trùng lặp, tệ nhất kho) cũng chỉ bỏ 2,5/100.
+
+Và **HẠNG 1 KHÔNG ĐỔI Ở BẤT KỲ PHÉP ĐO NÀO** — 0/97 và 0/15 câu. R@1 chiếm 1/5
+tổng điểm, dedup không chạm tới nó.
+
+Chỗ duy nhất còn đất: KHI BẬT `moi_video`. Ràng buộc đó giữ tối đa k frame mỗi
+video, và nếu k frame ấy là k bản sao thì cả ngân sách của video đó phí. Đo
+trên bể L25 với moi_video=3: lệch 30,5/100 vị trí (toàn kho: 2,3). Đúng như
+docstring dưới đây dự đoán — `gioi_han_moi_video()` không thay được dedup, hai
+cái BỔ SUNG cho nhau.
+
+CHƯA KẾT LUẬN ĐƯỢC VỀ ĐIỂM, và phải nói rõ vì sao: kênh duy nhất đọc được
+tiếng Việt là SigLIP2, mà ma trận thử của nó mới encode 11 video L21+L22 —
+đúng hai nhóm TRÙNG LẶP ÍT NHẤT KHO (0,45% và 0,27%). Đo dedup ở đó là đo chỗ
+nó không có gì để làm.
+
+    => Giữ module. KHÔNG bật mặc định. Đo lại khi có `clip_siglip2.npy` toàn
+       kho, trên câu L25, với `moi_video` bật:
+
+           python scripts/13_do_dedup.py --matrix clip_siglip2.npy --moi-video 3
 """
 
 import argparse
@@ -83,6 +116,9 @@ def thong_ke(index_dir="./index", nguong: float = NGUONG) -> pd.DataFrame:
     Đọc `index/trung_lap.parquet` (cột `max_cos` = cosine tới keyframe giống
     nhất trong cùng video). Dùng để soi lại A5.6, không dùng khi truy hồi.
     """
+    # ⚠️ 11,83% của toàn kho là con số ĐÁNH LỪA: 18.654 trong 20.975 bản sao
+    # (89%) nằm ở riêng L25. Chín nhóm còn lại đều dưới 2,2%. Đừng suy từ
+    # 11,83% ra "kho nào cũng vậy".
     d = pd.read_parquet(Path(index_dir) / "trung_lap.parquet")
     g = d.groupby("nhom").agg(keyframe=("row_id", "size"),
                               trung_lap=("max_cos", lambda s: int((s >= nguong).sum())))
