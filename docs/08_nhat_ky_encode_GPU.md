@@ -1,7 +1,8 @@
 # Nhật ký encode GPU — máy Khánh
 
-*Ghi 2026-08-14. Máy: RTX 2060 Super, Windows 10. Đọc kèm:
-[06_ke_hoach_encode_GPU.md](06_ke_hoach_encode_GPU.md).*
+*Ghi 2026-08-14, cập nhật 2026-08-17. Máy: RTX 2060 Super, Windows 10. Đọc
+kèm: [06_ke_hoach_encode_GPU.md](06_ke_hoach_encode_GPU.md) và mục H2/H3 của
+[Ke_hoach_AIC2026_v4.md](Ke_hoach_AIC2026_v4.md).*
 
 Tài liệu này ghi lại **đã làm gì, kết quả gì, còn vướng gì** — để không phải
 dò lại từ đầu nếu quay lại việc này sau vài ngày, và để người khác trong
@@ -19,10 +20,10 @@ nhóm biết máy này đang ở đâu.
 | 4 | Tải keyframe 100 video phân tầng | 🟡 **Một phần** | Máy này có ảnh thật cho **123 video** (L26: 99/498, L28: 24/24) — 2/10 nhóm L, không phải phân tầng đủ 10 nhóm |
 | 5 | Chạy thử 100 video | ✅ Xong | 23,2 ảnh/giây thật — xem §5 |
 | 6 | Kiểm lệch hàng `row_id` | ✅ Xong | 134/134 cặp khớp (100%) — HÀNG KHỚP |
-| 7 | Soạn tập dev trên 100 video | 🟡 **Chuẩn bị xong, chưa soạn câu** | 123 contact sheet đã tạo (`dev/sheets/`), `dev/tap_dev.jsonl` còn trống |
-| 8 | Đo 3 cấu hình A/B/C | ⛔ Chưa làm | Chặn bởi việc 7 |
-| 9 | Tải nốt 30,5 GB keyframe | ⛔ Chưa làm | Luật cứng: không bắt đầu trước khi việc 8 thắng |
-| 10 | Chạy toàn kho | ⛔ Chưa làm | Chặn bởi việc 9 |
+| 7 | Soạn tập dev trên 100 video | ✅ **Xong (cả team)** | **117 câu, đủ 10 nhóm L** — 97 vào `dev/tap_dev.jsonl`, 20 giữ kín ở `dev/tap_test.jsonl`. Xem §7 |
+| 8 | Đo 3 cấu hình A/B/C | 🟢 **Đã có câu trả lời sớm** | A10.3: SigLIP2 + tiếng Việt **thắng CLIP 21/21 câu** (đo trên CPU, subset video theo tập dev) — **B thắng A đã CHỨNG MINH**, không còn là giả thuyết. Còn thiếu: xác nhận trên ma trận toàn kho |
+| 9 | Tải nốt 30,5 GB keyframe | 🔵 **Đang làm** (Khánh tự tải) | Cổng chặn đã mở — việc 8 đã thắng theo A10.3 |
+| 10 | Chạy toàn kho | ⏳ **Sẵn sàng chạy ngay khi việc 9 xong** | Lệnh đã chuẩn bị sẵn — xem §10 |
 | 11 | Kiểm lệch hàng lần cuối + đẩy Drive | ⛔ Chưa làm | Chặn bởi việc 10 |
 
 ---
@@ -44,6 +45,15 @@ khác. 0 video bị lệch số ảnh so với số dòng CSV.
 (đủ 24/24) — chưa có video, objects, media-info, map-keyframes CSV, hay
 clip-features cho video nào (những thứ này đã có sẵn trong `index/` đồng bộ
 từ Drive, không cần tải lại).
+
+**Cập nhật 17/08:** team đã viết `scripts/12_va_duong_dan.py` — bản chính
+thức thay cho script vá tay ở trên, sửa đúng lỗi này (đặt tên A5.5, đã cản
+trở ba lần). Có sao lưu tự động (`master.parquet.truoc_khi_va`) và tự kiểm
+`row_id`/số dòng/mọi cột khác không đổi trước khi cho ghi. Đã chạy lại bằng
+bản này (`--ghi`): xác nhận 24.918 dòng ảnh khớp y hệt bản vá tay, đồng thời
+dọn sạch 16.896 dòng `video_path` rác (trỏ vào `.mp4` không tồn tại trên máy
+này, tồn dư từ máy khác). **Dùng script này cho mọi lần vá đường dẫn sau
+này**, không dùng lại cách vá tay thủ công nữa.
 
 ---
 
@@ -130,8 +140,8 @@ BTC có công bố bộ câu hỏi AIC'25 kèm đáp án không (việc 1 của
 cách mô tả câu, không tải được ground truth. Vẫn phải tự soạn theo §3-§5 của
 tài liệu đó.
 
-**Việc còn lại của việc 7** (chưa làm): duyệt 123 sheet, chốt 4 quy ước ở §3,
-soạn 30–50 câu vào `dev/tap_dev.jsonl` theo mẫu `dev/tap_dev_mau.jsonl`.
+**Cập nhật 17/08:** cả team đã duyệt xong — 117 câu, đủ 10 nhóm L (không chỉ
+riêng L26/L28 ở trên), tách sẵn 20 câu giữ kín. Việc 7 coi như ✅ xong.
 
 ---
 
@@ -151,11 +161,41 @@ Lần chạy **việc 10** (toàn kho) sau này: dùng lại đúng 3 cờ
 
 ---
 
-## 9. Việc tiếp theo, đúng thứ tự
+## 9. Việc 10 — lệnh đã chuẩn bị sẵn, chạy ngay khi việc 9 xong
 
-1. **Việc 7** — duyệt `dev/sheets/`, soạn `dev/tap_dev.jsonl` (việc của
-   Khánh, cần mắt người, xem §4-§5 của `07_lam_tap_dev.md`)
-2. Việc 8 — đo A/B/C, cần việc 7 xong
-3. Việc 9 — tải nốt 30,5 GB, **chỉ sau khi việc 8 thắng**
-4. Việc 10 — chạy toàn kho (dùng lại model đã lưu ở §8)
-5. Việc 11 — kiểm lệch hàng lần cuối + đẩy Drive
+Sau khi keyframe 873/873 video đã tải đủ vào `AIC_data`, chạy theo đúng thứ
+tự sau (đừng bỏ bước 1 — kf_path cần vá lại cho các nhóm L vừa tải thêm):
+
+```powershell
+# 1. Vá lại kf_path cho các nhóm L mới tải (bắt buộc, xem §2)
+python scripts\12_va_duong_dan.py --ghi
+
+# 2. Encode toàn kho — không giới hạn --videos, ước ~2 giờ
+python scripts\08_encode.py `
+  --model ViT-SO400M-14-SigLIP2-378 `
+  --pretrained "D:\Project\AIC_2026\models\ViT-SO400M-14-SigLIP2-378_webli_open_clip_model.safetensors" `
+  --image-size 378 `
+  --batch 16 --out index\clip_siglip2.npy
+
+# 3. Việc 11 — kiểm lệch hàng lần cuối (BẮT BUỘC trước khi tin kết quả)
+python scripts\08_encode.py --kiem-lech-hang index\clip_siglip2.npy
+```
+
+Có checkpoint mỗi ~10.000 dòng (`08_encode.py`) — mất điện giữa chừng thì
+chạy lại đúng lệnh trên, tự tiếp tục chứ không làm lại từ đầu.
+
+Sau khi việc 11 báo ✅ HÀNG KHỚP: đẩy `index/clip_siglip2.npy` +
+`index/clip_siglip2.json` lên Drive (xem bảng bàn giao ở
+[06_ke_hoach_encode_GPU.md §7](06_ke_hoach_encode_GPU.md#7-bảng-bàn-giao)),
+rồi báo cả nhóm để chạy việc 8 (đo A/B/C xác nhận trên toàn kho) và mở khóa
+H3 của kế hoạch v4.3.
+
+---
+
+## 10. Việc tiếp theo, đúng thứ tự
+
+1. ~~Việc 7~~ — ✅ xong (cả team, 117 câu)
+2. ~~Việc 8~~ — 🟢 đã có câu trả lời sớm (A10.3), còn xác nhận trên toàn kho
+3. **Việc 9 — đang làm** (Khánh tự tải 30,5 GB keyframe còn thiếu)
+4. Việc 10 — chạy lệnh đã chuẩn bị sẵn ở §9 ngay khi việc 9 xong
+5. Việc 11 — kiểm lệch hàng lần cuối + đẩy Drive (đã gộp vào lệnh §9)
