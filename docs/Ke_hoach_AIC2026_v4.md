@@ -888,6 +888,52 @@ expansion*, kỹ thuật cổ điển của IR.
 
 ---
 
+### A14 — RRF thô **làm TỆ ĐI**, và lý do đo được ngay trong cùng phép chạy
+
+`scripts/16_do_rrf.py`, 97 câu tập dev. Lần đầu RRF đo được — nó cần ≥ 2 kênh
+chạy được tiếng Việt, mà kênh 1 được 0,0000 (A10). Nay có kênh 2 và kênh 4.
+
+| Cấu hình | ±2s | ±15s | so với kênh 4 |
+| --- | ---: | ---: | --- |
+| **kênh 4 — objects** | **0,0412** | **0,0701** | *(mốc nền)* |
+| kênh 2 — metadata | 0,0000 | 0,0103 | −0,0412 · 0–8–89 |
+| **RRF(2, 4)** | 0,0268 | 0,0577 | **−0,0144 · 0–7–90 · ✅ ỔN ĐỊNH** |
+
+**Hợp nhất hai kênh cho kết quả TỆ HƠN kênh mạnh hơn khi đứng một mình.** Thua ở
+cả hai mức dung sai, vượt nhiễu, 0 thắng / 7 thua. Không phải nhiễu.
+
+**Vì sao — đo luôn trong cùng phép chạy, không phải suy đoán:**
+
+| Điều kiện để RRF cộng hưởng | Kết quả |
+| --- | ---: |
+| Hai kênh chung ≥ 1 **KHUNG** | **5/97 câu** |
+| Hai kênh chung ≥ 1 **VIDEO** | **79/97 câu** (trung bình 4,3 video) |
+
+RRF cộng `1/(k + hạng)` từ mỗi kênh, nên một ứng viên chỉ **được lợi khi nhiều
+kênh cùng đề cử ĐÚNG NÓ** — cùng `row_id`. Ở đây điều đó gần như không xảy ra:
+kênh 2 là kênh **cấp video** (trả mọi khung của video khớp), kênh 4 là kênh
+**cấp khung**. Hai kênh nói hai độ mịn khác nhau, trùng đúng `row_id` là chuyện
+hiếm.
+
+Không cộng hưởng thì RRF chỉ **đan xen** hai danh sách — và đan xen thì mỗi ứng
+viên tốt của kênh mạnh bị đẩy lùi một bậc bởi một ứng viên của kênh yếu. Đó
+chính xác là −0,0144 đo được.
+
+> **Bài học chung, không riêng cặp kênh này:** *"gom đủ năm kênh rồi RRF"* là
+> một giả định, không phải một sự thật. RRF chỉ trả công khi các kênh **đồng ý ở
+> cùng độ mịn**. Trước khi thêm kênh nào vào hợp nhất, đo `chồng lấn` trước —
+> `16_do_rrf.py` in sẵn.
+
+**Hướng sửa, theo đúng chỗ số liệu chỉ:** 79/97 câu hai kênh *có* đồng ý ở cấp
+**video**. Nên hợp nhất phải làm **hai tầng** — RRF ở cấp video để chọn video,
+rồi kênh cấp khung xếp thứ tự trong những video đó. Chưa cài, chưa đo.
+
+**Và một con số cần nhớ:** kênh 4 (objects) đang là **kênh mạnh nhất** hiện có
+— 0,0412 / 0,0701, gấp bốn lần kênh 2. Trước A10 ta vẫn nghĩ kênh 1 là xương
+sống.
+
+---
+
 ## PHẦN B — QUYẾT ĐỊNH HẠ TẦNG
 
 ### B1. Không dùng Supabase / Postgres / Milvus / Elasticsearch — ĐÃ KIỂM CHỨNG
@@ -1620,7 +1666,8 @@ python src\tap_dev.py --kiem
 | --- | --- | --- | --- |
 | 8 | Đo A/B/C cho SigLIP2 — **nhớ `be_chung()`**, xem [06 §5](06_ke_hoach_encode_GPU.md) | Khánh | đã có câu trả lời sớm trên CPU (A10.3); còn xác nhận trên toàn kho |
 | 9 | Đo `dedup.py` — giữ hay bỏ theo số | TV1 | ✅ **ĐÃ ĐO (A11): hoãn bật.** No-op trên truy vấn đọc được (0,5/100, hạng 1 không đổi). Đo lại bằng `13_do_dedup.py --matrix clip_siglip2.npy --moi-video 3` |
-| 9b | Đo RRF / `lan_can.py` | TV1 | **chặn**: RRF cần ≥ 2 kênh chạy được, hiện chỉ có 1 |
+| 9b | ~~Đo RRF~~ | TV1 | ✅ **ĐÃ ĐO (A14): RRF thô LÀM TỆ ĐI** (−0,0144, ổn định). Nguyên nhân đo được: chỉ 5/97 câu hai kênh chung một khung. **Việc mới: hợp nhất hai tầng** (RRF cấp video → xếp khung) |
+| 9c | Đo `lan_can.py` | TV1 | làm được ngay, kênh 4 đã cho mốc nền khác 0 |
 | 10 | Mở rộng bench VLM lên ≥ 50 câu, test với ngữ cảnh thật | TV5 | |
 
 > **Vì sao mọi phép đo đều chặn ở cùng một chỗ.** Kênh 1 chạy CLIP thì được
