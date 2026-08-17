@@ -703,6 +703,64 @@ Kiểm lệch hàng trước khi tin: **16/16 cặp khớp**, trung vị cosine 
 
 ---
 
+### A11 — Dedup: **hoãn**, và bài học về việc đo trên một kênh đang hỏng
+
+`scripts/13_do_dedup.py`, 97 câu tập dev + 15 truy vấn tiếng Anh đối chứng.
+
+Phép đo đầu tiên trông như một phát hiện lớn:
+
+| Truy vấn | Dedup bỏ | Vị trí lệch | Top-100 trải |
+| --- | ---: | ---: | ---: |
+| **Tiếng Việt** (97 câu tập dev) | **58,4/100** | 77,5 | 40 video |
+| **Tiếng Anh** (15 câu đối chứng) | **0,5/100** | 2,6 | 63 video |
+
+Chênh nhau **117 lần**. Con số 58,4 **không đo lợi ích của dedup** — nó đo cái
+hỏng của kênh 1. CLIP mù tiếng Việt (A10) nên vector truy vấn gần như ngẫu
+nhiên, top-100 đổ dồn vào một cảnh tĩnh duy nhất, và dedup dọn đống đó. Số dùng
+được là **0,5/100**.
+
+> Nếu chỉ chạy trên tập dev tiếng Việt rồi báo "dedup bỏ được 58% ứng viên
+> thừa", ta đã đưa một no-op vào đường ống và tưởng mình vừa tối ưu. Nhóm đối
+> chứng là thứ duy nhất chặn được — script tự cảnh báo khi hai nhóm lệch quá 5
+> lần.
+
+**Vì sao 0,5 chứ không phải 11,83% như A5.6.** Ba lý do chồng lên nhau:
+
+1. **11,83% của toàn kho là con số đánh lừa.** 18.654 trong 20.975 bản sao
+   (**89%**) nằm ở riêng L25. Chín nhóm còn lại đều dưới 2,2%; L21 và L22 chỉ
+   0,45% và 0,27%.
+2. **Bản sao chỉ tính trong cùng video**, mà top-100 của một truy vấn đọc được
+   trải ra 63 video — mỗi video góp một hai frame, hiếm khi hai thành viên cùng
+   cụm gặp nhau trong cùng top-100.
+3. Ép bể **chỉ còn L25** (49,82% trùng lặp, tệ nhất kho) cũng chỉ bỏ **2,5/100**.
+
+Và **hạng 1 không đổi ở bất kỳ phép đo nào** (0/97 và 0/15). R@1 chiếm 1/5 tổng
+điểm; dedup không chạm tới nó.
+
+**Chỗ duy nhất còn đất: khi bật `moi_video`.** Ràng buộc đó giữ tối đa k frame
+mỗi video, và nếu k frame ấy là k bản sao thì cả ngân sách của video phí. Đo với
+`moi_video=3`: bể L25 lệch **30,5/100** vị trí, toàn kho 2,3. Đúng như docstring
+`dedup.py` dự đoán — `gioi_han_moi_video()` **không thay được** dedup, hai cái
+bổ sung cho nhau.
+
+**Chưa kết luận được về điểm**, và phải nói rõ vì sao chứ không im lặng: kênh
+duy nhất đọc được tiếng Việt là SigLIP2, mà ma trận thử của nó mới encode 11
+video L21+L22 — **đúng hai nhóm trùng lặp ít nhất kho**. Đo dedup ở đó là đo chỗ
+nó không có gì để làm. Cả hai ma trận đều ra `⚪ KHÔNG ĐỔI GÌ`.
+
+> **Quyết định.** Giữ module, **không bật mặc định**. Đo lại khi có
+> `clip_siglip2.npy` toàn kho, trên câu L25, với `moi_video` bật:
+> `python scripts/13_do_dedup.py --matrix clip_siglip2.npy --moi-video 3`
+
+**Bẫy phụ tìm ra khi đo.** Sidecar `.json` của `08_encode.py` ghi
+`da_encode: 18.635` trong khi ma trận chỉ có **3.135** dòng thật — chênh 6 lần.
+Nguyên nhân: dòng chưa tải ảnh cũng được đánh dấu `xong` (để giữ nguyên vị trí
+hàng) nhưng vector vẫn là 0. Ai đọc file đó để ước bể ứng viên sẽ ước sai, mà
+sai kích thước bể thì điểm lệch tới **+0,2833** (xem `be_chung()`). Đã thêm
+trường `co_vector` và in rõ "BỂ ỨNG VIÊN THẬT" khi encode xong.
+
+---
+
 ## PHẦN B — QUYẾT ĐỊNH HẠ TẦNG
 
 ### B1. Không dùng Supabase / Postgres / Milvus / Elasticsearch — ĐÃ KIỂM CHỨNG
@@ -1049,21 +1107,18 @@ EasyOCR / PaddleOCR / VietOCR — **không cái nào biết viết caption**.
 
 #### TV1 + TV2 — Hai việc MỚI làm được NGAY, không chờ tải dữ liệu
 
-**(a) Khử trùng lặp trong cùng video** *(A8.8, PHẦN C mục 6)*
+**(a) Khử trùng lặp trong cùng video** *(A8.8, PHẦN C mục 6)* — ✅ **ĐÃ CÀI, ĐÃ ĐO, HOÃN BẬT**
 
-Nguyên liệu đã có: `clip.npy` trong RAM và `index/trung_lap.parquet` (đã dựng ở
-Giai đoạn 0, chứa `max_cos` từng keyframe tới bản giống nhất cùng video).
+`src/dedup.py` xong, `scripts/13_do_dedup.py` đo xong. Kết quả đầy đủ ở **A11**.
 
-```python
-# src/dedup.py — gộp keyframe gần trùng thành cụm, giữ một đại diện
-# Không cần AutoShot, không cần trích lại gì: chỉ so vector đã có.
-def gom_cum(clip, master, nguong=0.99): ...   # -> cot 'cum_id'
-def loc_top_k(ung_vien, k, moi_cum_toi_da=1): ...
-```
+Tóm tắt: trên truy vấn CLIP **đọc được**, dedup bỏ **0,5/100** ứng viên và
+**không đổi hạng 1 câu nào** — gần như no-op. Con số 58,4/100 đo trên tập dev
+tiếng Việt là **ảo giác**, nó đo cái mù tiếng Việt của CLIP chứ không đo dedup.
+Chỗ duy nhất nó còn tác dụng là khi bật `moi_video` trên bể nhiều bản sao (L25).
 
-Áp **sau khi xếp hạng, trước khi cắt top-K**, để không mất ứng viên ở khâu
-truy hồi. Kiểm hiệu quả trên tập dev của Khánh — nếu không tăng điểm thì bỏ,
-theo kỷ luật của GIAI ĐOẠN 3.
+**Giữ module, không bật mặc định.** Đo lại khi có `clip_siglip2.npy` toàn kho —
+đó mới là lần đo có nghĩa, vì hiện chỉ SigLIP2 đọc được tiếng Việt mà ma trận
+thử của nó nằm đúng hai nhóm ít trùng lặp nhất kho.
 
 **(b) Đo thử một embedding thứ hai** *(A8.4 lỗ hổng 2)*
 
@@ -1390,24 +1445,32 @@ objects từ "nhiễu nặng, kênh phụ" → **kênh chính thứ tư**.
 *Giai đoạn 0 đã đóng (873/873, 0 lệch chỉ số thật). Mọi việc dưới đây thuộc
 Giai đoạn 1.*
 
-### H1. Đường găng — chặn mọi thứ khác
+### H1. Đường găng — ✅ **ĐÃ THÔNG**
 
-| # | Việc | Ai | Vì sao chặn |
-| --- | --- | --- | --- |
-| **1** | **Tập dev ~60 câu, phân tầng 10 nhóm L** | **cả nhóm, Khánh gộp** | Bản 4.1 thêm 6 giả thuyết từ bài báo AIC'25 và **không cái nào được giữ nếu không đo được**. Việc 8 của kế hoạch GPU cũng chặn ở đây |
+**117 câu, đủ cả 10 nhóm L**, đã tách tập test giữ kín:
 
-Hiện có **40 câu / 5 nhóm L** (L21, L22, L23, L26, L27) — còn thiếu **L24,
-L25, L28, L29, L30**. Mỗi người soạn **6 câu cho mỗi nhóm L mình
-giữ** — chỉ máy giữ gói `Keyframes_*` mới mở được ảnh gốc để kiểm lại. Quy
-trình đầy đủ: [07_lam_tap_dev.md](07_lam_tap_dev.md).
+| | KIS | QA | TRAKE | Tổng |
+| --- | ---: | ---: | ---: | ---: |
+| `dev/tap_dev.jsonl` | 55 | 42 | 0 | **97** |
+| `dev/tap_test.jsonl` 🔒 | 10 | 10 | 0 | **20** |
+
+Phân bố dev theo nhóm: L21 7 · L22 11 · L23 7 · L24 5 · L25 10 · L26 19 ·
+L27 9 · L28 10 · L29 10 · L30 9.
+
+**Còn thiếu: câu TRAKE (0 câu) và câu đếm.** `scripts/11_tim_cau_dem.py` lọc
+sẵn ứng viên khung nhiều vật đếm được.
+
+Thêm câu mới thì cứ `--gop` bình thường — **câu mới vào tập dev, tập test giữ
+nguyên**, `gop()` tự loại. **Không chạy lại `--tach-test`** (nó cũng tự từ
+chối). Quy trình đầy đủ: [07_lam_tap_dev.md](07_lam_tap_dev.md).
 
 ```powershell
 python scripts\10_contact_sheet.py --nhom <L của mình> --thua 10
 python scripts\10_contact_sheet.py --tra <row_id...> --mo
 # soạn vào dev/tap_dev_thanh_vien/tap_dev_<nhóm>.jsonl
-python src\tap_dev.py --gop dev\tap_dev_thanh_vien --file dev\tap_dev.jsonl
-python src\tap_dev.py --file dev\tap_dev.jsonl --no-cum
-python src\tap_dev.py --file dev\tap_dev.jsonl --kiem
+python src\tap_dev.py --gop dev\tap_dev_thanh_vien
+python src\tap_dev.py --no-cum
+python src\tap_dev.py --kiem
 ```
 
 ### H2. Làm được ngay, không chờ ai
@@ -1422,13 +1485,19 @@ python src\tap_dev.py --file dev\tap_dev.jsonl --kiem
 | 6 | **Gán nhãn 400 mẫu `ocr_v2` + điền `roi_v2.yaml`** | TV4 | đang **0/400**. ROI: ranh giới là **dải chữ chạy cuối cùng**, KHÔNG phải "bỏ nửa dưới" — băng rôn tiêu đề có liên quan tới hình |
 | 7 | **`src/run.py`** — đường ống đầu-cuối | TV5 | chỉ đáng viết khi đã có ≥ 2 kênh |
 
-### H3. Chờ tập dev xong
+### H3. Chờ **ma trận SigLIP2 toàn kho** (không còn chờ tập dev)
 
-| # | Việc | Ai |
-| --- | --- | --- |
-| 8 | Đo A/B/C cho SigLIP2 — **nhớ `be_chung()`**, xem [06 §5](06_ke_hoach_encode_GPU.md) | Khánh |
-| 9 | Đo `dedup.py` / RRF / `lan_can.py` — giữ hay bỏ theo số | TV1 |
-| 10 | Mở rộng bench VLM lên ≥ 50 câu, test với ngữ cảnh thật | TV5 |
+| # | Việc | Ai | Trạng thái |
+| --- | --- | --- | --- |
+| 8 | Đo A/B/C cho SigLIP2 — **nhớ `be_chung()`**, xem [06 §5](06_ke_hoach_encode_GPU.md) | Khánh | đã có câu trả lời sớm trên CPU (A10.3); còn xác nhận trên toàn kho |
+| 9 | Đo `dedup.py` — giữ hay bỏ theo số | TV1 | ✅ **ĐÃ ĐO (A11): hoãn bật.** No-op trên truy vấn đọc được (0,5/100, hạng 1 không đổi). Đo lại bằng `13_do_dedup.py --matrix clip_siglip2.npy --moi-video 3` |
+| 9b | Đo RRF / `lan_can.py` | TV1 | **chặn**: RRF cần ≥ 2 kênh chạy được, hiện chỉ có 1 |
+| 10 | Mở rộng bench VLM lên ≥ 50 câu, test với ngữ cảnh thật | TV5 | |
+
+> **Vì sao mọi phép đo đều chặn ở cùng một chỗ.** Kênh 1 chạy CLIP thì được
+> **0,0000** trên tập dev tiếng Việt (A10) — không có gì để cải thiện, nên mọi
+> cấu hình đo trên nó đều ra `⚪ KHÔNG ĐỔI GÌ`. Đó không phải kết luận về cấu
+> hình, đó là kết luận về kênh. **`clip_siglip2.npy` toàn kho mở khóa cả H3.**
 
 ### H4. Việc người, không tự động hóa được
 
