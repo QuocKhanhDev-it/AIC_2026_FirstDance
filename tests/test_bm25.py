@@ -16,7 +16,7 @@ import pytest
 GOC = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(GOC / "src"))
 
-from bm25 import BM25, KenhVanBan, bo_dau, tach   # noqa: E402
+from bm25 import BM25, KenhVanBan, bo_dau, don_metadata, tach   # noqa: E402
 
 
 def master_gia(n_video=3, n_khung=4) -> pd.DataFrame:
@@ -134,6 +134,63 @@ def test_tu_bang_khung_bo_caption_rong():
                          "caption": ["một người đàn ông", "", None]})
     k = KenhVanBan.tu_bang_khung(m, bang)
     assert len(k) == 1
+
+
+def test_don_metadata():
+    """`don_metadata` phải xóa URL, hashtag và mention."""
+    s = "Xem thêm tại https://youtube.com/watch?v=123 #amthuc #monngon @vtv3 để biết"
+    sach = don_metadata(s)
+    assert "https" not in sach
+    assert "youtube" not in sach
+    assert "#amthuc" not in sach
+    assert "amthuc" not in sach
+    assert "@vtv3" not in sach
+    assert "vtv3" not in sach
+    assert "Xem thêm tại" in sach
+    assert "để biết" in sach
+
+
+def test_don_metadata_khong_noi_lien_hai_ben_rac():
+    """Rác nằm ở giữa câu khi xóa phải thay bằng '. ' để không sinh bigram lai hai bên."""
+    s = "Chi tiết tại https://youtu.be/xyz123 #nauan @chef nấu ăn ngon nhé"
+    sach = don_metadata(s)
+    t = tach(sach)
+    assert "tại_nấu" not in t, "Sinh spurious bigram 'tại_nấu' do nối liền 2 bên rác"
+    assert "chi_tiết" in t
+    assert "nấu_ăn" in t
+    assert "ăn_ngon" in t
+
+
+def test_tu_metadata_ngat_bigram_giua_cac_truong():
+    """Ghép title + description + keywords bằng '. ' để không sinh bigram lai."""
+    df = pd.DataFrame([{
+        "row_id": 0, "video_id": "V001", "frame_idx": 0, "pts_time": 0.0,
+        "fps": 25.0, "kf_n": 0, "kf_name": "0.jpg", "kf_path": None,
+        "title": "ngày", "description": "món ngon", "keywords": "thực đơn"
+    }])
+    k = KenhVanBan.tu_metadata(df)
+    # Lấy các token trong chỉ mục có dấu
+    tokens = set(k.co_dau.chi_muc.keys())
+    assert "ngày_món" not in tokens, "Sinh spurious bigram ngày_món tại biên title-description"
+    assert "ngon_thực" not in tokens, "Sinh spurious bigram ngon_thực tại biên description-keywords"
+    assert "ngày_ngày" not in tokens, "Sinh spurious bigram ngày_ngày giữa các lần lặp title"
+    assert "món_ngon" in tokens
+    assert "thực_đơn" in tokens
+
+
+def test_tu_metadata_loc_rac_description_keywords():
+    """URL, hashtag và mention trong metadata phải được dọn trước khi tạo BM25."""
+    df = pd.DataFrame([{
+        "row_id": 0, "video_id": "V001", "frame_idx": 0, "pts_time": 0.0,
+        "fps": 25.0, "kf_n": 0, "kf_name": "0.jpg", "kf_path": None,
+        "title": "Món ăn ngon",
+        "description": "Chi tiết tại https://youtu.be/xyz123 #nauan @chef",
+        "keywords": "cách nấu #monngon"
+    }])
+    k = KenhVanBan.tu_metadata(df)
+    tokens = set(k.co_dau.chi_muc.keys())
+    for rac in ("https", "youtu", "be", "xyz123", "nauan", "monngon", "chef"):
+        assert rac not in tokens, f"Token rác '{rac}' vẫn lọt vào chỉ mục metadata"
 
 
 # ---- dữ liệu thật ----------------------------------------------------------
