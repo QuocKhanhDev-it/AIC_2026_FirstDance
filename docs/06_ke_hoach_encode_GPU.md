@@ -114,6 +114,22 @@ Không cần thêm dữ liệu gì. Đây là lý do việc 6 phải chạy trư
 | **6** | `python scripts\08_encode.py --kiem-lech-hang index\clip_siglip2_thu.npy` | cặp trùng lặp vẫn trùng |
 | **10** | `python scripts\08_encode.py --model ViT-SO400M-14-SigLIP2-378 --pretrained webli --batch 16 --fp16 --out index\clip_siglip2.npy` | `(177321, 1152)` |
 
+> 🟢 **CẬP NHẬT 16/08 — việc 8 đã có câu trả lời sớm, đo trên CPU.** Không cần
+> chờ GPU nữa: `ViT-B-16-SigLIP2-256` (bản **nhỏ nhất** họ SigLIP2, chạy được
+> trên CPU) đã encode 11 video và so ba cấu hình trên cùng bể —
+>
+> | Cấu hình | ±2s | ±15s |
+> | --- | --- | --- |
+> | CLIP + tiếng Việt | 0,0095 | 0,0857 |
+> | CLIP + bản dịch tay | 0,8190 | 0,8952 |
+> | **SigLIP2 + tiếng Việt** | **0,8571** | **0,9429** |
+>
+> **Thắng 21/21 câu**, không thua câu nào. Xem A10.3 của kế hoạch.
+>
+> → **Việc 9 và 10 nay được phép chạy.** Điều kiện "chỉ tải 30,5 GB sau khi
+> việc 8 thắng" đã thoả. Dùng `ViT-SO400M-14-SigLIP2-378` như đã chốt ở §2 —
+> nó mạnh hơn bản vừa thử nhiều.
+
 ### Việc 8 — ba cấu hình phải so
 
 | Cấu hình | Là gì | Ý nghĩa nếu thắng |
