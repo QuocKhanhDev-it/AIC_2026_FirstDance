@@ -924,9 +924,39 @@ chính xác là −0,0144 đo được.
 > cùng độ mịn**. Trước khi thêm kênh nào vào hợp nhất, đo `chồng lấn` trước —
 > `16_do_rrf.py` in sẵn.
 
-**Hướng sửa, theo đúng chỗ số liệu chỉ:** 79/97 câu hai kênh *có* đồng ý ở cấp
-**video**. Nên hợp nhất phải làm **hai tầng** — RRF ở cấp video để chọn video,
-rồi kênh cấp khung xếp thứ tự trong những video đó. Chưa cài, chưa đo.
+#### A14.1 — Hợp nhất hai tầng: **đã cài, đã đo, cũng không cứu được**
+
+79/97 câu hai kênh *có* đồng ý ở cấp video, nên hướng sửa hiển nhiên là RRF hai
+tầng: chọn video ở tầng 1, xếp khung ở tầng 2 (`rrf.hop_nhat_hai_tang`).
+
+| Cấu hình | ±2s | ±15s | so với kênh 4 |
+| --- | ---: | ---: | --- |
+| **kênh 4 objects** | **0,0412** | **0,0701** | *(mốc nền)* |
+| RRF thô (2, 4) | 0,0268 | 0,0577 | −0,0144 ✅ ổn định |
+| 2 tầng, mỗi video 1 | 0,0103 | 0,0412 | −0,0309 🟡 |
+| 2 tầng, mỗi video 3 | 0,0206 | 0,0515 | −0,0186 🟡 |
+| 2 tầng, mỗi video 10 | 0,0433 | 0,0680 | +0,0021 / −0,0021 ❌ **đảo dấu** |
+| *chỉ kênh 4, qua 2 tầng* | 0,0206 | 0,0639 | −0,0206 ✅ ổn định |
+
+**Không cấu hình nào thắng được kênh 4 đứng một mình.** Cái tốt nhất
+(`mỗi video 10`) đảo dấu giữa hai mức dung sai — theo kỷ luật đã đặt ở
+`bao_cao_do_nhay`, đó là **không kết luận được**, không phải "hơi hơn".
+
+Dòng đối chứng *"chỉ kênh 4, qua 2 tầng"* là dòng quan trọng nhất trong bảng:
+chạy **một kênh duy nhất** qua bộ máy hai tầng đã mất **−0,0206**. Tức bản thân
+việc ép rải đều theo video đã tốn điểm, trước khi nói tới chuyện hợp nhất. Không
+có dòng đối chứng này thì mọi thay đổi đều dễ bị quy nhầm cho "hợp nhất".
+
+**Kết luận đúng phạm vi — và phải nói rõ phạm vi:** hợp nhất không cứu được
+**cặp kênh NÀY**, vì kênh 2 được 0,0000 ở ±2s. Một kênh không có thông tin cấp
+khung thì không thể đóng góp gì cho việc xếp khung, ở bất kỳ kiến trúc nào.
+**Điều này KHÔNG chứng minh hợp nhất vô dụng** khi SigLIP2 — một kênh cấp khung
+mạnh — xuất hiện.
+
+> **Quy trình bắt buộc từ nay, thay cho "gom đủ năm kênh rồi RRF":**
+> thêm **từng kênh một**, so với **kênh mạnh nhất hiện có**, và **chỉ giữ cái
+> nào thắng**. Cộng thêm một kênh yếu vào một kênh mạnh là **pha loãng**, đo
+> được, ổn định, và không có kiến trúc hợp nhất nào sửa được.
 
 **Và một con số cần nhớ:** kênh 4 (objects) đang là **kênh mạnh nhất** hiện có
 — 0,0412 / 0,0701, gấp bốn lần kênh 2. Trước A10 ta vẫn nghĩ kênh 1 là xương

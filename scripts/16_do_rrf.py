@@ -39,7 +39,7 @@ from bm25 import KenhVanBan                           # noqa: E402
 from cham_diem import bao_cao_do_nhay, MOC_DUNG_SAI   # noqa: E402
 from objects import (load_channel, nap_bang_nhan,     # noqa: E402
                      nhan_tu_truy_van, object_score)
-from rrf import hop_nhat                              # noqa: E402
+from rrf import hop_nhat, hop_nhat_hai_tang           # noqa: E402
 from schema import Candidate                          # noqa: E402
 
 
@@ -145,11 +145,22 @@ def main():
     # Mốc nền phải là KÊNH MẠNH NHẤT, không phải kênh tiện tay đặt trước. Câu
     # hỏi cần trả lời là "hợp nhất có hơn kênh mạnh nhất không" — so với kênh
     # yếu thì RRF gần như luôn thắng, mà thắng như vậy chẳng nói lên điều gì.
-    print(bao_cao_do_nhay(cau, {
+    cau_hinh = {
         "kênh 4 objects (mốc)": f4,
         "kênh 2 metadata": f2,
-        "RRF(2, 4)": lambda c: hop_nhat([f2(c), f4(c)]),
-    }, master, MOC_DUNG_SAI, gioi_han=a.k))
+        "RRF thô (2, 4)": lambda c: hop_nhat([f2(c), f4(c)]),
+    }
+    for mv in (1, 3, 10):
+        cau_hinh[f"RRF 2 tầng, mỗi video {mv}"] = (
+            lambda mv: lambda c: hop_nhat_hai_tang(
+                [f2(c), f4(c)], moi_video=mv, gioi_han=a.k))(mv)
+    # Kênh 4 đứng một mình nhưng đi qua tầng 2: tách đóng góp của TẦNG 1 ra
+    # khỏi đóng góp của việc chỉ đơn thuần rải đều theo video. Không có dòng
+    # này thì mọi cải thiện đều dễ bị quy nhầm cho "hợp nhất".
+    cau_hinh["chỉ kênh 4, qua 2 tầng"] = lambda c: hop_nhat_hai_tang(
+        [f4(c)], moi_video=3, gioi_han=a.k)
+
+    print(bao_cao_do_nhay(cau, cau_hinh, master, MOC_DUNG_SAI, gioi_han=a.k))
 
 
 if __name__ == "__main__":
