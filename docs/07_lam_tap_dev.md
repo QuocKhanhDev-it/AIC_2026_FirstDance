@@ -362,14 +362,39 @@ phải từ một keyframe.
 Đây cũng là dạng câu duy nhất mà `trich_day` thật sự cần thiết — không có câu
 đếm thì không đo được nó có đáng giữ hay không.
 
-## §8. Cất tập test
+## §8. Tập test giữ kín — ĐÃ TÁCH
 
-Giai đoạn 3 yêu cầu kiểm cuối trên tập **chưa từng nhìn**. Với 50 câu mà chia
-đôi thì hỏng cả hai.
+Giai đoạn 3 yêu cầu kiểm cuối trên tập **chưa từng nhìn**.
 
-Đề nghị: soạn **60 câu**, cất **15 câu** sang `dev/tap_test.jsonl`, **không mở
-ra cho tới lượt đo cuối cùng**. Không cần cơ chế gì phức tạp — chỉ cần kỷ luật
-không mở file đó.
+```powershell
+python src\tap_dev.py --file dev\tap_dev.jsonl --tach-test    # CHỈ MỘT LẦN
+```
+
+Đã chạy 16/08 trên 117 câu → **97 dev / 20 test**, phân tầng theo
+**(nhóm L × loại câu)** nên cả 10 nhóm và cả hai loại đều có mặt ở hai bên.
+
+| | KIS | QA | Tổng |
+| --- | --- | --- | --- |
+| `dev/tap_dev.jsonl` | 55 | 42 | **97** |
+| `dev/tap_test.jsonl` 🔒 | 10 | 10 | **20** |
+
+### Ba cơ chế giữ cho nó không rò
+
+Kỷ luật "đừng mở file" là chưa đủ — đường rò thật nằm ở chỗ khác:
+
+| Cơ chế | Chặn cái gì |
+| --- | --- |
+| **`gop()` tự loại câu đã ở tập test** | Mỗi lần có người gửi câu mới, ai đó chạy `--gop`, và nếu không chặn thì tập test **tan biến trong im lặng**. Đây mới là đường rò thật |
+| **`--tach-test` từ chối chạy lần hai** | Tách lại là đổi thành phần tập test; câu bị đẩy ra sẽ quay về tập dev **sau khi ta đã dò trên chúng** |
+| **Chỉ câu HOÀN CHỈNH mới được vào tập test** | Câu còn lỗi (vd QA thiếu `dap_an`) lọt vào đó là **kẹt vĩnh viễn**: luôn chấm 0, mà bản sửa ở file thành viên không chảy tới được vì `gop()` đã loại nó |
+
+Cơ chế thứ ba học được bằng cách vấp: lần tách đầu, một câu L29 thiếu `dap_an`
+lọt vào tập test và `tests/test_tap_dev.py` bắt được ngay.
+
+### Thêm câu mới sau khi đã tách
+
+Cứ `--gop` bình thường — **câu mới vào tập dev, tập test giữ nguyên**. Không
+cần và không được tách lại.
 
 ---
 

@@ -129,6 +129,49 @@ def kiem(cau: list[CauHoi], index_dir=GOC / "index") -> list[str]:
     return loi
 
 
+MAC_DINH_TEST = GOC / "dev" / "tap_test.jsonl"
+
+
+def tach_test(cau: list[CauHoi], master, ty_le: float = 0.15,
+              seed: int = 2026) -> tuple[list[CauHoi], list[CauHoi]]:
+    """Chia thành (dev, test), **phân tầng theo (nhóm L × loại câu)**.
+
+    Vì sao phân tầng: L26 chiếm 23/100 câu và tỷ lệ QA khác nhau giữa các nhóm.
+    Chia ngẫu nhiên thuần có thể ra tập test không có câu QA nào, hoặc dồn hết
+    vào một nhóm L — rồi con số kiểm cuối cùng chẳng đại diện cho cái gì.
+
+    Chọn bằng **băm tất định trên `id`**, không dùng `random.shuffle`: kết quả
+    giống nhau trên mọi máy, mọi lần chạy, không phụ thuộc thứ tự file.
+    """
+    import hashlib
+    from collections import defaultdict
+
+    # Chỉ câu HOÀN CHỈNH mới được vào tập giữ kín. Câu còn lỗi (vd QA thiếu
+    # `dap_an`) mà lọt vào đó là kẹt vĩnh viễn: nó luôn chấm 0, mà `gop()` đã
+    # loại câu test nên bản sửa ở file thành viên không bao giờ chảy tới được.
+    # Giữ chúng lại ở tập dev cho tới khi tác giả sửa xong.
+    xau = {x.split(":")[0] for x in kiem(cau)}
+    if xau:
+        print(f"Giữ {len(xau)} câu còn lỗi ở lại tập dev: {sorted(xau)}")
+
+    tang = defaultdict(list)
+    for c in cau:
+        if c.id not in xau:
+            tang[(c.nhom(master), c.loai)].append(c)
+
+    test_id = set()
+    for _, ds in sorted(tang.items()):
+        k = round(len(ds) * ty_le)
+        if k == 0:
+            continue
+        xep = sorted(ds, key=lambda c: hashlib.md5(
+            f"{seed}:{c.id}".encode()).hexdigest())
+        test_id |= {c.id for c in xep[:k]}
+
+    return ([c for c in cau if c.id not in test_id],
+            [c for c in cau if c.id in test_id])
+
+
 def _bung(duong_dan: list) -> list[Path]:
     """Bung `*.jsonl` và thư mục thành danh sách file.
 
@@ -161,14 +204,24 @@ def gop(cac_file: list, index_dir=GOC / "index") -> tuple[list[CauHoi], list[str
     thì sau này không ai truy được câu đó của ai. Đặt `id` theo nhóm L
     (`kis-L21-001`) là hết trùng mà còn nhìn ra phân bố ngay trên id.
     """
-    ra, thay, loi = [], {}, []
+    # ⚠️ CHỐNG RÒ TẬP TEST. Không có đoạn này thì `--gop` chạy lại từ file thành
+    # viên sẽ dựng lại ĐỦ cả trăm câu và nuốt mất tập giữ kín — im lặng, không
+    # báo gì. Từ đó mọi con số "kiểm trên tập chưa từng nhìn" thành vô nghĩa.
+    giu_kin = {c.id for c in doc(MAC_DINH_TEST)}
+
+    ra, thay, loi, bo = [], {}, [], 0
     for f in _bung(cac_file):
         for c in doc(f):
+            if c.id in giu_kin:
+                bo += 1
+                continue
             if c.id in thay:
                 loi.append(f"id '{c.id}' có ở cả {thay[c.id]} và {Path(f).name}")
                 continue
             thay[c.id] = Path(f).name
             ra.append(c)
+    if bo:
+        print(f"Bỏ {bo} câu đã nằm trong tập test giữ kín ({MAC_DINH_TEST.name})")
     return ra, loi
 
 
@@ -193,7 +246,35 @@ def main():
     ap.add_argument("--no-cum", action="store_true", help="nở cụm trùng lặp rồi ghi đè")
     ap.add_argument("--gop", nargs="+", default=None,
                     help="gộp nhiều file .jsonl của các thành viên vào --file")
+    ap.add_argument("--tach-test", action="store_true",
+                    help="tách tập test giữ kín ra dev/tap_test.jsonl. "
+                         "CHỈ CHẠY MỘT LẦN")
+    ap.add_argument("--ty-le", type=float, default=0.15)
     a = ap.parse_args()
+
+    if a.tach_test:
+        if MAC_DINH_TEST.exists():
+            raise SystemExit(
+                f"❌ {MAC_DINH_TEST} ĐÃ TỒN TẠI — không tách lại.\n\n"
+                "Tách lại là đổi thành phần tập test, mà những câu bị đẩy RA sẽ\n"
+                "quay về tập dev sau khi ta đã dò trên chúng. Tập test hết còn\n"
+                "'chưa từng nhìn', và con số kiểm cuối thành vô nghĩa.\n\n"
+                "Thêm câu mới thì cứ `--gop` bình thường: câu mới vào tập dev,\n"
+                "tập test giữ nguyên.")
+        cau = doc(a.file)
+        if not cau:
+            raise SystemExit(f"Chưa có câu nào trong {a.file}")
+        master = pd.read_parquet(Path(a.index) / "master.parquet")
+        dev, test = tach_test(cau, master, a.ty_le)
+        ghi(dev, a.file)
+        ghi(test, MAC_DINH_TEST)
+        print(f"Tách {len(cau)} câu -> dev {len(dev)} | test {len(test)}\n")
+        print("PHÂN BỐ TẬP DEV");  print(phan_bo(dev, a.index).to_string())
+        print("\nPHÂN BỐ TẬP TEST"); print(phan_bo(test, a.index).to_string())
+        print(f"\n🔒 {MAC_DINH_TEST}")
+        print("   ĐỪNG MỞ, ĐỪNG ĐO cho tới lượt kiểm cuối cùng ở Giai đoạn 3.")
+        print("   `--gop` từ nay tự loại các câu này khỏi tập dev.")
+        return
 
     if a.gop:
         cau, loi = gop(a.gop, a.index)
