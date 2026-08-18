@@ -178,6 +178,37 @@ def test_tu_metadata_ngat_bigram_giua_cac_truong():
     assert "thực_đơn" in tokens
 
 
+def test_don_metadata_khong_an_chu_that_sau_hashtag():
+    """`#\\w+` chứ không phải `#\\S+`.
+
+    `\\S+` chạy tới khoảng trắng gần nhất nên `"#amthuc,rau cu"` bị ăn luôn cả
+    `rau`. Trên kho hiện tại chưa cắn (hashtag luôn có khoảng trắng theo sau),
+    nhưng kênh 3 sắp đẩy chữ OCR qua đúng hàm này và chữ OCR bẩn hơn nhiều.
+    """
+    t = tach(don_metadata("món ngon #amthuc,rau củ xanh"))
+    assert "rau" in t, "hashtag ăn luôn từ thật đứng sau dấu phẩy"
+    assert "củ" in t
+    assert "amthuc" not in t
+
+
+def test_tu_metadata_don_ca_title():
+    """Rác trong `title` ăn trọng số GẤP BA vì title lặp 3 lần.
+
+    13/873 tiêu đề của kho có hashtag; bản vá đầu chỉ dọn description và
+    keywords nên chỗ nặng nhất lại là chỗ bị bỏ sót.
+    """
+    df = pd.DataFrame([{
+        "row_id": 0, "video_id": "V001", "frame_idx": 0, "pts_time": 0.0,
+        "fps": 25.0, "kf_n": 0, "kf_name": "0.jpg", "kf_path": None,
+        "title": "Múa lân #htvsports #htvthethao",
+        "description": "", "keywords": "",
+    }])
+    tokens = set(KenhVanBan.tu_metadata(df).co_dau.chi_muc.keys())
+    assert "htvsports" not in tokens
+    assert "htvthethao" not in tokens
+    assert "lân" in tokens
+
+
 def test_tu_metadata_loc_rac_description_keywords():
     """URL, hashtag và mention trong metadata phải được dọn trước khi tạo BM25."""
     df = pd.DataFrame([{

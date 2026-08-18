@@ -964,6 +964,60 @@ sống.
 
 ---
 
+### A15 — Dọn rác metadata (NgThanhDat-ne): sửa lỗi thật, **nhưng không đổi điểm**
+
+`scripts/17_compare_tu_metadata_bugs.py`, dò 2×2 trên 873 video / 97 câu dev.
+
+**Lỗi tìm ra là lỗi thật, và là lỗi của tôi.** `tu_metadata` ghép các trường
+bằng `" "`, nên `tach()` sinh **bigram bắc cầu qua biên trường**: title lặp 3
+lần khiến `"…VIVU TV"` nối với đầu lần lặp sau đẻ ra `tv_món` — một cụm không hề
+có trong văn bản gốc, mà lại hiếm nên IDF cao. Sửa bằng cách ghép `". "` là
+đúng.
+
+**Tách hai nút ra mới biết nút nào làm việc.** Bản vá đổi *hai* thứ cùng lúc
+(dọn rác + đổi cách ghép), nên phải dò riêng:
+
+| Cấu hình | Từ vựng | top-1 | top-10 | top-20 | Trung vị hạng |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| V0 ghép `' '` · giữ rác | 15.722 | 10 | 22 | 29 | 142 |
+| Va ghép `'. '` · giữ rác | 15.168 | 10 | 22 | 29 | 128 |
+| **Vb ghép `' '` · dọn rác** | 14.930 | **11** | 21 | 26 | **118** |
+| V2 ghép `'. '` · dọn rác | 14.316 | 11 | 21 | 26 | 119 |
+
+**Việc dọn rác là thứ làm việc; cách ghép gần như không.** V2 ≡ Vb ở *mọi*
+thước đo hạng. Và điểm nhấn của bản vá — thay rác bằng `'. '` thay vì `' '` để
+"triệt tiêu 100% bigram lai" — trên toàn kho tạo ra **đúng 1 bigram khác biệt**
+(`của_trên`) trong 14.317 token.
+
+**Điểm BTC: cả bốn cấu hình y hệt nhau.**
+
+    V0 = Va = Vb = V2 = 0,0000 / 0,0103     0–0–97     ⚪ KHÔNG ĐỔI GÌ
+
+Trung vị hạng video tốt lên 24 bậc (142 → 118), từ vựng sạch đi 9% — nhưng
+**không câu nào đổi điểm**. Không mâu thuẫn: điểm của kênh 2 do một nhúm câu có
+video lọt đủ cao quyết định, mà nhúm đó không xê dịch.
+
+> **Vẫn giữ bản vá.** Bỏ URL/hashtag ra khỏi chỉ mục văn bản là đúng không cần
+> bàn, có test, và trung vị hạng cải thiện thật. Chỉ là **đừng ghi nó vào cột
+> "tăng điểm"** — nó chưa tăng điểm nào.
+
+**Hai chỗ bản vá bỏ sót, đã vá tiếp:**
+
+1. **`title` không được dọn** — 13/873 tiêu đề có hashtag (`#htvsports #lansurong`),
+   mà title lặp 3 lần nên rác ở đây ăn trọng số **gấp ba**. Chỗ nặng nhất lại là
+   chỗ bị bỏ qua.
+2. **`#\S+` quá tham** — `\S+` chạy tới khoảng trắng gần nhất nên
+   `"#amthuc,rau củ"` ăn luôn `rau`. Đo trên kho hiện tại: **0 token mất** (ở đây
+   hashtag luôn có khoảng trắng theo sau) — nên đây là siết phòng xa, không phải
+   lỗi đang cắn. Nhưng kênh 3 sắp đẩy **chữ OCR** qua đúng hàm này, mà chữ OCR
+   bẩn hơn nhiều. Đổi thành `#\w+`.
+
+**Và một lỗi của tôi khi soát:** minh hoạ đầu tiên tôi viết kiểm token `tv_vivu`,
+trong khi token bắc cầu đúng là `tv_món`. Kết quả ra `False` ở cả hai cột, làm
+một lỗi **có thật** trông như không tồn tại. Đã sửa, và giữ ghi chú tại chỗ.
+
+---
+
 ## PHẦN B — QUYẾT ĐỊNH HẠ TẦNG
 
 ### B1. Không dùng Supabase / Postgres / Milvus / Elasticsearch — ĐÃ KIỂM CHỨNG
