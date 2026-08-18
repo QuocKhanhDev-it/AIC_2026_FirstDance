@@ -107,6 +107,11 @@ lộ ra — không crash, chỉ khiến con số kiểm cuối thành vô nghĩa
   được **+0,2833**, lớn gấp bốn lần thứ cần đo.
 - **Đường dẫn trong `master.parquet` là tuyệt đối** của máy dựng index. Máy khác
   phải chạy `scripts/12_va_duong_dan.py`.
+- **`kf_path` VÀ `kf_name` đều phụ thuộc máy.** `kf_name` trống ở 155.511/177.321
+  dòng trên máy chỉ có L21/L22/L27. `notna()` trên hai cột này nghĩa là "ảnh đã
+  tải **ở máy này**", không phải "có keyframe".
+- **Câu Q&A: `answer` xét theo TỪNG ứng viên, không xét mỗi hạng 1.** Mỗi dòng
+  nộp mang `answer` riêng; thứ hạng là dòng đầu tiên đúng *cả* khung *lẫn* đáp án.
 - **PowerShell không bung `*` cho chương trình ngoài.** `--gop thu_muc\*.jsonl`
   nhận nguyên chuỗi `*.jsonl` và gộp ra 0 câu **mà không báo lỗi**. Tự bung
   trong Python.

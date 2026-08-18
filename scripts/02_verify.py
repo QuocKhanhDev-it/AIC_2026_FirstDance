@@ -100,7 +100,6 @@ def main():
 
             cands = {"dung_dong": r.pts_time}
             same = m[m.video_id == r.video_id].sort_values("kf_n")
-            pos = same.index.get_indexer([r.Index])[0] if hasattr(r, "Index") else -1
             arr = same.reset_index(drop=True)
             j = arr.index[arr.kf_n == r.kf_n]
             if len(j):

@@ -1018,6 +1018,59 @@ một lỗi **có thật** trông như không tồn tại. Đã sửa, và giữ
 
 ---
 
+### A16 — Quét toàn hệ thống: bốn lỗi, hai trong số đó chờ sẵn để cắn
+
+Chạy lại toàn bộ: 103 test, 18 script, 11 module, `pyflakes` trên cả ba thư mục.
+
+**1. `cham_diem.py` chấm SAI câu Q&A — lỗi nặng nhất, và nằm đúng chỗ nguy hiểm
+nhất.** Bài nộp Q&A là danh sách xếp hạng các bộ `(video_id, frame_idx, answer)`
+— **mỗi dòng mang `answer` riêng**, và một dòng ăn điểm khi đúng *cả* khung *lẫn*
+chuỗi answer. Bản cũ chấm thứ hạng theo khung rồi mới xóa điểm nếu
+**`kq[0]`** sai đáp án. Sai ở **cả hai chiều**:
+
+| Tình huống | Chấm cũ | Đúng ra |
+| --- | ---: | ---: |
+| Hạng 1 sai đáp án, hạng 4 đúng cả hai | 0 | **0,8** |
+| Hạng 1 đúng đáp án nhưng SAI khung, hạng 4 đúng khung nhưng sai đáp án | 0,8 | **0** |
+
+Lệch kiểu này **không đều giữa các cấu hình**, tức nó đảo được thứ hạng — đúng
+loại hỏng mà `no_cua_so()` sinh ra để chặn. Hiện chưa kênh nào sinh `answer` nên
+**không con số nào đã công bố bị ảnh hưởng**; nó chờ sẵn để cắn đúng ngày kênh 5
+chạy. Đã sửa: `_hang()` nhận thêm điều kiện phụ theo từng ứng viên, kèm test cho
+từng chiều.
+
+**2. `14_sinh_caption.py` không biên được file sau khi bị ngắt.** `da_xong()` bỏ
+qua dòng cụt nên lần chạy tiếp nối được, nhưng `bien()` dùng
+`pd.read_json(lines=True)` nên **chết ở cuối** — đúng lúc đã tiêu xong tiền API
+thì không lấy ra được `caption.parquet`. Gộp về một hàm đọc khoan dung dùng chung.
+
+**3. `kis-L24-001` bị đặt nhầm nhóm.** `nguon` ghi *"sheet L24_V075"* nhưng
+`row_id 175588` nằm ở **L30_V075**. Tra ra: **`L24_V075` không tồn tại** (0
+khung), còn `L30_V075` tên là *"Chàng trai tinh thể"* — khớp đúng câu hỏi về mẫu
+vật tinh thể. Vậy đáp án đúng, chỉ **tên và chỗ đặt sai**. Đổi thành
+`kis-L30-007` và chuyển sang file L30.
+
+> Đây là loại lỗi **không ai kiểm được**: người giữ L24 không có ảnh L30 để mở,
+> người giữ L30 không biết câu đó tồn tại. Và nó đã lọt vào **tập test giữ kín**.
+> Đã thêm chốt vào `kiem()`: mã nhóm trong `id` phải khớp nhóm của đáp án.
+
+**4. `gop()` để lọt lỗi trùng `id`.** Chốt chống rò chạy **trước** bước soát
+trùng, nên một `id` bị nhân đôi mà tình cờ nằm trong tập test sẽ bị `continue` cả
+hai lần và **không bao giờ được báo**. Tôi vấp đúng ca này khi tự vá mục 3 (đổi
+`c.id` trước khi lọc danh sách cũ, nên bản cũ ở lại dưới tên mới). Dấu hiệu duy
+nhất là dòng *"Bỏ 21 câu"* trong khi tập test chỉ có 20 — dễ đọc lướt qua. Đã
+đảo thứ tự: soát trùng trước, lọc tập test sau.
+
+**Ghi nhận thêm:** `kf_name` **phụ thuộc máy y như `kf_path`** — trống ở
+155.511/177.321 dòng trên máy này (chỉ L21, L22, L27 có ảnh). Đừng dùng
+`kf_name.notna()` làm bộ lọc "có keyframe"; nó chỉ có nghĩa "ảnh đã tải **ở
+máy này**".
+
+`pyflakes` nay sạch trên `src/`, `scripts/`, `tests/`. Mọi con số đã công bố
+(A10–A15) đo lại vẫn khớp.
+
+---
+
 ## PHẦN B — QUYẾT ĐỊNH HẠ TẦNG
 
 ### B1. Không dùng Supabase / Postgres / Milvus / Elasticsearch — ĐÃ KIỂM CHỨNG

@@ -129,19 +129,34 @@ def chon_row(master: pd.DataFrame, chon: str) -> pd.DataFrame:
                      f"Dùng: co-anh | tap-dev | nhom:L21,L22")
 
 
-def da_xong(f: Path) -> set:
-    """`row_id` đã có caption. Dòng hỏng bị bỏ qua, không làm chết cả lần chạy."""
+def doc_log(f: Path) -> list[dict]:
+    """Đọc `caption.jsonl`, **bỏ qua dòng hỏng**.
+
+    ⚠️ Phải tự đọc chứ không dùng `pd.read_json(lines=True)`: ngắt giữa lúc ghi
+    (Ctrl+C, mất mạng, hết pin) để lại một dòng cụt, và `read_json` ném
+    `ValueError` cho cả file. Đã vấp: `da_xong()` chịu được dòng cụt nên lần
+    chạy tiếp vẫn nối được, nhưng `bien()` lại chết ở cuối — tức đúng lúc đã
+    tiêu xong tiền API thì không lấy ra được `caption.parquet`.
+    """
     if not f.exists():
-        return set()
-    ra = set()
+        return []
+    ra, hong = [], 0
     for d in f.read_text("utf-8").splitlines():
         if not d.strip():
             continue
         try:
-            ra.add(int(json.loads(d)["row_id"]))
+            x = json.loads(d)
+            ra.append({"row_id": int(x["row_id"]), "caption": x.get("caption", "")})
         except Exception:
-            continue
+            hong += 1
+    if hong:
+        print(f"⚠️  bỏ qua {hong} dòng hỏng trong {f.name} (ngắt giữa lúc ghi)")
     return ra
+
+
+def da_xong(f: Path) -> set:
+    """`row_id` đã có caption."""
+    return {x["row_id"] for x in doc_log(f)}
 
 
 def goi(model, key, anh: bytes, loi_nhac: str, timeout=90, thu_lai=4):
@@ -309,7 +324,10 @@ def bien(log: Path, par: Path):
     """`caption.jsonl` -> `caption.parquet`, bỏ trùng, giữ bản cuối."""
     if not log.exists():
         raise SystemExit(f"Chưa có {log}")
-    d = pd.read_json(log, lines=True)
+    dong = doc_log(log)
+    if not dong:
+        raise SystemExit(f"{log} không có dòng nào đọc được")
+    d = pd.DataFrame(dong)
     d = d.drop_duplicates("row_id", keep="last").sort_values("row_id")
     d = d[d.caption.fillna("").str.strip() != ""]
     d.to_parquet(par, index=False)

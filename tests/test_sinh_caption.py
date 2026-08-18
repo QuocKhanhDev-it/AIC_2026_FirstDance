@@ -88,6 +88,37 @@ def test_da_xong_khi_chua_co_file(tmp_path):
     assert sc.da_xong(tmp_path / "chua_co.jsonl") == set()
 
 
+def test_bien_cung_chiu_duoc_dong_hong(tmp_path):
+    """`bien()` phải khoan dung y như `da_xong()`.
+
+    Đã vấp: `da_xong()` bỏ qua dòng cụt nên lần chạy tiếp nối được, nhưng
+    `bien()` dùng `pd.read_json(lines=True)` nên chết ở CUỐI — đúng lúc đã tiêu
+    xong tiền API thì không lấy ra được `caption.parquet`.
+    """
+    f = tmp_path / "caption.jsonl"
+    f.write_text(
+        json.dumps({"row_id": 1, "caption": "một người"}, ensure_ascii=False) + "\n"
+        + '{"row_id": 2, "capt\n'
+        + json.dumps({"row_id": 3, "caption": "hai con mèo"}, ensure_ascii=False) + "\n",
+        encoding="utf-8")
+    sc.bien(f, tmp_path / "caption.parquet")
+    d = pd.read_parquet(tmp_path / "caption.parquet")
+    assert list(d.row_id) == [1, 3]
+    assert d.caption.iloc[1] == "hai con mèo"
+
+
+def test_bien_giu_ban_cuoi_khi_trung_row_id(tmp_path):
+    """Chạy lại một `row_id` (vd sau khi sửa câu nhắc) phải đè bản cũ."""
+    f = tmp_path / "caption.jsonl"
+    f.write_text(
+        json.dumps({"row_id": 7, "caption": "bản cũ"}, ensure_ascii=False) + "\n"
+        + json.dumps({"row_id": 7, "caption": "bản mới"}, ensure_ascii=False) + "\n",
+        encoding="utf-8")
+    sc.bien(f, tmp_path / "caption.parquet")
+    d = pd.read_parquet(tmp_path / "caption.parquet")
+    assert len(d) == 1 and d.caption.iloc[0] == "bản mới"
+
+
 def test_nhac_yeu_cau_tieng_viet():
     """Caption tiếng Anh + truy vấn tiếng Việt = khớp 0 token. BM25 khớp mặt
     chữ, không có không gian vector chung để bắc cầu như CLIP. Đây là đúng lỗi
