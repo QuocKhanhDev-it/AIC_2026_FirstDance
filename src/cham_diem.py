@@ -53,10 +53,14 @@ def diem_trake(hang_moi_su_kien: list) -> float:
     return mean(diem_cau(h) for h in hang_moi_su_kien) if hang_moi_su_kien else 0.0
 
 
-def _hang(ket_qua, dung: set, gioi_han: int = 100) -> int | None:
-    """Thứ hạng (1-based) của kết quả đúng đầu tiên trong top-`gioi_han`."""
+def _hang(ket_qua, dung: set, gioi_han: int = 100, hop_le=None) -> int | None:
+    """Thứ hạng (1-based) của kết quả đúng đầu tiên trong top-`gioi_han`.
+
+    `hop_le(c)` là điều kiện PHỤ THÊM cho từng ứng viên — dùng cho câu Q&A,
+    nơi một dòng chỉ ăn điểm khi đúng CẢ khung LẪN chuỗi `answer`.
+    """
     for i, c in enumerate(ket_qua[:gioi_han], start=1):
-        if c.row_id in dung:
+        if c.row_id in dung and (hop_le is None or hop_le(c)):
             return i
     return None
 
@@ -84,6 +88,37 @@ def no_cua_so(row_ids, master, dung_sai_giay: float) -> set:
                       & ((master.pts_time - g.pts_time).abs() <= dung_sai_giay)]
         ra |= set(int(x) for x in cung.row_id)
     return ra
+
+
+def _dung_dap_an(c):
+    """Điều kiện `answer` cho câu Q&A. Trả None nếu câu này không cần xét.
+
+    ⚠️ **Xét theo TỪNG ỨNG VIÊN, không xét mỗi hạng 1.** Bài nộp Q&A là danh
+    sách xếp hạng các bộ `(video_id, frame_idx, answer)` — mỗi dòng mang
+    `answer` riêng, và một dòng ăn điểm khi đúng CẢ khung LẪN chuỗi answer
+    (PHẦN C mục 4). Nên thứ hạng phải là dòng đầu tiên thỏa cả hai.
+
+    Bản đầu chấm thứ hạng theo khung rồi mới xóa điểm nếu `kq[0].answer` sai.
+    Sai ở CẢ HAI CHIỀU, đã dựng test cho từng chiều:
+
+      * hạng 1 sai đáp án, hạng 4 đúng cả hai  -> chấm 0, đúng ra là 0,8
+      * hạng 1 đúng đáp án nhưng SAI khung     -> chấm 0,8, đúng ra là 0
+
+    Lệch kiểu này không đều giữa các cấu hình, tức nó **đảo được thứ hạng** —
+    đúng loại hỏng mà `no_cua_so()` sinh ra để chặn.
+
+    Ứng viên **không có** khóa `answer` được coi là hợp lệ: mọi kênh hiện tại
+    chưa biết trả lời, và lúc này ta đang đo TRUY HỒI. Siết chỗ này sẽ làm mọi
+    con số cũ hết so được với nhau.
+    """
+    if c.loai != "QA" or not c.dap_an:
+        return None
+    mong = c.dap_an.strip().lower()
+
+    def hop_le(x):
+        tra = x.meta.get("answer")
+        return tra is None or str(tra).strip().lower() == mong
+    return hop_le
 
 
 def cham(tap_dev, chay, gioi_han: int = 100,
@@ -118,13 +153,8 @@ def cham(tap_dev, chay, gioi_han: int = 100,
             d, h = diem_trake(hang), None
         else:
             kq = chay(c)
-            h = _hang(kq, _dung(c.row_id_dung), gioi_han)
+            h = _hang(kq, _dung(c.row_id_dung), gioi_han, _dung_dap_an(c))
             d = diem_cau(h)
-            # PHẦN C mục 4: `answer` sai -> 0 điểm bất kể frame đúng
-            if c.loai == "QA" and c.dap_an:
-                tra = (kq[0].meta.get("answer") if kq else None)
-                if tra is not None and str(tra).strip().lower() != c.dap_an.strip().lower():
-                    d = 0.0
         dong.append({"id": c.id, "loai": c.loai, "hang": h, "diem": d})
     return pd.DataFrame(dong)
 

@@ -112,3 +112,67 @@ def test_dung_sai_doi_master(master):
     from cham_diem import cham
     with pytest.raises(ValueError):
         cham([], lambda c: [], dung_sai_giay=5.0)
+
+
+# ---- câu Q&A: `answer` phải xét THEO TỪNG ỨNG VIÊN ------------------------
+#
+# Bài nộp Q&A là một danh sách xếp hạng các bộ (video_id, frame_idx, answer) —
+# MỖI DÒNG mang `answer` riêng. Một dòng ăn điểm khi khung nằm trong cửa sổ VÀ
+# chuỗi `answer` đúng. Nên thứ hạng phải là dòng ĐẦU TIÊN thỏa CẢ HAI.
+
+def _cau_qa(r_dung, dap_an="3"):
+    from tap_dev import CauHoi
+    return CauHoi(id="qa1", loai="QA", cau_hoi="mấy người",
+                  row_id_dung=[r_dung], dap_an=dap_an)
+
+
+def _kq(master, cac_bo):
+    """[(row_id, answer), ...] -> list[Candidate] theo đúng thứ tự."""
+    from schema import Candidate
+    ra = []
+    for r, tra in cac_bo:
+        x = master.iloc[r]
+        ra.append(Candidate(r, x.video_id, int(x.frame_idx), 1.0, "test",
+                            meta={"answer": tra}))
+    return ra
+
+
+def test_qa_dap_an_sai_o_hang_1_khong_duoc_giet_ca_cau(master):
+    """Hạng 1 sai đáp án, hạng 4 đúng cả khung lẫn đáp án -> phải được 0,8.
+
+    Chấm 0 ở đây là **hạ điểm oan mọi cấu hình biết trả lời đúng ở hạng sau**,
+    và hạ không đều — đúng loại lệch làm đảo thứ hạng giữa các cấu hình.
+    """
+    from cham_diem import cham
+    r = 500
+    khac = int(master.row_id.iloc[r + 50])
+    kq = _kq(master, [(khac, "9"), (khac, "9"), (khac, "9"), (r, "3")])
+    d = cham([_cau_qa(r)], lambda c: kq)
+    assert d.diem.iloc[0] == pytest.approx(0.8), (
+        "đáp án của hạng 1 không được quyết định cả câu")
+
+
+def test_qa_dap_an_dung_o_hang_1_khong_cuu_duoc_khung_sai(master):
+    """Ngược lại: hạng 1 đúng đáp án nhưng SAI khung, hạng 4 đúng khung nhưng
+    SAI đáp án -> phải được 0. Không dòng nào thỏa cả hai điều kiện."""
+    from cham_diem import cham
+    r = 500
+    khac = int(master.row_id.iloc[r + 50])
+    kq = _kq(master, [(khac, "3"), (khac, "3"), (khac, "3"), (r, "9")])
+    d = cham([_cau_qa(r)], lambda c: kq)
+    assert d.diem.iloc[0] == pytest.approx(0.0), (
+        "đáp án đúng ở một khung SAI không được cứu câu")
+
+
+def test_qa_kenh_khong_sinh_answer_thi_chi_cham_truy_hoi(master):
+    """Kênh chưa biết trả lời (mọi kênh hiện tại) không bị phạt.
+
+    Giữ nguyên hành vi cũ có chủ ý: lúc này ta đang đo TRUY HỒI, chưa đo khả
+    năng trả lời. Đổi chỗ này là làm mọi con số cũ hết so được.
+    """
+    from cham_diem import cham
+    from schema import Candidate
+    r = 500
+    x = master.iloc[r]
+    kq = [Candidate(r, x.video_id, int(x.frame_idx), 1.0, "test")]
+    assert cham([_cau_qa(r)], lambda c: kq).diem.iloc[0] == pytest.approx(1.0)

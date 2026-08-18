@@ -35,7 +35,7 @@ sys.path.insert(0, str(GOC / "src"))
 
 import tap_dev                                       # noqa: E402
 from bm25 import KenhVanBan, don_metadata            # noqa: E402
-from cham_diem import bao_cao_do_nhay, cham, MOC_DUNG_SAI, tom_tat  # noqa: E402
+from cham_diem import bao_cao_do_nhay, MOC_DUNG_SAI   # noqa: E402
 
 
 def hang_video(kenh: KenhVanBan, cau, master) -> pd.DataFrame:

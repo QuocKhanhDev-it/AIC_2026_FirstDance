@@ -35,7 +35,7 @@ Kết quả ghi dần vào index/bench_vlm.csv — ngắt giữa chừng chạy 
 không mất phần đã đo (quan trọng với free tier hay bị 429).
 """
 
-import argparse, base64, json, os, random, re, sys, time, urllib.error, urllib.request
+import argparse, base64, json, os, re, sys, time, urllib.error, urllib.request
 from pathlib import Path
 
 import numpy as np
@@ -100,7 +100,6 @@ def tao_cau_hoi(index_dir: Path, n: int, seed: int, min_score=0.7) -> pd.DataFra
         raise SystemExit("Không sinh được câu hỏi nào. Thử hạ --min-score.")
 
     # cân bằng: mỗi (nhãn, đáp án) lấy tối đa vài câu, tránh dồn vào 'Person = 1'
-    rng = np.random.default_rng(seed)
     q = (q.sample(frac=1.0, random_state=seed)
            .groupby(["label", "dap_an"], group_keys=False).head(3)
            .sample(frac=1.0, random_state=seed).head(n))

@@ -964,6 +964,113 @@ sống.
 
 ---
 
+### A15 — Dọn rác metadata (NgThanhDat-ne): sửa lỗi thật, **nhưng không đổi điểm**
+
+`scripts/17_compare_tu_metadata_bugs.py`, dò 2×2 trên 873 video / 97 câu dev.
+
+**Lỗi tìm ra là lỗi thật, và là lỗi của tôi.** `tu_metadata` ghép các trường
+bằng `" "`, nên `tach()` sinh **bigram bắc cầu qua biên trường**: title lặp 3
+lần khiến `"…VIVU TV"` nối với đầu lần lặp sau đẻ ra `tv_món` — một cụm không hề
+có trong văn bản gốc, mà lại hiếm nên IDF cao. Sửa bằng cách ghép `". "` là
+đúng.
+
+**Tách hai nút ra mới biết nút nào làm việc.** Bản vá đổi *hai* thứ cùng lúc
+(dọn rác + đổi cách ghép), nên phải dò riêng:
+
+| Cấu hình | Từ vựng | top-1 | top-10 | top-20 | Trung vị hạng |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| V0 ghép `' '` · giữ rác | 15.722 | 10 | 22 | 29 | 142 |
+| Va ghép `'. '` · giữ rác | 15.168 | 10 | 22 | 29 | 128 |
+| **Vb ghép `' '` · dọn rác** | 14.930 | **11** | 21 | 26 | **118** |
+| V2 ghép `'. '` · dọn rác | 14.316 | 11 | 21 | 26 | 119 |
+
+**Việc dọn rác là thứ làm việc; cách ghép gần như không.** V2 ≡ Vb ở *mọi*
+thước đo hạng. Và điểm nhấn của bản vá — thay rác bằng `'. '` thay vì `' '` để
+"triệt tiêu 100% bigram lai" — trên toàn kho tạo ra **đúng 1 bigram khác biệt**
+(`của_trên`) trong 14.317 token.
+
+**Điểm BTC: cả bốn cấu hình y hệt nhau.**
+
+    V0 = Va = Vb = V2 = 0,0000 / 0,0103     0–0–97     ⚪ KHÔNG ĐỔI GÌ
+
+Trung vị hạng video tốt lên 24 bậc (142 → 118), từ vựng sạch đi 9% — nhưng
+**không câu nào đổi điểm**. Không mâu thuẫn: điểm của kênh 2 do một nhúm câu có
+video lọt đủ cao quyết định, mà nhúm đó không xê dịch.
+
+> **Vẫn giữ bản vá.** Bỏ URL/hashtag ra khỏi chỉ mục văn bản là đúng không cần
+> bàn, có test, và trung vị hạng cải thiện thật. Chỉ là **đừng ghi nó vào cột
+> "tăng điểm"** — nó chưa tăng điểm nào.
+
+**Hai chỗ bản vá bỏ sót, đã vá tiếp:**
+
+1. **`title` không được dọn** — 13/873 tiêu đề có hashtag (`#htvsports #lansurong`),
+   mà title lặp 3 lần nên rác ở đây ăn trọng số **gấp ba**. Chỗ nặng nhất lại là
+   chỗ bị bỏ qua.
+2. **`#\S+` quá tham** — `\S+` chạy tới khoảng trắng gần nhất nên
+   `"#amthuc,rau củ"` ăn luôn `rau`. Đo trên kho hiện tại: **0 token mất** (ở đây
+   hashtag luôn có khoảng trắng theo sau) — nên đây là siết phòng xa, không phải
+   lỗi đang cắn. Nhưng kênh 3 sắp đẩy **chữ OCR** qua đúng hàm này, mà chữ OCR
+   bẩn hơn nhiều. Đổi thành `#\w+`.
+
+**Và một lỗi của tôi khi soát:** minh hoạ đầu tiên tôi viết kiểm token `tv_vivu`,
+trong khi token bắc cầu đúng là `tv_món`. Kết quả ra `False` ở cả hai cột, làm
+một lỗi **có thật** trông như không tồn tại. Đã sửa, và giữ ghi chú tại chỗ.
+
+---
+
+### A16 — Quét toàn hệ thống: bốn lỗi, hai trong số đó chờ sẵn để cắn
+
+Chạy lại toàn bộ: 103 test, 18 script, 11 module, `pyflakes` trên cả ba thư mục.
+
+**1. `cham_diem.py` chấm SAI câu Q&A — lỗi nặng nhất, và nằm đúng chỗ nguy hiểm
+nhất.** Bài nộp Q&A là danh sách xếp hạng các bộ `(video_id, frame_idx, answer)`
+— **mỗi dòng mang `answer` riêng**, và một dòng ăn điểm khi đúng *cả* khung *lẫn*
+chuỗi answer. Bản cũ chấm thứ hạng theo khung rồi mới xóa điểm nếu
+**`kq[0]`** sai đáp án. Sai ở **cả hai chiều**:
+
+| Tình huống | Chấm cũ | Đúng ra |
+| --- | ---: | ---: |
+| Hạng 1 sai đáp án, hạng 4 đúng cả hai | 0 | **0,8** |
+| Hạng 1 đúng đáp án nhưng SAI khung, hạng 4 đúng khung nhưng sai đáp án | 0,8 | **0** |
+
+Lệch kiểu này **không đều giữa các cấu hình**, tức nó đảo được thứ hạng — đúng
+loại hỏng mà `no_cua_so()` sinh ra để chặn. Hiện chưa kênh nào sinh `answer` nên
+**không con số nào đã công bố bị ảnh hưởng**; nó chờ sẵn để cắn đúng ngày kênh 5
+chạy. Đã sửa: `_hang()` nhận thêm điều kiện phụ theo từng ứng viên, kèm test cho
+từng chiều.
+
+**2. `14_sinh_caption.py` không biên được file sau khi bị ngắt.** `da_xong()` bỏ
+qua dòng cụt nên lần chạy tiếp nối được, nhưng `bien()` dùng
+`pd.read_json(lines=True)` nên **chết ở cuối** — đúng lúc đã tiêu xong tiền API
+thì không lấy ra được `caption.parquet`. Gộp về một hàm đọc khoan dung dùng chung.
+
+**3. `kis-L24-001` bị đặt nhầm nhóm.** `nguon` ghi *"sheet L24_V075"* nhưng
+`row_id 175588` nằm ở **L30_V075**. Tra ra: **`L24_V075` không tồn tại** (0
+khung), còn `L30_V075` tên là *"Chàng trai tinh thể"* — khớp đúng câu hỏi về mẫu
+vật tinh thể. Vậy đáp án đúng, chỉ **tên và chỗ đặt sai**. Đổi thành
+`kis-L30-007` và chuyển sang file L30.
+
+> Đây là loại lỗi **không ai kiểm được**: người giữ L24 không có ảnh L30 để mở,
+> người giữ L30 không biết câu đó tồn tại. Và nó đã lọt vào **tập test giữ kín**.
+> Đã thêm chốt vào `kiem()`: mã nhóm trong `id` phải khớp nhóm của đáp án.
+
+**4. `gop()` để lọt lỗi trùng `id`.** Chốt chống rò chạy **trước** bước soát
+trùng, nên một `id` bị nhân đôi mà tình cờ nằm trong tập test sẽ bị `continue` cả
+hai lần và **không bao giờ được báo**. Tôi vấp đúng ca này khi tự vá mục 3 (đổi
+`c.id` trước khi lọc danh sách cũ, nên bản cũ ở lại dưới tên mới). Dấu hiệu duy
+nhất là dòng *"Bỏ 21 câu"* trong khi tập test chỉ có 20 — dễ đọc lướt qua. Đã
+đảo thứ tự: soát trùng trước, lọc tập test sau.
+
+**Ghi nhận thêm:** `kf_name` **phụ thuộc máy y như `kf_path`** — trống ở
+155.511/177.321 dòng trên máy này (chỉ L21, L22, L27 có ảnh). Đừng dùng
+`kf_name.notna()` làm bộ lọc "có keyframe"; nó chỉ có nghĩa "ảnh đã tải **ở
+máy này**".
+
+`pyflakes` nay sạch trên `src/`, `scripts/`, `tests/`. Mọi con số đã công bố
+(A10–A15) đo lại vẫn khớp.
+
+---
+
 ## PHẦN B — QUYẾT ĐỊNH HẠ TẦNG
 
 ### B1. Không dùng Supabase / Postgres / Milvus / Elasticsearch — ĐÃ KIỂM CHỨNG

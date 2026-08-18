@@ -25,7 +25,8 @@ thấp một cách ngẫu nhiên.
 
 import argparse
 import json
-from dataclasses import asdict, dataclass, field
+import re
+from dataclasses import asdict, dataclass
 from pathlib import Path
 
 import numpy as np
@@ -126,6 +127,18 @@ def kiem(cau: list[CauHoi], index_dir=GOC / "index") -> list[str]:
         if len(vids) > 1:
             loi.append(f"{c.id}: đáp án nằm ở nhiều video {sorted(vids)} — "
                        f"KIS/QA chỉ có một video đúng")
+
+        # Mã nhóm trong `id` phải khớp nhóm của đáp án.
+        #
+        # Không có chốt này thì câu bị đặt nhầm file KHÔNG AI KIỂM ĐƯỢC: người
+        # giữ nhóm ghi trên `id` không có ảnh để mở, còn người giữ nhóm thật
+        # thì không biết câu đó tồn tại. Đã bắt được hai ca thật — một câu
+        # L22 nằm trong file L21, và `kis-L24-001` có đáp án ở L30_V075 trong
+        # khi L24_V075 KHÔNG TỒN TẠI (0 khung).
+        ma = re.search(r"L\d\d", c.id)
+        if ma and vids and ma.group() != sorted(vids)[0][:3]:
+            loi.append(f"{c.id}: id ghi nhóm {ma.group()} nhưng đáp án ở "
+                       f"{sorted(vids)[0]} — đặt nhầm file, hoặc chép nhầm row_id")
     return loi
 
 
@@ -209,16 +222,23 @@ def gop(cac_file: list, index_dir=GOC / "index") -> tuple[list[CauHoi], list[str
     # báo gì. Từ đó mọi con số "kiểm trên tập chưa từng nhìn" thành vô nghĩa.
     giu_kin = {c.id for c in doc(MAC_DINH_TEST)}
 
+    # ⚠️ SOÁT TRÙNG `id` TRƯỚC, LỌC TẬP TEST SAU — thứ tự này quan trọng.
+    #
+    # Làm ngược lại thì một `id` bị nhân đôi mà tình cờ nằm trong tập test sẽ
+    # bị `continue` cả hai lần và **không bao giờ được báo**. Đã vấp thật: một
+    # câu được chép sang file khác nhưng bản cũ chưa xoá, `--gop` in "Bỏ 21
+    # câu" trong khi tập test chỉ có 20 — con số lệch là dấu hiệu DUY NHẤT, mà
+    # nó dễ bị đọc lướt qua.
     ra, thay, loi, bo = [], {}, [], 0
     for f in _bung(cac_file):
         for c in doc(f):
-            if c.id in giu_kin:
-                bo += 1
-                continue
             if c.id in thay:
                 loi.append(f"id '{c.id}' có ở cả {thay[c.id]} và {Path(f).name}")
                 continue
             thay[c.id] = Path(f).name
+            if c.id in giu_kin:
+                bo += 1
+                continue
             ra.append(c)
     if bo:
         print(f"Bỏ {bo} câu đã nằm trong tập test giữ kín ({MAC_DINH_TEST.name})")

@@ -20,7 +20,6 @@ Dùng:
     quanh = lan_can(master, row_id=12345, so_buoc=10)
 """
 
-import numpy as np
 import pandas as pd
 
 try:

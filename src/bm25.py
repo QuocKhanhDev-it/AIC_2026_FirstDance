@@ -79,15 +79,27 @@ except ImportError:                     # chạy trực tiếp: python src/bm25.
 K1 = 1.5      # bão hòa tần suất — giá trị chuẩn của Okapi BM25
 B = 0.75      # mức phạt tài liệu dài
 
+# Bỏ ký tự không phải chữ/số. Giữ nguyên chữ có dấu (\w trong Python re đã bao
+# chữ Unicode), nên không cần liệt kê bảng chữ cái tiếng Việt.
 _TACH = re.compile(r"\w+", re.UNICODE)
-_RAC = re.compile(r"https?://\S+|#\S+|@\w+", re.UNICODE)
+
+# `#\w+` chứ KHÔNG phải `#\S+`. `\S+` chạy tới khoảng trắng gần nhất nên
+# `"#amthuc,rau cu"` bị ăn luôn cả `rau`. Đo trên kho hiện tại: 0 token mất
+# (hashtag ở đây luôn có khoảng trắng theo sau), nên đây là siết PHÒNG XA —
+# nhưng kênh 3 sắp đẩy chữ OCR qua đúng hàm này, mà chữ OCR thì bẩn hơn nhiều.
+_RAC = re.compile(r"https?://\S+|#\w+|@\w+", re.UNICODE)
 
 
 def don_metadata(s: str) -> str:
-    """Xóa URL, hashtag, mention trước khi ghép metadata.
+    """Xóa URL, hashtag, mention khỏi văn bản trước khi đưa vào chỉ mục.
 
-    Thay thế bằng '. ' thay vì ' ' để rác đóng vai trò ngắt cụm (cum-breaker),
-    ngăn `tach()` nối hai từ thật ở hai bên rác thành bigram lai (vd: 'tại_nấu').
+    Thay bằng `'. '` chứ không phải `' '`: dấu chấm làm `tach()` NGẮT CỤM, nên
+    hai từ thật ở hai bên đoạn rác không bị nối thành bigram lai
+    (`"tại https://... nấu"` -> `tại_nấu`, một cụm không có trong văn bản gốc).
+
+    ⚠️ Đã đo: trên 873 video, đổi `' '` thành `'. '` chỉ khác **đúng 1 bigram**
+    trong 14.317 token (`của_trên`). Chi tiết ở A15 — ghi lại để người sau không
+    tưởng đây là chỗ đáng tinh chỉnh. Cái thật sự làm việc là VIỆC DỌN RÁC.
     """
     return _RAC.sub(". ", s or "")
 
@@ -251,12 +263,20 @@ class KenhVanBan:
         mà tiêu đề 62 ký tự thì chìm nghỉm cạnh description 954 ký tự. Lặp là
         cách tăng trọng số trường mà không phải sửa công thức — thủ thuật cũ
         của IR, và nó đo được: bật/tắt bằng `scripts/15_do_bm25.py`.
+
+        Ghép bằng `'. '` chứ không phải `' '`: ghép bằng khoảng trắng thì
+        `tach()` sinh bigram BẮC CẦU QUA BIÊN TRƯỜNG — `"…VIVU TV"` nối với
+        lần lặp sau đẻ ra `tv_món`, một cụm không có trong văn bản gốc. Lỗi này
+        do NgThanhDat-ne tìm ra.
+
+        **`title` cũng phải dọn rác**, không chỉ description: 13/873 tiêu đề có
+        hashtag, mà tiêu đề lặp 3 lần nên rác ở đây ăn trọng số GẤP BA.
         """
         g = master.groupby("video_id", sort=True)
         vids, van_ban, khoa = [], [], []
         for v, sub in g:
             r = sub.iloc[0]
-            t = str(r.title or "")
+            t = don_metadata(str(r.title or ""))
             desc = don_metadata(str(r.description or ""))
             kw = don_metadata(str(r.keywords or ""))
             van_ban.append(". ".join([t, t, t, desc, kw]))
