@@ -958,6 +958,37 @@ mạnh — xuất hiện.
 > nào thắng**. Cộng thêm một kênh yếu vào một kênh mạnh là **pha loãng**, đo
 > được, ổn định, và không có kiến trúc hợp nhất nào sửa được.
 
+#### A14.2 — Nguyên nhân thật: **RRF coi mọi kênh đáng tin NHƯ NHAU**
+
+Câu hỏi tự nhiên khi thấy A14/A14.1: *"hợp nhất tệ đi là do chưa đủ kênh à?"*
+**Không.** Đo bằng cách hạ trọng số kênh yếu (`hop_nhat` đã có sẵn `trong_so`):
+
+| Cấu hình | ±2s | ±15s | so với kênh 4 |
+| --- | ---: | ---: | --- |
+| **kênh 4 objects** | **0,0412** | **0,0701** | *(mốc nền)* |
+| RRF trọng số **1 : 1** | 0,0268 | 0,0577 | −0,0144 ✅ **hại** |
+| RRF trọng số **0,5 : 1** | 0,0412 | 0,0722 | +0,0021 · 1–0–96 · 🟡 |
+| RRF trọng số **0,2 : 1** | 0,0412 | 0,0701 | ⚪ **KHÔNG ĐỔI GÌ** |
+| RRF trọng số **0,05 : 1** | 0,0412 | 0,0701 | ⚪ **KHÔNG ĐỔI GÌ** |
+
+**Cơ chế:** RRF cộng `1/(k + hạng)` từ *mỗi* kênh, không nhìn kênh đó tốt hay
+tệ. Nên **ứng viên hạng 1 của một kênh chết được cộng đúng bằng ứng viên hạng 1
+của kênh tốt** — `1/61` cho cả hai. Với `k = 60`, chênh lệch giữa hạng 1 và hạng
+100 chỉ là `1/61` so với `1/160`, tức **chưa tới 3 lần**; còn chênh lệch chất
+lượng giữa kênh 4 và kênh 2 thì vô hạn (0,0412 so với 0,0000). RRF không có chỗ
+nào biểu đạt được điều đó.
+
+**Nhưng phải đọc đúng kết quả:** hạ trọng số **chặn được thiệt hại, KHÔNG tạo ra
+lợi ích**. Ở 0,2 và 0,05 điểm hội tụ về đúng kênh 4 đứng một mình — tức kênh yếu
+tốt nhất chỉ có thể *tránh đường*. Nghĩa là:
+
+> **Vấn đề không phải thiếu kênh, mà là kênh không có gì để đóng góp.** Thêm ba
+> kênh nữa cùng loại sẽ làm tệ hơn chứ không tốt hơn. Hợp nhất chỉ lãi khi các
+> kênh **cùng tầm chất lượng** và **đồng ý ở cùng độ mịn** (A14).
+
+Hệ quả thực dụng: trước khi hợp nhất, **đo từng kênh riêng**; kênh nào cách kênh
+mạnh nhất quá xa thì để ngoài, hoặc hạ trọng số cho nó khỏi phá.
+
 **Và một con số cần nhớ:** kênh 4 (objects) đang là **kênh mạnh nhất** hiện có
 — 0,0412 / 0,0701, gấp bốn lần kênh 2. Trước A10 ta vẫn nghĩ kênh 1 là xương
 sống.

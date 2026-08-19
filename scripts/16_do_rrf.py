@@ -160,6 +160,16 @@ def main():
     cau_hinh["chỉ kênh 4, qua 2 tầng"] = lambda c: hop_nhat_hai_tang(
         [f4(c)], moi_video=3, gioi_han=a.k)
 
+    # TRỌNG SỐ — kiểm chính lời giải thích cho A14.
+    #
+    # Giả thuyết: RRF làm tệ đi KHÔNG phải vì "thiếu kênh", mà vì nó coi mọi
+    # kênh đáng tin NHƯ NHAU. Ứng viên hạng 1 của một kênh chết vẫn được cộng
+    # `1/(60+1)` — đúng bằng ứng viên hạng 1 của kênh tốt. Nếu đúng vậy thì hạ
+    # trọng số kênh yếu phải kéo điểm về sát kênh mạnh đứng một mình.
+    for w in (0.5, 0.2, 0.05):
+        cau_hinh[f"RRF(2, 4) trọng số {w} : 1"] = (
+            lambda w: lambda c: hop_nhat([f2(c), f4(c)], trong_so=[w, 1.0]))(w)
+
     print(bao_cao_do_nhay(cau, cau_hinh, master, MOC_DUNG_SAI, gioi_han=a.k))
 
 
