@@ -230,15 +230,36 @@ def luu(a, mat, xong, chieu, toc, hong):
     # ước sai, mà sai kích thước bể thì điểm lệch tới +0,2833 (xem be_chung()).
     co_vector = int((np.abs(mat[:, :8]).sum(1) > 0).sum())
 
-    canh = a.out.with_suffix(".json")        # CHỐT 2
-    canh.write_text(json.dumps({
-        "model": a.model, "pretrained": a.pretrained, "chieu": int(chieu),
+    # `pretrained` phải là TAG dùng được ở máy khác, không phải đường dẫn máy
+    # này. Cả lý do tồn tại của sidecar (xem docstring `dense.py`) là để ma
+    # trận tự mô tả được trên MỌI máy — mà `--pretrained` hay được truyền là
+    # một file `.safetensors` cục bộ. Đã vấp thật: sidecar của clip_siglip2.npy
+    # ghi `D:\Project\AIC_2026\models\...`, máy khác nạp là chết ngay ở
+    # `KenhAnh.__init__`. Đoán tag từ tên file, giữ đường dẫn gốc để truy vết.
+    pre, goc = str(a.pretrained), None
+    if any(s in pre for s in ("/", "\\")) or pre.endswith(".safetensors"):
+        goc = pre
+        ten = Path(pre).stem
+        pre = next((t for t in ("webli", "openai", "laion2b_s34b_b79k",
+                                "datacomp_xl_s13b_b90k")
+                    if t in ten), "webli")
+        print(f"⚠️  --pretrained là đường dẫn cục bộ, sidecar ghi tag '{pre}' "
+              f"để máy khác nạp được")
+
+    ghi_chu = {
+        "model": a.model, "pretrained": pre, "chieu": int(chieu),
         "dtype": str(mat.dtype), "so_dong": int(mat.shape[0]),
         "da_encode": int(xong.sum()), "co_vector": co_vector,
         "anh_hong": int(hong),
         "toc_do_anh_moi_giay": round(toc, 1),
         "ngay": time.strftime("%Y-%m-%d %H:%M"),
-    }, ensure_ascii=False, indent=2), encoding="utf-8")
+    }
+    if goc:
+        ghi_chu["pretrained_goc"] = goc
+
+    canh = a.out.with_suffix(".json")        # CHỐT 2
+    canh.write_text(json.dumps(ghi_chu, ensure_ascii=False, indent=2),
+                    encoding="utf-8")
 
     tien = a.out.with_suffix(".tien_do.npy")
     if tien.exists() and int(xong.sum()) == mat.shape[0]:
