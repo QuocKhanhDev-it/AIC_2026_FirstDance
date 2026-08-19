@@ -1,2 +1,0 @@
-﻿model_id,clips,wer_norm,wer_ci_low,wer_ci_high,cer_norm,timestamp_valid_rate,timestamp_coverage,rtf_median,rtf_p95,vram_peak_gb
-phowhisper_small,1,0.0,0.0,0.0,0.0,0.0,0.0,0.0714288499999384,0.0714288499999384,0.7764749526977539
