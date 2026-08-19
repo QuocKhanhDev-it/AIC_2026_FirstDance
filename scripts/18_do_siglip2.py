@@ -83,7 +83,12 @@ def main():
     ap.add_argument("--file", default=tap_dev.MAC_DINH, type=Path)
     ap.add_argument("--k", type=int, default=100)
     ap.add_argument("--moi-video", type=int, default=0)
+    ap.add_argument("--dung-sai", type=float, nargs="+", default=None,
+                    help="các mức dung sai (giây) thay cho mặc định 2 và 15. "
+                         "BTC nói cửa sổ rộng 4 giây-5 phút (A9), nên ±2s là "
+                         "SÀN bảo thủ; thử thêm --dung-sai 2 90 để có trần trên")
     a = ap.parse_args()
+    moc = tuple(a.dung_sai) if a.dung_sai else MOC_DUNG_SAI
 
     cau = tap_dev.doc(a.file)
     mv = a.moi_video or None
@@ -131,7 +136,7 @@ def main():
         "RRF(SigLIP2, metadata)": lambda c: hop_nhat([kqsig[c.id], kq2[c.id]]),
         "RRF(cả bốn kênh)": lambda c: hop_nhat(
             [kqsig[c.id], kq32[c.id], kq4[c.id], kq2[c.id]]),
-    }, master=master, moc=MOC_DUNG_SAI, gioi_han=a.k))
+    }, master=master, moc=moc, gioi_han=a.k))
 
 
 if __name__ == "__main__":
