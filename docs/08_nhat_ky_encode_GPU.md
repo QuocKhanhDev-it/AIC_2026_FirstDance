@@ -1,8 +1,8 @@
 # Nhật ký encode GPU — máy Khánh
 
-*Ghi 2026-08-14, cập nhật 2026-08-17. Máy: RTX 2060 Super, Windows 10. Đọc
-kèm: [06_ke_hoach_encode_GPU.md](06_ke_hoach_encode_GPU.md) và mục H2/H3 của
-[Ke_hoach_AIC2026_v4.md](Ke_hoach_AIC2026_v4.md).*
+*Ghi 2026-08-14, cập nhật 2026-08-17, 2026-08-19. Máy: RTX 2060 Super, Windows
+10. Đọc kèm: [06_ke_hoach_encode_GPU.md](06_ke_hoach_encode_GPU.md) và mục
+H2/H3 của [Ke_hoach_AIC2026_v4.md](Ke_hoach_AIC2026_v4.md).*
 
 Tài liệu này ghi lại **đã làm gì, kết quả gì, còn vướng gì** — để không phải
 dò lại từ đầu nếu quay lại việc này sau vài ngày, và để người khác trong
@@ -22,9 +22,9 @@ nhóm biết máy này đang ở đâu.
 | 6 | Kiểm lệch hàng `row_id` | ✅ Xong | 134/134 cặp khớp (100%) — HÀNG KHỚP |
 | 7 | Soạn tập dev trên 100 video | ✅ **Xong (cả team)** | **117 câu, đủ 10 nhóm L** — 97 vào `dev/tap_dev.jsonl`, 20 giữ kín ở `dev/tap_test.jsonl`. Xem §7 |
 | 8 | Đo 3 cấu hình A/B/C | 🟢 **Đã có câu trả lời sớm** | A10.3: SigLIP2 + tiếng Việt **thắng CLIP 21/21 câu** (đo trên CPU, subset video theo tập dev) — **B thắng A đã CHỨNG MINH**, không còn là giả thuyết. Còn thiếu: xác nhận trên ma trận toàn kho |
-| 9 | Tải nốt 30,5 GB keyframe | 🟡 **773/873 video** | Thiếu đúng nhóm `L26_d` (~100 video) — xem §11 |
-| 10 | Chạy toàn kho | ✅ **Xong 2026-08-19** | 160.821/177.321 vector thật, 23,9 ảnh/giây — xem §9 |
-| 11 | Kiểm lệch hàng lần cuối | ✅ **Xong — HÀNG KHỚP** | 198/200 (99,0%), trung vị cosine 0,9994 |
+| 9 | Tải nốt 30,5 GB keyframe | ✅ **873/873 video** | Xong — `L26_d` (100 video cuối) tải xong 2026-08-19 |
+| 10 | Chạy toàn kho | ✅ **Xong 2026-08-19** | Chạy 2 lượt: 773 video trước (160.821 vector) + vá riêng `L26_d` sau (16.500 vector) — xem §9 và §11 |
+| 11 | Kiểm lệch hàng lần cuối | ✅ **Xong — HÀNG KHỚP** | **177.321/177.321 dòng đều có vector thật.** Lần kiểm cuối: 198/200 (99,0%), trung vị cosine 0,9993 |
 | — | Đẩy `clip_siglip2.npy` lên Drive | ⛔ Chưa làm | Xem §12 |
 
 ---
@@ -232,35 +232,54 @@ nghĩa là cosine 0 với mọi truy vấn → không bao giờ được truy h�
 không sai lệch gì. Nên chạy sớm khi thiếu 1 nhóm L (`L26_d`, 9,3%) chỉ đánh
 đổi **độ phủ tạm thời thấp hơn**, không đổi lấy rủi ro đúng/sai.
 
-## 11. Việc còn lại — vá `L26_d` khi có ảnh
+## 11. Vá `L26_d` — ĐÃ XONG (2026-08-19)
 
-Đừng chạy lại nguyên lệnh việc 10 — checkpoint (`clip_siglip2.tien_do.npy` đã
-bị xoá sau khi chạy xong 100%) không còn, nhưng quan trọng hơn: `08_encode.py`
-đánh dấu 16.500 dòng thiếu ảnh là **`xong = True`** (vector 0) ngay từ lượt
-chạy này — nếu chạy lại đúng lệnh cũ trên **cùng file `--out`**, những dòng đó
-vẫn bị coi là "đã xong" và **không được encode lại**, dù ảnh đã có.
+Không chạy lại nguyên lệnh việc 10 — `08_encode.py` đánh dấu dòng thiếu ảnh là
+**`xong = True`** (vector 0) ngay từ lượt chạy trước, nên chạy lại đúng lệnh
+cũ trên cùng file `--out` **sẽ không encode lại** các dòng đó dù ảnh đã có.
+Thay vào đó, làm 3 bước, cả 3 đều đã chạy thật và đã dùng được:
 
-Cách đúng khi có `L26_d`:
+**1. Vá `kf_path`** (script cũ, không đổi):
 
 ```powershell
-# 1. Vá kf_path — chỉ nhóm L26_d sẽ đổi
 python scripts\12_va_duong_dan.py --ghi
+```
 
-# 2. Encode RIÊNG chỉ các video L26_d, ra file tạm khác (không đụng
-#    clip_siglip2.npy đang có)
+**2. Encode RIÊNG chỉ các video mới** — thêm cờ mới `--chi-video` vào
+`08_encode.py` (nhận file danh sách `video_id`, mỗi dòng một cái; hàm
+`chon_theo_danh_sach()`), ra file tạm, **không đụng `clip_siglip2.npy`**:
+
+```powershell
 python scripts\08_encode.py `
   --model ViT-SO400M-14-SigLIP2-378 `
   --pretrained "D:\Project\AIC_2026\models\ViT-SO400M-14-SigLIP2-378_webli_open_clip_model.safetensors" `
   --image-size 378 --batch 16 `
-  --out index\clip_siglip2_L26d_vá.npy
+  --chi-video danh_sach_video_moi.txt `
+  --out index\clip_siglip2_L26d_va.npy
 ```
 
-Bước 3 (ghép `clip_siglip2_L26d_vá.npy` vào đúng vị trí dòng trong
-`clip_siglip2.npy`) cần một script nhỏ — **chưa viết**, viết khi có `L26_d`
-thật để tránh đoán sai `row_id` cần ghép. Nguyên lý: chỉ copy đè các dòng có
-`kf_path` thuộc `L26_d` (so từ `master.parquet`), giữ nguyên mọi dòng khác —
-tương tự cách `12_va_duong_dan.py` chỉ sửa cột chỉ định, có kiểm toàn vẹn
-trước khi ghi.
+Kết quả thật: 16.500/16.500 dòng có vector khác 0, ~22,6 ảnh/giây, ~12 phút.
+
+**3. Ghép vào ma trận chính** — script mới `scripts/18_ghep_ma_tran.py`.
+Nguyên lý: dòng nào trong ma trận vá có vector khác 0 thì ghi đè vào ma trận
+chính; dòng khác giữ nguyên tuyệt đối (script tự kiểm bằng
+`np.array_equal`, giống tinh thần `12_va_duong_dan.py`). Mặc định chỉ xem
+trước, thêm `--ghi` để ghi thật, tự sao lưu bản cũ và tự cập nhật `.json` đi
+kèm.
+
+```powershell
+python scripts\18_ghep_ma_tran.py --chinh index\clip_siglip2.npy `
+  --va index\clip_siglip2_L26d_va.npy --ghi
+```
+
+Kết quả thật: **+16.500 dòng mới, 0 dòng bị ghi đè nhầm** → tổng
+**177.321/177.321 dòng có vector thật**. Kiểm lệch hàng lại lần cuối
+(**bắt buộc** sau mọi lần ghép) — **✅ HÀNG KHỚP**, 198/200 (99,0%), trung vị
+cosine 0,9993. Đã dọn file tạm (`_L26d_va.*`, `.truoc_khi_ghep`).
+
+`scripts/18_ghep_ma_tran.py` dùng lại được cho bất kỳ lô vá nào sau này
+(không riêng `L26_d`) — chỉ cần encode riêng lô mới bằng `--chi-video` rồi
+ghép, không phải bao giờ cũng chạy lại 2 giờ từ đầu.
 
 ---
 
@@ -268,11 +287,11 @@ trước khi ghi.
 
 1. ~~Việc 7~~ — ✅ xong (cả team, 117 câu)
 2. ~~Việc 8~~ — 🟢 đã có câu trả lời sớm (A10.3), còn xác nhận trên toàn kho
-3. ~~Việc 9~~ — ✅ 773/873 video (thiếu `L26_d`)
+3. ~~Việc 9~~ — ✅ 873/873 video
 4. ~~Việc 10~~ — ✅ xong 2026-08-19, `index/clip_siglip2.npy` (177321, 1152)
-5. ~~Việc 11~~ — ✅ HÀNG KHỚP (198/200, 99,0%)
-6. **Đẩy `clip_siglip2.npy` + `.json` lên Drive** — chưa làm, xem §7 của
+5. ~~Việc 11~~ — ✅ HÀNG KHỚP, **177.321/177.321 dòng có vector thật**
+6. ~~Vá `L26_d`~~ — ✅ xong, xem §11
+7. **Đẩy `clip_siglip2.npy` + `.json` lên Drive** — chưa làm, xem §7 của
    [06_ke_hoach_encode_GPU.md](06_ke_hoach_encode_GPU.md#7-bảng-bàn-giao)
-7. Vá `L26_d` khi tải được — xem §11
 8. Báo nhóm chạy việc 8 (đo A/B/C xác nhận trên toàn kho, mở khóa H3 của
    `Ke_hoach_AIC2026_v4.md`)
