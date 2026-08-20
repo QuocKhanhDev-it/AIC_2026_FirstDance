@@ -1239,6 +1239,52 @@ Danh sách "đã thử mà không hiệu quả" nay dài hơn danh sách "đang 
 
 ---
 
+### A20 — Leaderboard 0,8 → 2,6, và tập dev **không giải thích được** phần lớn mức tăng
+
+Phép đo NGOÀI đầu tiên có hai điểm để so. Đợt 1 nộp bằng kênh objects đơn lẻ;
+đợt 2 thêm ba thay đổi: cắt truy vấn theo câu, thêm kênh OCR hợp nhất RRF, bỏ
+kênh metadata khỏi hợp nhất.
+
+| | Điểm | |
+| --- | ---: | --- |
+| Đợt 1 — objects đơn lẻ | **0,8** | hạng 77 |
+| Đợt 2 — RRF(objects, OCR) + cắt truy vấn | **2,6** | **×3,25** |
+| Tập dev dự đoán | — | **×1,55** |
+
+**Thực tế gấp hơn hai lần dự đoán của tập dev.** Truy nguyên phần chênh:
+
+| Thay đổi | Tập dev đo được |
+| --- | --- |
+| Thêm kênh OCR + RRF | +0,0228 (0,0412 → 0,0640) = ×1,55 |
+| Bỏ kênh metadata | đã đo ở A14.2 |
+| **Cắt truy vấn theo câu** | **⚪ KHÔNG ĐỔI GÌ — 0–0–100** |
+
+Cắt truy vấn cho **0-0-100 trên tập dev**, và không phải vì nó vô dụng mà vì
+**tập dev không kích hoạt được nó**:
+
+| | Truy vấn bị tách | Mệnh đề TB |
+| --- | ---: | ---: |
+| Tập dev | **7/97 (7%)** | 1,1 |
+| **Đề thi thật** | **18/21 (86%)** | 2,4 |
+
+> **Đây là lần thứ hai tập dev tỏ ra mù với một lỗi thật.** Lần đầu: 57% truy
+> vấn đề thật bị cắt cụt token trong khi dev chỉ 1/40 (A19). Lần này: 86% đề
+> thật bị tách trong khi dev chỉ 7%.
+>
+> Cả hai đều cùng một nguyên nhân — **câu dev tự soạn dài 22 từ, đề thật dài 63
+> từ**. Ta đang đo trên một phân bố truy vấn khác với phân bố đi thi.
+
+**Không kết luận được cắt truy vấn đóng góp bao nhiêu trong ×3,25.** Ba thay đổi
+đi cùng một lần nộp, mà mỗi gói chỉ có 3 lần nộp nên không A/B được trên
+leaderboard. Chỉ biết: phần dev giải thích được là ×1,55, phần còn lại chưa quy
+được cho ai.
+
+> **Việc quan trọng nhất cho tập dev từ nay không phải THÊM CÂU, mà là THÊM CÂU
+> DÀI NHƯ ĐỀ THẬT** — nhiều câu, nhiều mệnh đề, có bối cảnh trước/sau. Không có
+> chúng thì mọi con số ta đo tiếp tục nói về một bài toán dễ hơn bài đang thi.
+
+---
+
 ## PHẦN B — QUYẾT ĐỊNH HẠ TẦNG
 
 ### B1. Không dùng Supabase / Postgres / Milvus / Elasticsearch — ĐÃ KIỂM CHỨNG
