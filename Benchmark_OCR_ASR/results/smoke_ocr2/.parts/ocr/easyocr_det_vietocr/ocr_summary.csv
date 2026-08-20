@@ -1,2 +1,0 @@
-﻿model_id,text_type,samples,cer_norm,cer_ci_low,cer_ci_high,character_accuracy,wer_norm,exact_norm,detection_recall_iou50,latency_median_sec,latency_p95_sec,vram_peak_gb
-easyocr_det_vietocr,static_text,1,0.0,0.0,0.0,1.0,0.0,1.0,1.0,0.3281228999985615,0.3281228999985615,0.753654956817627
