@@ -291,18 +291,23 @@ def loc_cung(de: dict, bang, master, k: int) -> dict:
     return ra
 
 
-def quet_van_ban(master, de: dict, k: int, index: Path) -> dict:
+def quet_van_ban(master, de: dict, k: int, index: Path,
+                 bo_metadata: bool = False) -> dict:
     """Kênh 2 (metadata) + kênh 3 (OCR/ASR nếu có file). Nhẹ, không cần model."""
     from bm25 import KenhVanBan
     ra = {}
 
-    k2 = KenhVanBan.tu_metadata(master)
-    print(f"  kênh 2: metadata, {len(k2)} video")
-    for ten, nd in de.items():
-        if loai_cua(ten) != "trake":
-            ra.setdefault(ten, []).append(k2.tim(nd, k=k, moi_video=3))
-    del k2
-    gc.collect()
+    if bo_metadata:
+        print("  kênh 2: BỎ (đo được 0,0000 ở ±2s — cộng vào là pha loãng)")
+    else:
+        k2 = KenhVanBan.tu_metadata(master)
+        print(f"  kênh 2: metadata, {len(k2)} video")
+        for ten, nd in de.items():
+            if loai_cua(ten) != "trake":
+                ra.setdefault(ten, []).append(k2.tim(tach_truy_van(nd), k=k,
+                                                     moi_video=3))
+        del k2
+        gc.collect()
 
     # Kênh 3: TV4 sinh ra `ocr_asr.parquet` với cột row_id + text.
     for p in (index / "ocr_asr.parquet",
@@ -320,7 +325,7 @@ def quet_van_ban(master, de: dict, k: int, index: Path) -> dict:
             print(f"  kênh 3: OCR/ASR, {len(k3):,} khung có chữ ({p.name})")
             for ten, nd in de.items():
                 if loai_cua(ten) != "trake":
-                    ra.setdefault(ten, []).append(k3.tim(nd, k=k))
+                    ra.setdefault(ten, []).append(k3.tim(tach_truy_van(nd), k=k))
             del k3
             gc.collect()
             break
@@ -490,6 +495,10 @@ def main():
     ap.add_argument("--hop-nhat", action="store_true",
                     help="RRF kênh 1 với kênh văn bản. ĐÃ ĐO LÀ LÀM TỆ ĐI "
                          "(A14/A17) — chỉ bật khi đo lại thấy thắng")
+    ap.add_argument("--bo-metadata", action="store_true",
+                    help="hop nhat MA KHONG lay kenh 2. Kenh 2 duoc 0,0000 o "
+                         "±2s (A12) nen cong vao la PHA LOANG (A14.2). Cau hinh "
+                         "do duoc tot nhat khong can model la RRF(objects, OCR)")
     ap.add_argument("--trong-so-phu", type=float, default=0.3,
                     help="trọng số cho kênh phụ khi --hop-nhat (A14.2)")
     ap.add_argument("--tra-loi", default="",
@@ -516,7 +525,8 @@ def main():
         kq1, master = quet_objects(a.index, de, a.k)
     else:
         kq1, master = quet_anh(a.index, a.matrix, de, a.k)
-    phu = quet_van_ban(master, de, a.k, a.index) if a.hop_nhat else {}
+    phu = (quet_van_ban(master, de, a.k, a.index, a.bo_metadata)
+           if a.hop_nhat else {})
 
     lc = {}
     if a.loc_cung:
