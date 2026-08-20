@@ -37,7 +37,12 @@ pytestmark = pytest.mark.skipif(
 @pytest.fixture(scope="module")
 def kenh():
     pytest.importorskip("open_clip", reason="cần requirements-clip.txt")
-    from dense import KenhAnh
+    from dense import KenhAnh, RAM_CAN, ram_trong_gb
+    # Chốt RAM của `dense` ném SystemExit chứ không phải lỗi test. Máy đang
+    # thiếu RAM thì BỎ QUA — ép chạy là treo máy, đã xảy ra hai lần.
+    tro, can = ram_trong_gb(), RAM_CAN[512]
+    if tro is not None and tro < can:
+        pytest.skip(f"chỉ còn {tro:.1f} GB RAM, cần ~{can:.1f} GB để nạp model")
     return KenhAnh(GOC / "index")
 
 

@@ -44,6 +44,70 @@ MODEL_MAC_DINH = "ViT-B-32-quickgelu"
 PRETRAINED_MAC_DINH = "openai"
 
 
+# RAM tối thiểu (GB) cần CÒN TRỐNG để nạp model, tra theo số chiều ma trận.
+# Số chiều là proxy tốt cho cỡ model: 512 = ViT-B/32, 1152 = SO400M.
+RAM_CAN = {512: 2.0, 768: 3.0, 1024: 5.0, 1152: 6.5}
+RAM_CAN_MAC_DINH = 6.5
+
+
+def ram_trong_gb() -> float | None:
+    """RAM vật lý còn trống, GB. `None` nếu không hỏi được."""
+    try:
+        import ctypes
+
+        class _S(ctypes.Structure):
+            _fields_ = [("dwLength", ctypes.c_ulong),
+                        ("dwMemoryLoad", ctypes.c_ulong),
+                        ("ullTotalPhys", ctypes.c_ulonglong),
+                        ("ullAvailPhys", ctypes.c_ulonglong),
+                        ("ullTotalPageFile", ctypes.c_ulonglong),
+                        ("ullAvailPageFile", ctypes.c_ulonglong),
+                        ("ullTotalVirtual", ctypes.c_ulonglong),
+                        ("ullAvailVirtual", ctypes.c_ulonglong),
+                        ("ullAvailExtendedVirtual", ctypes.c_ulonglong)]
+        s = _S()
+        s.dwLength = ctypes.sizeof(_S)
+        if ctypes.windll.kernel32.GlobalMemoryStatusEx(ctypes.byref(s)):
+            return s.ullAvailPhys / 1024 ** 3
+    except Exception:
+        pass
+    try:                                     # Linux/macOS
+        import os
+        return (os.sysconf("SC_AVPHYS_PAGES") * os.sysconf("SC_PAGE_SIZE")
+                / 1024 ** 3)
+    except Exception:
+        return None
+
+
+def kiem_ram(model_tag: str, chieu: int) -> None:
+    """Dừng TRƯỚC khi nạp model nếu RAM không đủ.
+
+    ⚠️ **Đây là chốt chống TREO MÁY, không phải chốt lịch sự.** Nạp
+    `ViT-SO400M-14-SigLIP2-378` (~3,5 GB trọng số) trên máy 7,7 GB đã làm đứng
+    hẳn máy **hai lần** — không phải `MemoryError` gọn gàng mà là hệ điều hành
+    thrash tới mức không thao tác được, phải khởi động lại.
+
+    Thà chết ngay với một dòng đọc được còn hơn treo máy người dùng.
+    """
+    can = RAM_CAN.get(chieu, RAM_CAN_MAC_DINH)
+    tro = ram_trong_gb()
+    if tro is None or tro >= can:
+        return
+    raise SystemExit(
+        f"\n❌ KHÔNG ĐỦ RAM — dừng trước khi nạp model.\n\n"
+        f"   Model      : {model_tag} ({chieu} chiều)\n"
+        f"   Cần trống  : ~{can:.1f} GB\n"
+        f"   Đang trống : {tro:.1f} GB\n\n"
+        f"   Nạp tiếp gần như chắc chắn làm ĐỨNG MÁY (đã xảy ra hai lần),\n"
+        f"   không phải báo lỗi gọn gàng.\n\n"
+        f"   Cách đi tiếp:\n"
+        f"     • Chạy trên máy >= 16 GB — xem docs/09_do_tren_may_khoe.md\n"
+        f"     • Hoặc đóng bớt ứng dụng rồi thử lại\n"
+        f"     • Hoặc dùng ma trận nhẹ hơn: --matrix clip.npy (512 chiều)\n"
+        f"       ⚠️ nhưng CLIP được 0,0000 trên truy vấn tiếng Việt (A10)\n"
+        f"     • Ép chạy bất chấp: KenhAnh(..., bo_qua_ram=True)\n")
+
+
 class KenhAnh:
     """Giữ model + ma trận trong RAM, dùng lại cho mọi truy vấn.
 
@@ -52,7 +116,7 @@ class KenhAnh:
     """
 
     def __init__(self, index_dir="./index", matrix="clip.npy",
-                 model=None, pretrained=None, mmap=False):
+                 model=None, pretrained=None, mmap=False, bo_qua_ram=False):
         d = Path(index_dir)
         self.master = pd.read_parquet(d / "master.parquet")
         self.mat = np.load(d / matrix, mmap_mode="r" if mmap else None)
@@ -70,6 +134,9 @@ class KenhAnh:
         self.model_tag = model or ghi_chu.get("model", MODEL_MAC_DINH)
         self.pretrained = pretrained or ghi_chu.get("pretrained", PRETRAINED_MAC_DINH)
         self.chieu = self.mat.shape[1]
+
+        if not bo_qua_ram:
+            kiem_ram(self.model_tag, self.chieu)
 
         import torch, open_clip
         self._torch = torch

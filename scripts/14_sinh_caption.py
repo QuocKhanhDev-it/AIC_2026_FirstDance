@@ -19,17 +19,35 @@ Và ta đã xem đúng bộ phim này rồi: kênh 1 được **0,0000** trên t
 mù tiếng Việt (A10). Sinh caption tiếng Anh là tự dựng lại cùng một lỗi, lần
 này tốn thêm tiền API.
 
-CHI PHÍ — ƯỚC TRƯỚC KHI TIÊU
-=============================
+HAI BACKEND — CHỐT DÙNG FREE, KHÔNG TRẢ PHÍ
+=============================================
 
-`--uoc-tinh` in ra số lệnh gọi, thời gian tường và chi phí, **không gọi API lần
-nào**. Đơn giá là THAM SỐ (`--gia-1k`) chứ không phải hằng số chôn trong code:
-giá nhà cung cấp đổi, và một con số bịa trong tài liệu còn tệ hơn không có số.
-Tra bảng giá hiện hành rồi truyền vào.
+Nhóm đã chốt chỉ dùng model free. Ở khối lượng kênh 5 (tới 177.321 ảnh), free
+tier Gemini có trần lượt/phút + lượt/ngày — chạy đúng trần đó cho hết một phần
+kho có thể mất hàng tuần. `qwen2.5vl:7b` qua Ollama (local, GPU) không có trần
+nào, chỉ bị giới hạn bởi tốc độ GPU (~8s/ảnh đo được ở bench Q&A, xem
+`Test VLM AIC/BAO_CAO_BENCH_VLM_2026-08-13.md`) — CHẬM HƠN nhưng CHẠY ĐƯỢC HẾT.
+
+    --backend ollama     # NGUỒN CHÍNH cho việc sinh hàng loạt (mặc định)
+    --backend gemini      # bổ sung cho vài trăm ảnh khó, hoặc khi GPU đang bận
+
+⚠️ Ollama chưa từng được đo cho việc VIẾT CAPTION DÀI (bench cũ chỉ đo trả lời
+ngắn ≤4 từ cho Q&A) — bắt buộc thử trên mẫu nhỏ trước, xem CHI PHÍ bên dưới.
+
+CHI PHÍ / THỜI GIAN — ƯỚC TRƯỚC KHI CHẠY THẬT
+================================================
+
+`--uoc-tinh` in ra số lệnh gọi và thời gian tường, **không gọi API/Ollama lần
+nào**. Với `--backend gemini`, `--gia-1k` là THAM SỐ (đơn giá $ / 1000 ảnh) chứ
+không phải hằng số chôn trong code — giá nhà cung cấp đổi, một con số bịa trong
+tài liệu còn tệ hơn không có số.
 
     python scripts/14_sinh_caption.py --uoc-tinh --chon co-anh
-    python scripts/14_sinh_caption.py --chon nhom:L21 --n 200      # thử 200 ảnh
-    python scripts/14_sinh_caption.py --chon co-anh --luong 8
+    python scripts/14_sinh_caption.py --chon nhom:L21 --n 200                 # thử 200 ảnh, Ollama
+    python scripts/14_sinh_caption.py --chon co-anh --backend gemini --luong 8
+
+⚠️ Ollama chạy trên MỘT GPU — `--luong` cao không chia sẻ được VRAM, dễ tràn bộ
+nhớ hoặc không nhanh hơn. Bắt đầu với `--luong 1` hoặc `2`, tự đo trước khi tăng.
 
 Ghi nối vào `index/caption.jsonl` (an toàn khi ngắt giữa chừng), rồi biên ra
 `index/caption.parquet`. Chạy lại là bỏ qua ảnh đã xong, không gọi lại.
@@ -52,10 +70,14 @@ import pandas as pd
 GOC = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(GOC / "src"))
 
-API = ("https://generativelanguage.googleapis.com/v1beta/models/"
-       "{model}:generateContent?key={key}")
+API_GEMINI = ("https://generativelanguage.googleapis.com/v1beta/models/"
+              "{model}:generateContent?key={key}")
+API_OLLAMA = "http://localhost:11434/api/generate"
 
-MODEL_MAC_DINH = "gemini-3.1-flash-lite"     # đã chốt ở D0.3
+# Chốt dùng FREE (không trả phí): Ollama làm nguồn chính cho khối lượng lớn,
+# Gemini free tier bổ sung. Xem "HAI BACKEND" ở đầu file.
+MODEL_MAC_DINH = {"gemini": "gemini-3.1-flash-lite", "ollama": "qwen2.5vl:7b"}
+GIAY_MOI_ANH_MAC_DINH = {"gemini": 1.4, "ollama": 8.2}   # đo được ở bench Q&A
 
 # Nhắc: viết cho MÁY TÌM KIẾM đọc, không viết cho người đọc. Nghĩa là ưu tiên
 # danh từ cụ thể và động từ, bỏ hết chữ đưa đẩy ("bức ảnh này cho thấy...") vì
@@ -159,8 +181,8 @@ def da_xong(f: Path) -> set:
     return {x["row_id"] for x in doc_log(f)}
 
 
-def goi(model, key, anh: bytes, loi_nhac: str, timeout=90, thu_lai=4):
-    """Gọi API, lùi thời gian theo cấp số nhân khi 429/503."""
+def goi_gemini(model, key, anh: bytes, loi_nhac: str, timeout=90, thu_lai=4):
+    """Gọi Gemini API, lùi thời gian theo cấp số nhân khi 429/503."""
     body = {"contents": [{"parts": [
         {"inline_data": {"mime_type": "image/jpeg",
                          "data": base64.b64encode(anh).decode()}},
@@ -169,7 +191,7 @@ def goi(model, key, anh: bytes, loi_nhac: str, timeout=90, thu_lai=4):
     data = json.dumps(body).encode()
     cho = 5
     for lan in range(thu_lai):
-        req = urllib.request.Request(API.format(model=model, key=key), data=data,
+        req = urllib.request.Request(API_GEMINI.format(model=model, key=key), data=data,
                                      headers={"Content-Type": "application/json"})
         try:
             with urllib.request.urlopen(req, timeout=timeout) as r:
@@ -185,6 +207,43 @@ def goi(model, key, anh: bytes, loi_nhac: str, timeout=90, thu_lai=4):
                 continue
             raise
     raise RuntimeError("hết lượt thử lại")
+
+
+def goi_ollama(model, anh: bytes, loi_nhac: str, timeout=120, thu_lai=3):
+    """Gọi Ollama local (`ollama serve`), lùi thời gian khi server bận/chưa lên.
+
+    Không có khái niệm 429 ở đây — lỗi thường gặp là server chưa chạy hoặc
+    model chưa `ollama pull`, nên thông báo lỗi phải nói rõ cách sửa, không chỉ
+    ném traceback.
+    """
+    body = {"model": model, "prompt": loi_nhac, "stream": False,
+             "images": [base64.b64encode(anh).decode()],
+             "options": {"temperature": 0.0}}
+    data = json.dumps(body).encode()
+    cho = 3
+    for lan in range(thu_lai):
+        req = urllib.request.Request(API_OLLAMA, data=data,
+                                     headers={"Content-Type": "application/json"})
+        try:
+            with urllib.request.urlopen(req, timeout=timeout) as r:
+                d = json.loads(r.read())
+            return d.get("response", "").strip()
+        except (urllib.error.URLError, ConnectionRefusedError, TimeoutError) as e:
+            if lan < thu_lai - 1:
+                time.sleep(cho)
+                cho *= 2
+                continue
+            raise RuntimeError(
+                f"Ollama không phản hồi ở {API_OLLAMA} sau {thu_lai} lần thử "
+                f"({e}). Đã chạy `ollama serve` và `ollama pull {model}` chưa?")
+    raise RuntimeError("hết lượt thử lại")
+
+
+def goi(backend, model, key, anh: bytes, loi_nhac: str, timeout=90, thu_lai=4):
+    """Điều phối theo backend. `key` bị bỏ qua khi `backend == "ollama"`."""
+    if backend == "ollama":
+        return goi_ollama(model, anh, loi_nhac, timeout=max(timeout, 120), thu_lai=thu_lai)
+    return goi_gemini(model, key, anh, loi_nhac, timeout=timeout, thu_lai=thu_lai)
 
 
 def don(text: str) -> str:
@@ -204,23 +263,32 @@ def don(text: str) -> str:
 
 
 def uoc_tinh(d: pd.DataFrame, a):
-    """In bảng ước lượng. KHÔNG gọi API."""
+    """In bảng ước lượng. KHÔNG gọi API/Ollama."""
     n = len(d)
     giay = n * a.giay_moi_anh / max(a.luong, 1)
+    print(f"{'backend':<28}{a.backend:>12}")
+    print(f"{'model':<28}{a.model:>12}")
     print(f"{'số ảnh cần sinh':<28}{n:>12,}")
     print(f"{'luồng song song':<28}{a.luong:>12}")
     print(f"{'giây/ảnh (giả định)':<28}{a.giay_moi_anh:>12.1f}")
     print(f"{'thời gian tường':<28}{giay / 3600:>12.1f} giờ")
-    print(f"{'chi phí ở ' + str(a.gia_1k) + ' /1k ảnh':<28}"
-          f"{n / 1000 * a.gia_1k:>12.2f}")
     print(f"\n{'toàn kho 177.321 ảnh':<28}"
-          f"{177321 * a.giay_moi_anh / max(a.luong, 1) / 3600:>12.1f} giờ"
-          f"   {177321 / 1000 * a.gia_1k:>10.2f}")
-    print("\n⚠️  `--gia-1k` là THAM SỐ, mặc định chỉ là chỗ giữ chỗ. Tra bảng giá\n"
-          "    hiện hành rồi truyền vào — đừng trích con số này ra tài liệu.")
-    print("⚠️  Bậc miễn phí có trần lượt/ngày. Ba model đã chết vì rate-limit\n"
-          "    trong một đợt test 20 lượt (D0.3). Với vài chục nghìn ảnh thì\n"
-          "    phải trả phí hoặc chạy model local — đó là việc 12 của PHẦN H.")
+          f"{177321 * a.giay_moi_anh / max(a.luong, 1) / 3600:>12.1f} giờ")
+    if a.backend == "gemini":
+        print(f"{'chi phí ở ' + str(a.gia_1k) + ' /1k ảnh':<28}"
+              f"{n / 1000 * a.gia_1k:>12.2f}")
+        print(f"{'chi phí toàn kho':<28}{177321 / 1000 * a.gia_1k:>12.2f}")
+        print("\n⚠️  `--gia-1k` là THAM SỐ, mặc định chỉ là chỗ giữ chỗ. Tra bảng giá\n"
+              "    hiện hành rồi truyền vào — đừng trích con số này ra tài liệu.")
+        print("⚠️  Free tier có trần lượt/phút + lượt/ngày, chưa đo trần thật cho\n"
+              "    model này. Ở khối lượng vài chục nghìn ảnh, dùng `--backend ollama`\n"
+              "    (mặc định) để không bị nghẽn quota — Gemini chỉ nên bổ sung.")
+    else:
+        print("\n⚠️  Ollama chạy trên MỘT GPU — `--luong` cao không chia sẻ được VRAM,\n"
+              "    dễ tràn bộ nhớ. Bắt đầu `--luong 1` hoặc `2`, tự đo trước khi tăng.")
+        print("⚠️  Chưa từng đo qwen2.5vl:7b cho việc VIẾT CAPTION DÀI (bench cũ chỉ\n"
+              "    đo trả lời ngắn cho Q&A) — chạy `--n 200` trước, chấm bằng\n"
+              "    `cham_diem.bao_cao_do_nhay` trước khi cam kết chạy hết.")
 
 
 def main():
@@ -228,20 +296,30 @@ def main():
     ap.add_argument("--index", default=GOC / "index", type=Path)
     ap.add_argument("--chon", default="tap-dev",
                     help="co-anh | tap-dev | nhom:L21,L22")
-    ap.add_argument("--model", default=MODEL_MAC_DINH)
+    ap.add_argument("--backend", default="ollama", choices=("ollama", "gemini"),
+                    help="ollama = nguồn chính (free, local, không trần). "
+                         "gemini = bổ sung (free tier, có trần)")
+    ap.add_argument("--model", default=None,
+                    help="mặc định theo backend, xem MODEL_MAC_DINH")
     ap.add_argument("--n", type=int, default=0, help="trần số ảnh lần này. 0 = hết")
-    ap.add_argument("--luong", type=int, default=4, help="số luồng gọi song song")
-    ap.add_argument("--uoc-tinh", action="store_true", help="chỉ ước lượng, không gọi API")
-    ap.add_argument("--giay-moi-anh", type=float, default=1.4,
-                    help="độ trễ đo được ở D0.3")
+    ap.add_argument("--luong", type=int, default=4,
+                    help="số luồng song song. Ollama trên 1 GPU: bắt đầu 1-2")
+    ap.add_argument("--uoc-tinh", action="store_true",
+                    help="chỉ ước lượng, không gọi API/Ollama")
+    ap.add_argument("--giay-moi-anh", type=float, default=None,
+                    help="mặc định theo backend, xem GIAY_MOI_ANH_MAC_DINH")
     ap.add_argument("--gia-1k", type=float, default=0.0,
-                    help="đơn giá cho 1000 ảnh, tự tra rồi truyền vào")
+                    help="đơn giá cho 1000 ảnh (chỉ dùng khi --backend gemini)")
     ap.add_argument("--bien", action="store_true",
                     help="chỉ biên caption.jsonl -> caption.parquet rồi thoát")
     ap.add_argument("--khong-dong-nghia", action="store_true",
                     help="tắt nới từ vựng vùng miền (dứa/thơm/khóm). "
                          "Để A/B trên tập thử — xem hàm nhac()")
     a = ap.parse_args()
+    if a.model is None:
+        a.model = MODEL_MAC_DINH[a.backend]
+    if a.giay_moi_anh is None:
+        a.giay_moi_anh = GIAY_MOI_ANH_MAC_DINH[a.backend]
     loi_nhac = nhac(not a.khong_dong_nghia)
 
     log = a.index / "caption.jsonl"
@@ -265,14 +343,16 @@ def main():
         print("Không còn ảnh nào. Biên ra parquet:")
         return bien(log, par)
 
-    key = os.environ.get("GOOGLE_API_KEY") or os.environ.get("GEMINI_API_KEY")
-    if not key:
-        raise SystemExit(
-            "Chưa đặt GOOGLE_API_KEY.\n\n"
-            "    $env:GOOGLE_API_KEY = '...'\n\n"
-            "Đặt bằng biến môi trường, ĐỪNG ghi vào file trong repo — repo này\n"
-            "công khai. Và khóa nào từng dán vào chat thì coi như đã lộ, phải\n"
-            "xoá ở AI Studio rồi tạo khóa mới.")
+    key = None
+    if a.backend == "gemini":
+        key = os.environ.get("GOOGLE_API_KEY") or os.environ.get("GEMINI_API_KEY")
+        if not key:
+            raise SystemExit(
+                "Chưa đặt GOOGLE_API_KEY.\n\n"
+                "    $env:GOOGLE_API_KEY = '...'\n\n"
+                "Đặt bằng biến môi trường, ĐỪNG ghi vào file trong repo — repo này\n"
+                "công khai. Và khóa nào từng dán vào chat thì coi như đã lộ, phải\n"
+                "xoá ở AI Studio rồi tạo khóa mới.")
 
     viec = queue.Queue()
     for r in d.itertuples(index=False):
@@ -288,7 +368,7 @@ def main():
             except queue.Empty:
                 return
             try:
-                cap = don(goi(a.model, key, Path(path).read_bytes(), loi_nhac))
+                cap = don(goi(a.backend, a.model, key, Path(path).read_bytes(), loi_nhac))
             except Exception as e:
                 with khoa:
                     dem["hong"] += 1

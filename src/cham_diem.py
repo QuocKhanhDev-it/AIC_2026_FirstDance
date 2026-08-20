@@ -53,6 +53,43 @@ def diem_trake(hang_moi_su_kien: list) -> float:
     return mean(diem_cau(h) for h in hang_moi_su_kien) if hang_moi_su_kien else 0.0
 
 
+def diem_trake_bai_nop(cac_dong, dung_moi_su_kien: list,
+                       gioi_han: int = 100) -> float:
+    """Điểm TRAKE **theo đúng cách BTC chấm BÀI NỘP**.
+
+    ⚠️ Khác hẳn `diem_trake()` ở trên, và phải hiểu rõ khác chỗ nào:
+
+    * `diem_trake()` chấm **KÊNH**: một danh sách ứng viên, tìm xem mỗi sự kiện
+      có nằm trong đó không. Trả lời câu hỏi *"kênh có tìm ra các sự kiện
+      không"*.
+    * Hàm này chấm **BÀI NỘP**: mỗi dòng là một BỘ N khung, và **vị trí i chỉ
+      được so với sự kiện i**. Trả lời câu hỏi *"nộp cái này thì được mấy
+      điểm"*.
+
+    Hai con số có thể lệch rất xa: kênh tìm ra đủ ba sự kiện nhưng khâu lắp ráp
+    xếp sai vị trí thì `diem_trake()` cho điểm cao còn BTC cho 0. Đó chính là
+    tầng mà `run.dung_trake()` làm, và là tầng chưa ai đo.
+
+    `cac_dong`: danh sách các dòng, mỗi dòng là list `row_id` theo thứ tự sự kiện.
+    `dung_moi_su_kien`: list các `set` row_id đúng, một set cho mỗi sự kiện.
+
+    R-Score một dòng = tỷ lệ vị trí khớp (A8.1: *"partial credit proportional to
+    the number of correctly matched frames"*). Điểm cuối vẫn là trung bình
+    `max R-Score trong top-k` trên các mốc R@{1,5,20,50,100}.
+    """
+    n = len(dung_moi_su_kien)
+    if not n:
+        return 0.0
+    r = []
+    for dong in cac_dong[:gioi_han]:
+        khop = sum(1 for i, f in enumerate(dong[:n]) if f in dung_moi_su_kien[i])
+        r.append(khop / n)
+    if not r:
+        return 0.0
+    # max R-Score trong top-k, trung bình trên các mốc
+    return mean(max(r[:k], default=0.0) for k in MOC)
+
+
 def _hang(ket_qua, dung: set, gioi_han: int = 100, hop_le=None) -> int | None:
     """Thứ hạng (1-based) của kết quả đúng đầu tiên trong top-`gioi_han`.
 
