@@ -958,9 +958,45 @@ mạnh — xuất hiện.
 > nào thắng**. Cộng thêm một kênh yếu vào một kênh mạnh là **pha loãng**, đo
 > được, ổn định, và không có kiến trúc hợp nhất nào sửa được.
 
+#### A14.2 — Nguyên nhân thật: **RRF coi mọi kênh đáng tin NHƯ NHAU**
+
+Câu hỏi tự nhiên khi thấy A14/A14.1: *"hợp nhất tệ đi là do chưa đủ kênh à?"*
+**Không.** Đo bằng cách hạ trọng số kênh yếu (`hop_nhat` đã có sẵn `trong_so`):
+
+| Cấu hình | ±2s | ±15s | so với kênh 4 |
+| --- | ---: | ---: | --- |
+| **kênh 4 objects** | **0,0412** | **0,0701** | *(mốc nền)* |
+| RRF trọng số **1 : 1** | 0,0268 | 0,0577 | −0,0144 ✅ **hại** |
+| RRF trọng số **0,5 : 1** | 0,0412 | 0,0722 | +0,0021 · 1–0–96 · 🟡 |
+| RRF trọng số **0,2 : 1** | 0,0412 | 0,0701 | ⚪ **KHÔNG ĐỔI GÌ** |
+| RRF trọng số **0,05 : 1** | 0,0412 | 0,0701 | ⚪ **KHÔNG ĐỔI GÌ** |
+
+**Cơ chế:** RRF cộng `1/(k + hạng)` từ *mỗi* kênh, không nhìn kênh đó tốt hay
+tệ. Nên **ứng viên hạng 1 của một kênh chết được cộng đúng bằng ứng viên hạng 1
+của kênh tốt** — `1/61` cho cả hai. Với `k = 60`, chênh lệch giữa hạng 1 và hạng
+100 chỉ là `1/61` so với `1/160`, tức **chưa tới 3 lần**; còn chênh lệch chất
+lượng giữa kênh 4 và kênh 2 thì vô hạn (0,0412 so với 0,0000). RRF không có chỗ
+nào biểu đạt được điều đó.
+
+**Nhưng phải đọc đúng kết quả:** hạ trọng số **chặn được thiệt hại, KHÔNG tạo ra
+lợi ích**. Ở 0,2 và 0,05 điểm hội tụ về đúng kênh 4 đứng một mình — tức kênh yếu
+tốt nhất chỉ có thể *tránh đường*. Nghĩa là:
+
+> **Vấn đề không phải thiếu kênh, mà là kênh không có gì để đóng góp.** Thêm ba
+> kênh nữa cùng loại sẽ làm tệ hơn chứ không tốt hơn. Hợp nhất chỉ lãi khi các
+> kênh **cùng tầm chất lượng** và **đồng ý ở cùng độ mịn** (A14).
+
+Hệ quả thực dụng: trước khi hợp nhất, **đo từng kênh riêng**; kênh nào cách kênh
+mạnh nhất quá xa thì để ngoài, hoặc hạ trọng số cho nó khỏi phá.
+
 **Và một con số cần nhớ:** kênh 4 (objects) đang là **kênh mạnh nhất** hiện có
 — 0,0412 / 0,0701, gấp bốn lần kênh 2. Trước A10 ta vẫn nghĩ kênh 1 là xương
 sống.
+
+> **Đã lỗi thời — A17 (19/08).** SigLIP2 toàn kho đưa kênh 1 lên **0,3258**,
+> gấp gần 8 lần kênh 4. Mốc nền cho mọi phép so từ nay là **SigLIP2**, không
+> phải objects. Phần *cơ chế* của A14 vẫn đúng nguyên (RRF chỉ trả công khi các
+> kênh đồng ý ở cùng độ mịn) — và A17 là lần thứ ba nó lặp lại.
 
 ---
 
@@ -1068,6 +1104,84 @@ máy này**".
 
 `pyflakes` nay sạch trên `src/`, `scripts/`, `tests/`. Mọi con số đã công bố
 (A10–A15) đo lại vẫn khớp.
+
+---
+
+### A17 — SigLIP2 toàn kho: **0,0000 → 0,3258**. Kênh 1 sống lại
+
+Ma trận `clip_siglip2.npy` do máy GPU của Khánh dựng xong (19/08), đặt ở
+`aic_data/`. `scripts/18_do_siglip2.py`, 97 câu tập dev.
+
+**Kiểm ma trận trước khi tin — ba bước, không bước nào bỏ được:**
+
+| Kiểm | Kết quả |
+| --- | --- |
+| Hình dạng | `(177321, 1152)` float16, khớp số dòng bảng cái |
+| Độ phủ thật (`co_vector`) | **177.321/177.321 — 100%**, đủ 873 video, 10 nhóm L |
+| Chuẩn L2 | trung vị 1,0000 (min 0,9998 / max 1,0002) |
+
+**Lệch hàng — kiểm được mà KHÔNG cần nạp model.** Nếu hai ma trận cùng thứ tự
+hàng thì cặp keyframe nào giống nhau ở CLIP cũng giống nhau ở SigLIP2. Đo tương
+quan trên 4.000 cặp trong cùng video, kèm nhóm đối chứng là chính SigLIP2 dịch
+hàng:
+
+| | Pearson | Spearman |
+| --- | ---: | ---: |
+| **SigLIP2 nguyên bản** | **0,7065** | **0,6621** |
+| dịch 1 hàng *(đối chứng)* | 0,4383 | 0,3916 |
+| dịch 7 hàng *(đối chứng)* | 0,2749 | 0,2361 |
+
+Bản gốc cao nhất và tương quan tụt đều theo độ dịch → **hàng thẳng**. Cách này
+rẻ hơn `--kiem-lech-hang` nhiều và dùng được cả khi chưa nạp nổi model.
+
+#### Kết quả
+
+| Cấu hình | ±2s | ±15s | so với CLIP |
+| --- | ---: | ---: | --- |
+| CLIP ViT-B/32 *(mốc nền)* | 0,0000 | 0,0062 | — |
+| **SigLIP2 SO400M** | **0,3258** | **0,4412** | **+0,3258 · 46–0–51 · ✅ ỔN ĐỊNH** |
+| RRF(CLIP, SigLIP2) | 0,2598 | 0,3546 | +0,2598 · 42–0–55 · ✅ ỔN ĐỊNH |
+
+**SigLIP2 thắng 46 câu, thua 0.** Ở ±15s là 59–1–37. Bể đầy 177.321/177.321 nên
+**con số tuyệt đối đọc thẳng được** — không phải đọc dè dặt như A10.3.
+
+Đây là bước nhảy lớn nhất dự án từng đo: kênh 1 từ **vô dụng** thành **kênh mạnh
+nhất**, gấp gần 8 lần kênh 4 (objects, 0,0412 — A14).
+
+> **RRF lại làm tệ đi, lần thứ ba.** 0,2598 so với 0,3258 khi SigLIP2 đứng một
+> mình — thấp hơn 0,0660. Đúng khuôn mẫu A14/A14.1: cộng một kênh yếu (CLIP đang
+> 0,0000) vào kênh mạnh là **pha loãng**.
+>
+> ⚠️ Nhưng **chưa chạy phép so theo cặp cho riêng cặp này** — mốc nền của lần
+> chạy là CLIP, nên chỉ có hiệu số trung bình, chưa có thắng–thua–hòa và ngưỡng
+> nhiễu giữa SigLIP2 và RRF. Coi là **dấu hiệu mạnh, chưa phải kết luận**.
+
+#### Hai lỗi lộ ra khi chạy, cả hai chỉ hiện với model lớn
+
+**1. `dense.tim()` nổ RAM với ma trận float16 nhiều chiều.** Bản cũ viết
+`np.asarray(self.mat) @ q`: numpy phải **nâng kiểu** để nhân, tức cấp phát một
+bản float32 của TOÀN BỘ ma trận — **817 MB cho MỖI truy vấn** với
+`(177321, 1152)` float16. Với `clip.npy` (512 chiều, float32) không lộ ra vì
+không phải nâng kiểu, nên lỗi này **chờ đúng lúc đổi sang model mạnh hơn mới
+cắn**. Đã vá: `_nhan()` nhân theo lô 20.000 dòng, bộ đệm tạm ≤ ~92 MB.
+
+**2. Sidecar ghi đường dẫn máy dựng index, máy khác nạp là chết.**
+`clip_siglip2.json` ghi
+`pretrained: "D:\Project\AIC_2026\models\...safetensors"`. Cả lý do tồn tại của
+sidecar (docstring `dense.py`) là để ma trận **tự mô tả được trên mọi máy**. Đã
+vá `08_encode.py`: phát hiện đường dẫn thì đoán tag từ tên file, ghi tag vào
+`pretrained` và giữ đường dẫn gốc ở `pretrained_goc`.
+
+#### Chưa đo được — và vì sao
+
+Máy đang dùng chỉ **7,7 GB RAM** và đã crash nhiều lần khi nạp SO400M. Những
+phép đo sau **phải để dành cho máy ≥ 16 GB**:
+
+- RRF(SigLIP2, objects) và RRF(SigLIP2, metadata) — câu hỏi *"có gì cộng vào
+  SigLIP2 mà lãi không"* vẫn đang mở
+- Phép so theo cặp giữa SigLIP2 và RRF (xem cảnh báo ở trên)
+- **`dedup` trên SigLIP2 toàn kho** — đúng phép đo A11 hẹn lại, giờ mới làm được
+- Các mức `--moi-video`
 
 ---
 
@@ -1787,7 +1901,8 @@ python src\tap_dev.py --kiem
 
 | # | Việc | Ai | Ghi chú |
 | --- | --- | --- | --- |
-| **1b** | 🔴 **CỨU KÊNH 1 — encode SigLIP2 toàn kho** | **máy GPU (Khánh)** | **ĐÃ CHỨNG MINH (A10.3), không còn là giả thuyết.** SigLIP2 + tiếng Việt thắng CLIP + tiếng Việt **21/21 câu**, và ngang bản dịch tay. Chỉ còn thiếu ma trận toàn kho — máy GPU ước ~2 giờ. Bỏ luôn được khâu dịch truy vấn |
+| ~~**1b**~~ | ✅ **XONG — kênh 1 đã sống lại** | Khánh (19/08) | `clip_siglip2.npy` đủ 177.321 dòng, kiểm hàng thẳng. **0,0000 → 0,3258, thắng 46 thua 0** (A17). Kênh 1 nay là **kênh mạnh nhất**, gấp ~8 lần kênh 4 |
+| **1c** | 🔴 **Đo tiếp trên máy ≥ 16 GB RAM** | máy GPU / máy khỏe | Máy hiện tại 7,7 GB, crash nhiều lần khi nạp SO400M. Còn nợ: RRF(SigLIP2 + objects/metadata), so theo cặp SigLIP2 vs RRF, **`dedup` trên SigLIP2** (phép đo A11 hẹn lại), các mức `moi_video` |
 | 2 | ~~**`src/bm25.py`** — bộ máy văn bản~~ | TV1 | ✅ **XONG.** Dùng chung cho kênh 2, 3, 5. Tự viết, không thêm phụ thuộc. **Kênh 2 chạy: 97% tìm ra video đúng, 22,7% ở top-10** (A12) |
 | 2b | **Kênh 3 (OCR/ASR)** — nối vào `KenhVanBan.tu_bang_khung` | TV3 | bộ máy đã sẵn, chỉ cần bảng `(row_id, text)`. Cần **hai chế độ**: lọc cứng cho token hiếm + BM25 hòa RRF (A8.5) |
 | 3 | ~~`dev/label_vi_en.csv`~~ — **XONG**, 156 nhãn phủ 98,3% | — | **Kênh 4 nay dùng được từ truy vấn tiếng Việt.** Còn nên: người Việt đọc lại cột `dong_nghia`, thêm cách nói vùng miền |

@@ -50,3 +50,8 @@ Benchmark_OCR_ASR/results/v2/.parts/
 .idea/
 Thumbs.db
 desktop.ini
+
+# ---- bai nop ----
+# File sinh ra tu ket qua chay, khong phai ma nguon. Moi lan chay moi khac.
+submission/
+*.zip

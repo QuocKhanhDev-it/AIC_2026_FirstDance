@@ -94,6 +94,27 @@ class KenhAnh:
             v = self.model.encode_text(self.tok([cau]))[0].numpy().astype(np.float32)
         return v / (np.linalg.norm(v) + 1e-9)
 
+    # Nhân theo lô 20.000 dòng. Số này giữ bộ đệm tạm dưới ~100 MB ở mọi số
+    # chiều đang dùng, mà vẫn đủ lớn để BLAS chạy hết tốc.
+    LO = 20_000
+
+    def _nhan(self, q: np.ndarray) -> np.ndarray:
+        """`mat @ q` theo LÔ, không dựng bản sao float32 của cả ma trận.
+
+        ⚠️ `np.asarray(self.mat) @ q` (bản cũ) nổ RAM với ma trận float16 nhiều
+        chiều: numpy phải nâng kiểu để nhân, tức cấp phát một bản float32 của
+        TOÀN BỘ ma trận. Với `clip_siglip2.npy` (177.321 × 1152 float16) đó là
+        **817 MB cho mỗi truy vấn**, trên máy 7,7 GB thì chết hoặc thrash.
+        Với `clip.npy` (512 chiều, float32) thì không lộ ra vì không phải nâng
+        kiểu — nên lỗi này chỉ xuất hiện đúng lúc đổi sang model mạnh hơn.
+        """
+        n = self.mat.shape[0]
+        ra = np.empty(n, dtype=np.float32)
+        for i in range(0, n, self.LO):
+            j = min(i + self.LO, n)
+            ra[i:j] = np.asarray(self.mat[i:j], dtype=np.float32) @ q
+        return ra
+
     def dong_da_encode(self) -> np.ndarray:
         """Mặt nạ bool: dòng nào có vector THẬT (khác vector 0).
 
@@ -120,8 +141,7 @@ class KenhAnh:
         ma trận có độ phủ khác nhau** — xem `be_chung()`.
         """
         cac_cau = [cau] if isinstance(cau, str) else list(cau)
-        sim = np.max([np.asarray(self.mat) @ self.encode_text(c)
-                      for c in cac_cau], axis=0)
+        sim = np.max([self._nhan(self.encode_text(c)) for c in cac_cau], axis=0)
 
         if be is not None:
             sim = np.where(np.asarray(be, dtype=bool), sim, -9.0)
