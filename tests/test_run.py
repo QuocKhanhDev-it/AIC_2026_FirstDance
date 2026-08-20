@@ -1,0 +1,129 @@
+"""
+test_run.py — Chốt cho đường ống đầu-cuối.
+
+Phần KHÔNG cần model: đọc đề, tách sự kiện TRAKE, dựng dòng TRAKE. Ba thứ này
+mới là chỗ mất trắng cả câu nếu sai — tách nhầm số sự kiện là sai định dạng,
+BTC không chấm.
+"""
+
+import sys
+from pathlib import Path
+
+import pandas as pd
+import pytest
+
+GOC = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(GOC / "src"))
+
+import run as R                                   # noqa: E402
+from schema import Candidate                      # noqa: E402
+
+
+def master_gia(n_video=3, n_khung=20) -> pd.DataFrame:
+    d = []
+    for v in range(n_video):
+        for i in range(n_khung):
+            d.append({"row_id": len(d), "video_id": f"L01_V{v:03d}",
+                      "kf_n": i, "frame_idx": i * 500, "pts_time": float(i * 20),
+                      "fps": 25.0, "kf_name": None, "kf_path": None,
+                      "title": "", "description": "", "keywords": ""})
+    return pd.DataFrame(d)
+
+
+def uv(video, frames):
+    return [Candidate(row_id=0, video_id=video, frame_idx=f, score=1.0 - i * 0.01)
+            for i, f in enumerate(frames)]
+
+
+# ---- đọc đề ---------------------------------------------------------------
+
+def test_doc_de_theo_hau_to(tmp_path):
+    for t in ("query-1-kis", "query-2-qa", "query-4-trake"):
+        (tmp_path / f"{t}.txt").write_text("nội dung", encoding="utf-8")
+    (tmp_path / "ghi_chu.txt").write_text("bỏ qua", encoding="utf-8")
+    de = R.doc_de(tmp_path)
+    assert set(de) == {"query-1-kis", "query-2-qa", "query-4-trake"}
+    assert R.loai_cua("query-4-trake") == "trake"
+
+
+def test_thu_muc_de_rong_thi_dung_ngay(tmp_path):
+    with pytest.raises(SystemExit):
+        R.doc_de(tmp_path)
+
+
+# ---- tách sự kiện TRAKE ---------------------------------------------------
+
+def test_tach_su_kien_theo_dong_va_bo_so_thu_tu():
+    sk = R.tach_su_kien("1. người bước vào\n2. người ngồi xuống\n3. người đứng lên")
+    assert sk == ["người bước vào", "người ngồi xuống", "người đứng lên"]
+
+
+def test_tach_su_kien_mot_dong_co_danh_so():
+    assert len(R.tach_su_kien("1) mở cửa 2) bước vào 3) đóng cửa")) == 3
+
+
+def test_tach_su_kien_theo_dau_cham_phay():
+    assert len(R.tach_su_kien("mở cửa; bước vào; đóng cửa")) == 3
+
+
+def test_tach_su_kien_mot_su_kien_van_ra_mot():
+    assert R.tach_su_kien("một người đàn ông đi bộ") == ["một người đàn ông đi bộ"]
+
+
+# ---- dựng dòng TRAKE ------------------------------------------------------
+
+def test_trake_tang_dan_theo_thoi_gian():
+    """BTC: *'thứ tự phải tuân theo thứ tự thời gian của các events'*."""
+    m = master_gia()
+    ds = R.dung_trake([uv("L01_V000", [5000]), uv("L01_V000", [1000]),
+                       uv("L01_V000", [3000])], m)
+    assert ds, "không dựng được dòng nào"
+    f = ds[0].frame_idxs
+    assert f == sorted(f) and len(set(f)) == len(f), f
+
+
+def test_trake_du_N_khung_ke_ca_khi_thieu_su_kien():
+    """TRAKE chấm TỪNG PHẦN — bỏ trống chắc chắn 0, đoán sai cũng 0."""
+    m = master_gia()
+    ds = R.dung_trake([uv("L01_V000", [1000]), [], uv("L01_V000", [7000])], m)
+    assert ds and len(ds[0].frame_idxs) == 3
+
+
+def test_trake_noi_suy_vao_GIUA_hai_neo():
+    """Chỗ trống ở giữa phải nội suy, không phải nhét sát mép."""
+    m = master_gia()
+    f = R.dung_trake([uv("L01_V000", [1000]), [], uv("L01_V000", [9000])], m)[0].frame_idxs
+    assert 1000 < f[1] < 9000, f
+
+
+def test_trake_don_cuc_thi_rai_deu():
+    """N sự kiện KHÔNG THỂ nằm trong vài phần trăm giây.
+
+    Bản đầu điền `khung_trước + 1` cho ra 564,565,566 — dồn hết cơ hội vào một
+    điểm. Dồn cục thì rải đều, cho mỗi sự kiện một cửa độc lập.
+    """
+    m = master_gia()
+    ds = R.dung_trake([uv("L01_V000", [3000])] * 3, m)
+    f = ds[0].frame_idxs
+    assert f[-1] - f[0] > R.DON_NHAU, f"vẫn dồn cục: {f}"
+
+
+def test_trake_khong_lay_video_khong_co_su_kien_nao():
+    m = master_gia()
+    ds = R.dung_trake([uv("L01_V000", [1000]), uv("L01_V000", [2000])], m)
+    assert all(x.video_id == "L01_V000" for x in ds)
+
+
+def test_trake_khong_vuot_100_dong():
+    m = master_gia(n_video=3)
+    nhieu = [Candidate(0, f"L01_V{i % 3:03d}", i * 100, 1.0) for i in range(300)]
+    assert len(R.dung_trake([nhieu, nhieu], m, so_dong=100)) <= 100
+
+
+def test_trake_qua_duoc_bo_soat_cua_nop_bai():
+    """Chốt nối: thứ `dung_trake` sinh ra phải được `nop_bai.soat` chấp nhận."""
+    from nop_bai import soat
+    m = master_gia()
+    ds = R.dung_trake([uv("L01_V000", [5000]), uv("L01_V000", [1000]),
+                       uv("L01_V000", [3000])], m)
+    assert not soat("query-4-trake", ds, so_su_kien=3)
