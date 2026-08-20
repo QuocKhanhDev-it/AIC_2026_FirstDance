@@ -113,6 +113,56 @@ def tach_su_kien(noi_dung: str) -> list[str]:
     return phan if len(phan) > 1 else [noi_dung.strip()]
 
 
+# Trần token của text encoder: CLIP 77, SigLIP2 **chỉ 64** (xem `model_configs`
+# của open_clip). Vượt trần là encoder LẶNG LẼ CẮT phần đuôi, không báo gì.
+#
+# Đổi ra TỪ thì phụ thuộc tokenizer, và hai model chênh nhau rất xa trên tiếng
+# Việt — đo trên chính tập dev + đề mẫu:
+#
+#     CLIP (BPE tiếng Anh)        3,21 token/từ  -> 23 từ đã chạm trần 77
+#     SigLIP2 (Gemma đa ngôn ngữ) 1,18 token/từ  -> ~50 từ mới chạm trần 64
+#
+# Lấy 40 từ: an toàn cho SigLIP2 (~47 token). CLIP vẫn bị cắt ở mức này, nhưng
+# CLIP đang được 0,0000 trên tiếng Việt (A10) nên không đáng tối ưu theo nó.
+TRAN_TOKEN = 40
+
+
+def tach_truy_van(cau: str, tran_tu: int = TRAN_TOKEN) -> list[str]:
+    """Truy vấn dài -> nhiều mệnh đề ngắn, để encoder không cắt mất phần đuôi.
+
+    ⚠️ **ĐO ĐƯỢC: 100% truy vấn của bộ đề mẫu bị cắt cụt.** Đề thi thật dài
+    trung bình 63 từ / 281 ký tự (gấp 3 lần câu tập dev tự soạn), trong khi
+    `ViT-SO400M-14-SigLIP2-378` chỉ nhận **64 token** và CLIP nhận 77. Encoder
+    không báo lỗi — nó cắt rồi chạy tiếp, nên nửa sau mỗi truy vấn **biến mất
+    mà không có gì cảnh báo**.
+
+    Cách chữa rẻ nhất: cắt theo CÂU, encode từng câu, rồi lấy ĐIỂM CAO NHẤT
+    trên từng keyframe. `dense.KenhAnh.tim` và `bm25.KenhVanBan.tim` **đã nhận
+    sẵn danh sách chuỗi** và tự lấy max — chỉ thiếu thứ cắt câu ra.
+
+    Lấy max chứ không lấy trung bình là có chủ ý: một mệnh đề trúng là đủ, không
+    nên để những mệnh đề tả bối cảnh chung kéo điểm xuống.
+    """
+    cau = " ".join(cau.split())
+    if len(cau.split()) <= tran_tu:
+        return [cau]
+    manh = [x.strip() for x in re.split(r"(?<=[.!?;])\s+", cau) if x.strip()]
+    ra, dem = [], []
+    for m in manh:
+        if dem and len(" ".join(dem + [m]).split()) > tran_tu:
+            ra.append(" ".join(dem))
+            dem = []
+        dem.append(m)
+    if dem:
+        ra.append(" ".join(dem))
+    # mệnh đề đơn lẻ vẫn quá dài thì cắt cứng theo từ
+    cuoi = []
+    for x in ra:
+        t = x.split()
+        cuoi += [" ".join(t[i:i + tran_tu]) for i in range(0, len(t), tran_tu)]             if len(t) > tran_tu else [x]
+    return cuoi or [cau]
+
+
 # ------------------------------------------------------------------ các kênh
 
 def quet_anh(index: Path, matrix: str, de: dict, k: int, mmap=True) -> dict:
@@ -130,12 +180,13 @@ def quet_anh(index: Path, matrix: str, de: dict, k: int, mmap=True) -> dict:
     ra = {}
     for ten, noi_dung in de.items():
         if loai_cua(ten) == "trake":
-            ra[ten] = [kenh.tim(sk, k=k) for sk in tach_su_kien(noi_dung)]
+            ra[ten] = [kenh.tim(tach_truy_van(sk), k=k)
+                       for sk in tach_su_kien(noi_dung)]
         else:
             # Xin GAP DOI: hai row_id khac nhau co the ra cung mot dong nop
             # (A5.7 — 614 keyframe trung frame_idx), nen bo trung xong phai con
             # du de bu cho tron 100.
-            ra[ten] = kenh.tim(noi_dung, k=k * 2)
+            ra[ten] = kenh.tim(tach_truy_van(noi_dung), k=k * 2)
     master = kenh.master
     del kenh
     gc.collect()
