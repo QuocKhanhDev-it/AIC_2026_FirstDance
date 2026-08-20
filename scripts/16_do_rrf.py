@@ -28,7 +28,6 @@ import argparse
 import sys
 from pathlib import Path
 
-import numpy as np
 import pandas as pd
 
 GOC = Path(__file__).resolve().parent.parent
@@ -37,47 +36,13 @@ sys.path.insert(0, str(GOC / "src"))
 import tap_dev                                        # noqa: E402
 from bm25 import KenhVanBan                           # noqa: E402
 from cham_diem import bao_cao_do_nhay, MOC_DUNG_SAI   # noqa: E402
-from objects import (load_channel, nap_bang_nhan,     # noqa: E402
-                     nhan_tu_truy_van, object_score)
+from objects import KenhObjects                     # noqa: E402,F401
 from rrf import hop_nhat, hop_nhat_hai_tang           # noqa: E402
-from schema import Candidate                          # noqa: E402
 
 
-class KenhObjects:
-    """Bọc `objects.py` thành kênh trả `list[Candidate]`, cho đồng dạng với
-    `KenhAnh` và `KenhVanBan` — RRF không cần biết bên trong kênh nào là gì."""
-
-    def __init__(self, index_dir, master):
-        self.master = master
-        self.ch = load_channel(index_dir)
-        self.bang = nap_bang_nhan()
-        self.rid = master.row_id.values
-
-    def nhan(self, cau: str) -> list[str]:
-        return nhan_tu_truy_van(cau, self.bang)
-
-    def tim(self, cau: str, k=100, moi_video=None) -> list[Candidate]:
-        nhan = self.nhan(cau)
-        if not nhan:
-            return []                    # không rút ra nhãn nào -> im lặng, đừng bịa
-        d = object_score(self.rid, nhan, self.ch)
-        top = np.argsort(-d)[:k * (moi_video or 1) + 200]
-        m, ra, dem = self.master, [], {}
-        for i in top:
-            if d[i] <= 0:
-                break
-            v = m.video_id.iloc[i]
-            if moi_video and dem.get(v, 0) >= moi_video:
-                continue
-            dem[v] = dem.get(v, 0) + 1
-            ra.append(Candidate(row_id=int(i), video_id=v,
-                                frame_idx=int(m.frame_idx.iloc[i]),
-                                score=float(d[i]), source="objects",
-                                meta={"pts_time": float(m.pts_time.iloc[i])}))
-            if len(ra) >= k:
-                break
-        return ra
-
+# `KenhObjects` nay o `src/objects.py` — `src/run.py` cung dung no, ma
+# duong ong nop bai khong nen phu thuoc vao mot file trong `scripts/`.
+# Import lai o day de moi lenh chay cu van chay duoc.
 
 def chong_lan(cau, f2, f4, master) -> pd.DataFrame:
     """RRF chỉ cộng hưởng khi hai kênh đề cử CÙNG một `row_id`. Đo xem có không."""

@@ -213,3 +213,66 @@ def test_canh_bao_khi_chua_du_100_dong():
     """Không có điểm phạt — dòng thứ 100 vẫn đáng 0,2 nếu trúng."""
     assert nb.canh_bao("query-1-kis", kis(30))
     assert not nb.canh_bao("query-1-kis", kis(100))
+
+
+# ---- soát chính file zip (checklist BTC 19/08/2026) -----------------------
+
+def _zip_gia(tmp_path, cac_file: dict, ten="bainop.zip", tien_to="submission/"):
+    import zipfile
+    z = tmp_path / ten
+    with zipfile.ZipFile(z, "w") as f:
+        for n, noi_dung in cac_file.items():
+            f.writestr(f"{tien_to}{n}" if tien_to else n, noi_dung)
+    return z
+
+
+def test_soat_zip_dat_khi_dung_chuan(tmp_path):
+    z = _zip_gia(tmp_path, {"query-1-kis.csv": "L01_V028,25300\r\n"})
+    loi, _ = nb.soat_zip(z)
+    assert loi == []
+
+
+def test_soat_zip_bat_thieu_thu_muc_submission(tmp_path):
+    """Lỗi BTC xếp thứ hai trong năm lỗi thường gặp nhất."""
+    z = _zip_gia(tmp_path, {"query-1-kis.csv": "L01_V028,25300\r\n"}, tien_to="")
+    loi, _ = nb.soat_zip(z)
+    assert any("submission" in x for x in loi)
+
+
+def test_soat_zip_bat_file_khong_phai_csv(tmp_path):
+    z = _zip_gia(tmp_path, {"query-1-kis.csv": "L01_V028,25300\r\n",
+                            "ghi_chu.txt": "x"})
+    loi, _ = nb.soat_zip(z)
+    assert any(".csv" in x for x in loi)
+
+
+def test_soat_zip_bat_khoang_trang_thua_theo_vi_du_trang_2_cua_btc(tmp_path):
+    """BTC không trim, mà ví dụ trang 2 của chính họ lại có khoảng trắng.
+
+    `L01_V028, 3450, "5"` đọc bằng parser CSV chuẩn ra answer `' "5"'` — khoảng
+    trắng và ngoặc kép thành ký tự thật. Ai sửa tay theo ví dụ đó sẽ hỏng đúng
+    dòng mình sửa mà nhìn không ra.
+    """
+    z = _zip_gia(tmp_path, {"query-2-qa.csv": 'L01_V028, 3450, "5"\r\n'})
+    loi, _ = nb.soat_zip(z)
+    assert any("khoảng trắng" in x for x in loi)
+
+
+def test_soat_zip_bat_BOM(tmp_path):
+    z = _zip_gia(tmp_path, {"query-1-kis.csv": "﻿L01_V028,25300\r\n"})
+    loi, _ = nb.soat_zip(z)
+    assert any("BOM" in x for x in loi)
+
+
+def test_soat_zip_canh_bao_ten_zip_co_ky_tu_la(tmp_path):
+    z = _zip_gia(tmp_path, {"query-1-kis.csv": "L01_V028,25300\r\n"},
+                 ten="bai_nop_v2.zip")
+    loi, canh = nb.soat_zip(z)
+    assert loi == [] and any("khuyến cáo" in x for x in canh)
+
+
+def test_soat_zip_van_ap_moi_luat_cua_soat(tmp_path):
+    """Zip đúng cấu trúc nhưng nội dung sai vẫn phải bị chặn."""
+    z = _zip_gia(tmp_path, {"query-4-trake.csv": "L01_V028,500,400\r\n"})
+    loi, _ = nb.soat_zip(z)
+    assert any("tăng dần" in x for x in loi)

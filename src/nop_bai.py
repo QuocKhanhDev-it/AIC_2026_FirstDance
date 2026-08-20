@@ -275,10 +275,19 @@ def dong_goi(thu_muc="submission", zip_ra="submission.zip") -> Path:
 
 def doc_csv(f: Path) -> list:
     """Đọc lại file CSV đã ghi thành danh sách đáp án, theo hậu tố tên file."""
-    loai = _loai(f.stem)
-    tho = f.read_bytes()
+    return doc_csv_tho(f.name, f.read_bytes())
+
+
+def doc_csv_tho(ten_file: str, tho: bytes) -> list:
+    """Như `doc_csv` nhưng nhận thẳng bytes — để soát được file NẰM TRONG zip.
+
+    Soát thư mục rồi mới nén là soát **thứ sắp nộp gián tiếp**. Cái thật sự đi
+    lên hệ thống là file zip; giữa hai bước đó còn một thao tác nén mà người ta
+    làm tay được (và BTC xếp "nén trực tiếp file CSV" là lỗi phổ biến thứ hai).
+    """
+    loai = _loai(Path(ten_file).stem)
     if tho.startswith(b"\xef\xbb\xbf"):
-        raise SystemExit(f"{f.name}: file có BOM (utf-8-sig). Ghi lại bằng "
+        raise SystemExit(f"{ten_file}: file có BOM (utf-8-sig). Ghi lại bằng "
                          f"`utf-8` trần — BOM dính vào tên video dòng đầu.")
     ra = []
     for hang in csv.reader(io.StringIO(tho.decode("utf-8"))):
@@ -293,13 +302,94 @@ def doc_csv(f: Path) -> list:
     return ra
 
 
+TEN_ZIP_KHUYEN_CAO = re.compile(r"^[A-Za-z0-9]+\.zip$")
+
+
+def soat_zip(duong_dan) -> tuple[list[str], list[str]]:
+    """Soát CHÍNH FILE ZIP sắp nộp. Trả `(lỗi, cảnh báo)`.
+
+    Đây là cổng cuối, chạy trên đúng thứ sẽ upload — không phải trên thư mục
+    nguồn. Cài theo checklist "TRƯỚC KHI NỘP" của BTC
+    (https://sotuyenaic.oj.io.vn, 19/08/2026).
+
+    ⚠️ **Khoảng trắng là bẫy nằm ngay trong ví dụ của BTC.** Quy định ghi
+    *"Khoảng trắng đầu/cuối: được giữ nguyên, không tự động trim"*, mà ví dụ ở
+    trang 2 lại viết `L01_V028, 3450, "5"` — có khoảng trắng sau dấu phẩy. Đọc
+    bằng parser CSV chuẩn thì `answer` ra `' "5"'` (khoảng trắng + ngoặc kép
+    thành ký tự thật) chứ không phải `5`. Ví dụ CSV chuẩn ở trang 4–5 thì
+    KHÔNG có khoảng trắng — đó mới là dạng đúng, và là dạng `_viet_csv` sinh ra.
+
+    Ai sửa tay một dòng theo ví dụ trang 2 sẽ hỏng đúng dòng đó mà nhìn không ra.
+    Nên hàm này bắt khoảng trắng thừa như một LỖI.
+    """
+    z = Path(duong_dan)
+    loi, canh = [], []
+    if z.suffix.lower() != ".zip":
+        return [f"{z.name}: BTC chỉ nhận `.zip`"], canh
+    if not z.exists():
+        return [f"Không có file {z}"], canh
+    if not TEN_ZIP_KHUYEN_CAO.match(z.name):
+        canh.append(f"{z.name}: BTC khuyến cáo tên zip chỉ gồm chữ và số "
+                    f"(bản nộp trước có '_' và vẫn được nhận, nên đây là "
+                    f"khuyến cáo chứ không phải luật)")
+
+    with zipfile.ZipFile(z) as f:
+        ten = [x.filename for x in f.infolist() if not x.is_dir()]
+        if not ten:
+            return [f"{z.name}: zip rỗng"], canh
+
+        ngoai = [n for n in ten if not n.startswith(f"{THU_MUC}/")]
+        if ngoai:
+            loi.append(f"{z.name}: {len(ngoai)} file KHÔNG nằm trong "
+                       f"`{THU_MUC}/` ({ngoai[:3]}). BTC: *'PHẢI có thư mục "
+                       f"submission bên trong file zip'* — đây là lỗi BTC xếp "
+                       f"thứ hai trong năm lỗi thường gặp nhất")
+        la = [n for n in ten if not n.lower().endswith(".csv")]
+        if la:
+            loi.append(f"{z.name}: có file không phải .csv ({la[:3]})")
+        sau = [n for n in ten if n.count("/") > 1]
+        if sau:
+            loi.append(f"{z.name}: có thư mục lồng sâu ({sau[:3]}) — cấu trúc "
+                       f"phải phẳng: submission/<tên truy vấn>.csv")
+
+        for n in sorted(x for x in ten if x.lower().endswith(".csv")):
+            ten_goi = Path(n).stem
+            tho = f.read(n)
+            try:
+                dap_an = doc_csv_tho(Path(n).name, tho)
+            # SystemExit kế thừa BaseException, KHÔNG phải Exception — `doc_csv_tho`
+            # ném nó khi gặp BOM. Bắt hụt thì bộ soát tự chết kèm traceback thay vì
+            # báo một dòng đọc được, mà đây đang là cổng cuối trước khi nộp.
+            except (Exception, SystemExit) as e:
+                loi.append(f"{n}: đọc không được — {e}")
+                continue
+            loi += soat(ten_goi, dap_an)
+            canh += canh_bao(ten_goi, dap_an)
+
+            # khoảng trắng thừa — xem docstring
+            for i, hang in enumerate(csv.reader(io.StringIO(tho.decode("utf-8"))), 1):
+                thua = [o for o in hang if o != o.strip()]
+                if thua:
+                    loi.append(f"{n} dòng {i}: ô có khoảng trắng đầu/cuối "
+                               f"({thua[:2]}). BTC KHÔNG trim — ô này sẽ được "
+                               f"so nguyên văn cả khoảng trắng")
+                    break
+    return loi, canh
+
+
 def main():
     ap = argparse.ArgumentParser(
         description="Soát thư mục nộp bài trước khi nén. Chỉ có 3 lần nộp.")
     ap.add_argument("--soat", default=THU_MUC, type=Path)
     ap.add_argument("--nen", metavar="FILE.zip",
-                    help="soát xong thì nén luôn ra file này")
+                    help="soát xong thì nén luôn ra file này, rồi soát lại "
+                         "CHÍNH FILE ZIP đó")
+    ap.add_argument("--soat-zip", metavar="FILE.zip", type=Path,
+                    help="soát một file zip đã có, theo checklist của BTC")
     a = ap.parse_args()
+
+    if a.soat_zip:
+        raise SystemExit(_in_soat_zip(a.soat_zip))
 
     d = a.soat
     if not d.is_dir():
@@ -333,9 +423,28 @@ def main():
 
     print("\n✅ Định dạng hợp lệ.")
     if a.nen:
-        print(f"   Đã nén -> {dong_goi(d, a.nen)}")
-    else:
-        print(f"   Nén bằng: python src/nop_bai.py --soat {d} --nen bai_nop.zip")
+        z = dong_goi(d, a.nen)
+        print(f"   Đã nén -> {z}\n")
+        # Cổng cuối: soát lại chính thứ sẽ upload, không phải thư mục nguồn.
+        raise SystemExit(_in_soat_zip(z))
+    print(f"   Nén bằng: python src/nop_bai.py --soat {d} --nen bai_nop.zip")
+
+
+def _in_soat_zip(z) -> int:
+    """In kết quả `soat_zip` cho người đọc. Trả mã thoát."""
+    loi, canh = soat_zip(z)
+    print(f"SOÁT FILE ZIP: {z}")
+    if canh:
+        print("\n⚠️  CẢNH BÁO:")
+        for x in canh:
+            print("   ", x)
+    if loi:
+        print(f"\n❌ {len(loi)} LỖI — ĐỪNG NỘP:")
+        for x in loi:
+            print("   ", x)
+        return 1
+    print("\n✅ File zip đạt checklist của BTC — nộp được.")
+    return 0
 
 
 if __name__ == "__main__":

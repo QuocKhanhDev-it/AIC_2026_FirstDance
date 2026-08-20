@@ -1241,6 +1241,12 @@ Danh sách "đã thử mà không hiệu quả" nay dài hơn danh sách "đang 
 
 ### A20 — Leaderboard 0,8 → 2,6, và tập dev **không giải thích được** phần lớn mức tăng
 
+> 🔴 **SỬA 20/08 23:15 — mục này viết khi tưởng chỉ có HAI lượt nộp. Thực tế
+> có BỐN, và lượt tốt nhất không phải lượt nào ở đây.** Xem bảng đầy đủ ở
+> [A24](#a24--bốn-lượt-nộp-chứ-không-phải-hai-và-lượt-tốt-nhất-38-là-kênh-ảnh-siglip2).
+> Phần phân tích ×3,25 dưới đây vẫn đúng cho cặp #1 → #2, nhưng **đừng đọc 2,6
+> là trần của hệ thống**.
+
 Phép đo NGOÀI đầu tiên có hai điểm để so. Đợt 1 nộp bằng kênh objects đơn lẻ;
 đợt 2 thêm ba thay đổi: cắt truy vấn theo câu, thêm kênh OCR hợp nhất RRF, bỏ
 kênh metadata khỏi hợp nhất.
@@ -1250,6 +1256,11 @@ kênh metadata khỏi hợp nhất.
 | Đợt 1 — objects đơn lẻ | **0,8** | hạng 77 |
 | Đợt 2 — RRF(objects, OCR) + cắt truy vấn | **2,6** | **×3,25** |
 | Tập dev dự đoán | — | **×1,55** |
+
+> ⚠️ **Cả hai con số là điểm trên NỬA bộ đáp án** — bản quy định BTC (C7) ghi
+> Public Leaderboard chỉ chấm 50%, xếp hạng cuối chấm 100% ở Private. Tỷ lệ
+> ×3,25 vẫn đứng vì cả hai đợt cùng chấm trên 50% đó, nhưng **đừng suy ra thứ
+> hạng cuối cùng từ nó**.
 
 **Thực tế gấp hơn hai lần dự đoán của tập dev.** Truy nguyên phần chênh:
 
@@ -1282,6 +1293,256 @@ leaderboard. Chỉ biết: phần dev giải thích được là ×1,55, phần 
 > **Việc quan trọng nhất cho tập dev từ nay không phải THÊM CÂU, mà là THÊM CÂU
 > DÀI NHƯ ĐỀ THẬT** — nhiều câu, nhiều mệnh đề, có bối cảnh trước/sau. Không có
 > chúng thì mọi con số ta đo tiếp tục nói về một bài toán dễ hơn bài đang thi.
+
+---
+
+### A22 — Mũi nhọn 1 nối xong: Bước 1 và Bước 2b **đều chưa đủ căn cứ bật**
+
+Bảng trạng thái Giai đoạn 2 đọc ra gần như toàn ❌ trong khi từng module rời rạc
+đã viết xong từ lâu — thứ thiếu là **chỗ nối**. `src/mui_nhon_1.py` nối chúng
+lại, mỗi bước một cờ, `scripts/22_do_mui_nhon_1.py` đo từng cờ một.
+
+Mốc nền: **RRF(objects, OCR)** — cấu hình mạnh nhất chạy được không cần model,
+trên 105 câu tập dev. Máy đo 7,7 GB không nạp nổi SigLIP2.
+
+#### Bước 1 — thu hẹp cấp video bằng metadata
+
+**Đo ĐỘ PHỦ trước khi đo điểm**, vì độ phủ là trần trên của dạng cứng:
+
+| Video đúng nằm trong | Số câu | Tỷ lệ |
+| --- | ---: | ---: |
+| top-10 metadata | 23/105 | **21,9%** |
+| top-50 metadata | 39/105 | **37,1%** |
+| top-200 metadata | 58/105 | 55,2% |
+| có mặt ở bất kỳ hạng nào | 102/105 | 97,1% |
+
+> ⚠️ **Đọc lại A12 cho đúng.** A12 ghi *"97% tìm ra video đúng"* — con số đó là
+> **có mặt ở đâu đó trong xếp hạng**, không phải năng lực thu hẹp. Ở top-50 nó
+> chỉ phủ **37,1%**. Ai đọc "97%" rồi thiết kế Bước 1 cắt cứng sẽ mất 63% số câu
+> trước khi bước nào phía sau kịp chạy.
+
+Điểm, so theo cặp với mốc nền:
+
+| Cấu hình | ±2s | ±15s | Kết luận |
+| --- | ---: | ---: | --- |
+| RRF(objects, OCR) — mốc | 0,0781 | 0,1295 | |
+| ưu tiên top-10 (mềm) | +0,0057 | +0,0076 | 🟡 YEU |
+| **ưu tiên top-50 (mềm)** | **+0,0095** | **+0,0095** | 🟡 YEU — 4-3-98 / 10-8-87 |
+| ưu tiên top-200 (mềm) | −0,0076 | −0,0152 | 🟡 YEU (âm) |
+| **CỨNG: chỉ top-50** | **−0,0286** | **−0,0476** | 🟡 YEU (âm) |
+
+Ba điều đọc được:
+
+1. **Dạng CỨNG — đúng như PHẦN D viết — là dạng TỆ HƠN**, ở cả hai mức dung sai,
+   và cơ chế đã đo được ở bảng trên: cắt ở top-50 là vứt bỏ 63% số câu.
+   → **Sửa PHẦN D Bước 1: "BM25 metadata → top-50 video" phải hiểu là XẾP LẠI,
+   không phải CẮT.** Cùng nguyên tắc `objects.py`: cho điểm mềm, không lọc cứng.
+2. **Dạng mềm có dấu dương ổn định ở N=50 nhưng KHÔNG vượt nhiễu** (ngưỡng
+   0,0205 / 0,0317). Chưa đủ căn cứ bật mặc định. Đây đúng là loại kết luận mà
+   *"việc quan trọng nhất cho tập dev là thêm câu DÀI như đề thật"* (A20) sẽ
+   giải quyết — không phải bằng cách chỉnh tham số.
+3. **N=200 quay sang ÂM.** Ưu tiên quá nhiều video thì "ưu tiên" không còn nghĩa
+   gì, chỉ còn là xáo thứ tự. Nếu bật thì bật ở N nhỏ.
+
+#### Bước 2b — khử trùng lặp trước khi cắt top-K
+
+| Cấu hình | ±2s | ±15s | Kết luận |
+| --- | ---: | ---: | --- |
+| dedup ≥ 0,99 | −0,0152 | +0,0057 | ❌ **DAO DAU** |
+| dedup ≥ 0,95 | −0,0114 | +0,0095 | ❌ **DAO DAU** |
+| dedup ≥ 0,99 + mỗi video ≤ 3 | −0,0324 | −0,0057 | ✅ **ON DINH — TỆ HƠN** |
+
+**Đảo dấu giữa hai mức dung sai = kết luận phụ thuộc vào ẩn số BTC chưa chốt**
+(độ rộng cửa sổ, A9), không dùng để quyết. Nhưng dòng thứ ba thì kết luận được,
+và nó **bác một dự đoán ghi thẳng trong A11**: ở đó ta viết *"`gioi_han_moi_video()`
+không thay được dedup, hai cái BỔ SUNG cho nhau"*. Đo ra: ghép cả hai **tệ hơn
+ổn định**, 0 thắng – 7 thua ở ±2s.
+
+Lý do khớp với A18: cả dedup lẫn ràng buộc đa dạng đều **bỏ ứng viên đi**, mà
+PHẦN C mục 1 nói không có điểm phạt — dòng thứ 100 vẫn đáng 0,2. Bỏ một ứng viên
+để lấy chỗ cho ứng viên khác chỉ có lãi nếu ứng viên bị bỏ **chắc chắn sai**, và
+"gần trùng ảnh" không đủ để chắc chắn điều đó khi BTC chấm theo khoảng.
+
+> **Đây là lần thứ năm một kỹ thuật lấy từ bài báo AIC'25 hoặc từ trực giác thiết
+> kế bị chính phép đo bác** (sau dedup A11, RRF thô A14, hợp nhất hai tầng A14.1,
+> `lan_can` + ràng buộc đa dạng A18).
+
+#### Bước 3b — `lan_can` đã được đặt lại đúng chỗ
+
+A18 đo được chèn khung lân cận vào danh sách ứng viên làm tệ đi. Nguyên nhân là
+**cộng dồn hai luật của BTC**: điểm chấm theo khoảng 4 giây–5 phút (A9), nên
+khung cách đáp án ±2s **đã được tính đúng rồi** — chèn nó vào là tiêu một trong
+100 chỗ để mua lại thứ mình đã có.
+
+Kỹ thuật đó không vô dụng, nó chỉ đứng nhầm chỗ. Chỗ đúng là **Bước 4**: PHẦN D
+ghi *"3–5 frame trong cửa sổ ±2s"*, mà cửa sổ ±2s quanh một khung chính là
+`lan_can`. Ở đó nó không tiêu chỗ nộp nào. `mui_nhon_1.khung_ngu_canh()` gọi nó
+đúng một lần, lọc theo **giây** chứ không theo số bước — mật độ keyframe không
+đều (A1), "10 keyframe quanh đây" là 6 giây ở video này và 30 giây ở video kia.
+
+#### Bước 4 — CHƯA ĐO ĐƯỢC, và chặn ở một lệnh
+
+`mui_nhon_1.gan_dap_an()` đã nối `tra_loi.py` vào `run.py` (`--vlm`), có test cho
+mọi đường thoát. Nhưng máy đang chạy **không có model nào nhìn được ảnh** —
+`ollama list` ra `qwen2.5:3b`, `gemma:2b`, `nomic-embed-text`, cả ba thuần văn
+bản. Chặn ở `ollama pull qwen2.5vl:7b`.
+
+Đây vẫn là **việc đáng giá nhất còn lại tính theo điểm trên mỗi đơn vị công**:
+42/105 câu dev và 3/24 gói đề mẫu là Q&A, tất cả đang **chắc chắn 0** vì nộp
+`answer` là hằng số `"không rõ"`.
+
+#### Ba cảnh báo cho người đọc lại bảng này
+
+1. **Đo trên cấu hình KHÔNG có model.** A14.2 đo được RRF chỉ lãi khi các kênh
+   cùng tầm chất lượng; SigLIP2 (0,3258) hơn objects (0,0412) tám lần. Thứ tự
+   các cấu hình ở đây **có thể đảo hẳn** khi kênh 1 sống. Đo lại trên máy ≥ 16 GB.
+2. **5/105 câu dev là câu ô nhiễm** (A21 — bối cảnh chép từ OCR của chính khung
+   đáp án). Chúng nâng mốc nền vì mốc nền có kênh OCR; ảnh hưởng như nhau lên mọi
+   cấu hình nên phép so theo cặp vẫn đứng, nhưng con số tuyệt đối thì đọc dè.
+3. **Mốc nền nay là 0,0781 chứ không phải 0,0640** — không phải vì cấu hình khá
+   lên mà vì tập dev đi từ 100 lên 105 câu. Đừng so hai con số đó với nhau.
+
+---
+
+### A23 — Bản nộp ăn 2,6 điểm **không dựng lại được** bằng lệnh trong sổ tay
+
+Phát hiện lúc dựng lại bộ đề mẫu bằng đúng lệnh ghi ở
+[10_nop_bai_toi_nay.md](10_nop_bai_toi_nay.md): ra **19/24 file khác** bản nộp
+đã ghi 2,6 điểm. Hạng 1 trùng, nhưng chỉ **50/100 dòng** trùng nhau.
+
+**Truy nguyên, theo thứ tự loại trừ:**
+
+| Giả thuyết | Cách kiểm | Kết quả |
+| --- | --- | --- |
+| Code đã đổi hành vi (refactor `KenhObjects`) | chạy chính code ở HEAD trong `git worktree` riêng, **cùng một lệnh** | **0/24 khác** — code vô can |
+| Bản cũ có kênh 2 (không `--bo-metadata`) | dựng lại, so từng byte | 21/24 khác — không phải |
+| Bản cũ bật `--loc-cung` | dựng lại, so từng byte | 21/24 khác — không phải |
+| **Bản cũ chạy `--trong-so-phu 1.0`** | dựng lại, so từng byte | **0/24 khác — ĐÚNG** |
+
+Mặc định trong code lúc đó là **0,3**. Tức từ ngày nộp tới nay, chạy bằng lệnh
+mặc định là sinh ra **một bài nộp khác bài đã ghi điểm**, mà không có gì báo.
+
+#### Trọng số nào đúng — `scripts/23_do_trong_so_rrf.py`, 105 câu
+
+Mốc nền là **cấu hình đã nộp thật**, không phải mặc định của code:
+
+| Cấu hình | ±2s | ±15s | So với bản đã nộp |
+| --- | ---: | ---: | --- |
+| **objects : OCR = 1,0 : 1,0** *(đã nộp)* | **0,0781** | **0,1295** | mốc |
+| 1,0 : 0,5 | 0,0590 | 0,0971 | 🟡 −0,0190 / −0,0324 |
+| 1,0 : 0,3 *(mặc định cũ)* | 0,0476 | 0,0781 | ✅ **−0,0305 / −0,0514 — TỆ ĐI ổn định** |
+| 1,0 : 0,1 | 0,0476 | 0,0781 | ✅ TỆ ĐI ổn định |
+| chỉ objects | 0,0457 | 0,0762 | ✅ TỆ ĐI ổn định |
+| chỉ OCR | 0,0552 | 0,1143 | 🟡 −0,0229 / −0,0152 |
+
+Dìm OCR xuống 0,3 ra **gần đúng bằng objects đứng một mình** (0,0476 so với
+0,0457) — tức nó vứt gần hết phần lãi của hợp nhất. Và 0,3 với 0,1 cho **số
+giống hệt nhau**: dưới một mức nào đó, kênh phụ chỉ còn là thứ tự phá hòa, không
+còn đóng góp gì.
+
+#### Vì sao 0,3 từng đúng, và vì sao ở đây nó sai
+
+Con số 0,3 đến từ **A14.2**, và trong ngữ cảnh đó nó đúng: A14.2 đo cảnh **một
+kênh mạnh cộng một kênh yếu** — SigLIP2 0,3258 với objects 0,0412, chênh **8
+lần**. Ứng viên hạng 1 của kênh yếu được RRF cộng đúng bằng hạng 1 của kênh
+mạnh, nên phải dìm nó xuống.
+
+Cấu hình model-free thì ngược hẳn: **objects 0,0412 và OCR 0,0420 — ngang nhau**.
+Dìm một trong hai là vứt bỏ nửa số bằng chứng.
+
+> **Bài học tổng quát hơn cả con số:** trọng số RRF không phải hằng số của hệ
+> thống, nó là **hàm của tỷ lệ chất lượng giữa các kênh**. Một mặc định duy nhất
+> không thể đúng cho cả hai cảnh. Nay đặt mặc định **1,0** vì đó là cảnh đang
+> chạy thật (`--hop-nhat` chỉ dùng được với objects+OCR — với SigLIP2 thì A14.2
+> bảo **đừng hợp nhất**, chứ không phải hợp nhất với trọng số nhỏ).
+
+#### Chốt đã dựng để không tái diễn
+
+`run.py` nay ghi `lenh_da_chay.txt` cạnh các file CSV, chứa **nguyên văn lệnh đã
+chạy**. `dong_goi()` chỉ nén `*.csv` nên nó không lọt vào bài nộp BTC.
+
+Không có nó thì một điểm số ngoài **không truy nguyên được về một cấu hình**, và
+mọi suy luận kiểu "đợt 2 hơn đợt 1 nhờ X" đều là phỏng đoán — đúng loại lỗ hổng
+A20 đã vấp khi không quy được ×3,25 cho ai.
+
+---
+
+### A24 — Bốn lượt nộp chứ không phải hai, và lượt tốt nhất (3,8) là **kênh ảnh SigLIP2**
+
+A20 viết khi tưởng chỉ có hai lượt. Bảng "Bài của tôi" của BTC cho thấy **bốn**:
+
+| Lượt | Giờ (20/08) | Điểm public | Là gì |
+| --- | --- | ---: | --- |
+| #1 | 16:54 | 0,8 | objects đơn lẻ |
+| #2 | 20:29 | 2,6 | RRF(objects, OCR), trọng số 1,0 — `firstdance1.zip` |
+| **#3** | **21:11** | **3,8** | **kênh ảnh SigLIP2** — xem chuỗi bằng chứng dưới |
+| #4 | 23:11 | 2,6 | dựng lại từ repo, **trùng từng byte với #2** |
+
+**#4 trùng byte với #2 và ra đúng điểm của #2.** Đó là xác nhận ngoài rằng đường
+ống tái lập chính xác, và cũng là bài học: **lượt cuối mới tính điểm** (C7), nên
+nộp lại một cấu hình cũ là tự hạ standing.
+
+#### Vì sao kết luận #3 là SigLIP2, khi không có ai ghi lại lệnh
+
+Không có dấu vết nào của #3 trên máy dựng repo: `submission/` giữ mtime 20:27
+(của #2), lịch sử PowerShell không có lệnh `run.py` nào, không zip nào khác
+trong khoảng 20:40–21:20. Nên phải vân tay từ chính file nộp:
+
+| Bằng chứng | Đo được | Suy ra |
+| --- | --- | --- |
+| Chồng lấn với #2 (objects+OCR) | **~0** — 21/24 gói KHÔNG chung dòng nào, hạng 1 khác ở cả 24 | không phải chỉnh trọng số; là **kênh khác hẳn** |
+| Cặp `(video, frame)` của dòng KIS/QA | đều là keyframe thật của `master.parquet` | dựng từ **index của ta** |
+| Chuỗi TRAKE | `1536,3072,4608,6144` — đúng dấu vết nhánh *rải đều* của `run.dung_trake()` | dựng bằng **`run.py`** |
+| Phân bố nhóm L | đủ cả 10 nhóm (L21 456 · L26 355 · L29 194 …) | ma trận phủ **toàn kho**, không phải bể ảnh của một máy |
+| Đa dạng | **50 video khác nhau / 100 dòng** (min 17, max 81) | dáng của truy hồi dày đặc, không phải objects |
+| Ứng viên còn lại: CLIP B/32 | A10 đo **0,0000 trên 100/100 câu tiếng Việt** | không thể ra 3,8 |
+
+→ `run.py --kenh anh --matrix clip_siglip2.npy` trên máy ≥ 16 GB. Đó là cấu hình
+duy nhất còn lại thoả mọi bằng chứng.
+
+**Và nó khớp với tập dev.** Dev đo SigLIP2 **0,3258** so với RRF(objects, OCR)
+**0,0781** — hơn 4,2 lần; leaderboard 3,8 so với 2,6. Hướng trùng nhau, độ lớn
+thì không so được (leaderboard trộn cả KIS/QA/TRAKE, dev không có TRAKE).
+
+> **Đây là lần đầu tập dev DỰ ĐOÁN ĐÚNG một kết quả ngoài.** A20 ghi tập dev mù
+> hai lần (A19, A20). Lần này nó xếp đúng thứ tự hai cấu hình trước khi có điểm
+> ngoài. Kênh 1 là kênh mạnh nhất — trên dev, và nay trên cả leaderboard.
+
+#### Ba gói Q&A: **cả bốn lượt đều chắc chắn 0**, và lý do không phải truy hồi
+
+Bản 3,8 nộp `answer` là `5`, `2`, `10` cho ba gói Q&A. Đọc lại đề:
+
+| Gói | Hỏi gì | Đáp án đã nộp |
+| --- | --- | --- |
+| `query-p1-15-qa` | tên **xã** ở Khánh Hoà nơi CLB FANA trao quà | `5` ❌ |
+| `query-p1-19-qa` | **hai câu thơ** ca ngợi Nguyễn Trung Trực | `2` ❌ |
+| `query-p1-22-qa` | **tên món ăn** trên công thức có 200g thịt nạc xay | `10` ❌ |
+
+**Không câu nào là câu đếm.** Cả ba đều hỏi **chữ đọc được trên hình**: tên xã
+chạy dưới bản tin, câu thơ khắc trong đình, tiêu đề công thức trên tờ giấy.
+
+Hai hệ quả cho Bước 4 của Mũi nhọn 1:
+
+1. **Lời nhắc trong `tra_loi.NHAC` đang lệch hẳn dạng câu hỏi thật.** Nó dạy
+   model *"câu hỏi đếm → trả lời bằng chữ số"*, *"màu sắc → tên màu"*, *"tối đa
+   4 từ"* — trong khi đề thật hỏi tên riêng và **hai câu thơ** (chắc chắn dài
+   hơn 4 từ, và vẫn phải lọt trần 100 ký tự).
+2. **Kênh 3 (OCR) có thể trả lời trực tiếp**, không cần VLM: chữ đã nằm sẵn
+   trong `ocr_asr.parquet` của đúng khung được truy hồi. Đây là đường rẻ nhất
+   tới điểm Q&A đầu tiên của đội — và nó chạy được trên máy yếu.
+
+Ba gói Q&A đang là **3/24 gói ăn 0 chắc chắn** ở cả bốn lượt nộp. Không có phần
+nào của hệ thống rẻ hơn phần này tính theo điểm trên mỗi đơn vị công.
+
+#### Chốt đã dựng sau vụ này
+
+`run.py` ghi `lenh_da_chay.txt` cạnh file CSV (A23). Nếu #3 có nó thì toàn bộ
+mục này đã không cần viết — và ta suýt mất hẳn cấu hình tốt nhất của mình chỉ vì
+không ai ghi lại một dòng lệnh.
+
+**Quy ước từ nay: mỗi lượt nộp giữ lại CẢ file zip LẪN `lenh_da_chay.txt`**, đặt
+tên theo lượt (`nop_dot1_luot3.zip`). Windows không phân biệt hoa/thường —
+`FirstDance_round1.zip` đã **đè mất** `firstdance_round1.zip` của lượt #2.
 
 ---
 
@@ -1474,6 +1735,35 @@ R-Score là 0 hoặc 1, nên rút gọn thành hàm bậc thang theo thứ hạn
    buộc ở mục 2 tính theo `video_id` nên **không bắt được bản sao trong cùng một
    video**. Mà A5.6 đo được 11,83% keyframe có bản sao cùng video ở
    cosine ≥ 0,99 (L25: 49,82%). Năm bản sao chiếm hết top-5 là phí 4 slot.
+   *(A22 đo: hoãn bật — đảo dấu, và ghép với ràng buộc mục 2 thì tệ hơn ổn định.)*
+
+### C7 — Bản quy định chính thức của BTC (sotuyenaic.oj.io.vn, 19/08/2026)
+
+Ba điều dưới đây lấy nguyên văn từ *"Hướng dẫn nộp bài sơ tuyển"*, và điều đầu
+tiên **đổi cách đọc mọi con số leaderboard**:
+
+| Điều | Nguyên văn | Hệ quả |
+| --- | --- | --- |
+| **Public leaderboard chỉ chấm 50% đáp án** | *"Kết quả đánh giá trên Public Leaderboard chỉ tính dựa trên 50% đáp án của BTC. Kết quả cuối cùng… tính trên 100% đáp án… tại Private Leaderboard"* | **0,8 và 2,6 ở A20 là điểm trên NỬA bộ đáp án.** So hai đợt với nhau vẫn đứng (cùng 50%), nhưng đừng suy ra thứ hạng cuối |
+| 3 lần nộp, **lần CUỐI tính điểm** | *"Kết quả được dùng để xếp hạng là kết quả đội nộp lần cuối cùng"* | Không phải lần tốt nhất. Nộp thử một cấu hình yếu ở lần 3 là **tự hạ điểm** |
+| Sai định dạng vẫn tính một lần | *"Khi nộp sai định dạng vẫn tính là 01 lần nộp"* | Lý do `nop_bai.soat()` từ chối ghi file |
+
+**Và tài liệu tự mâu thuẫn về cách chấm `answer`, ngay trong cùng một trang web:**
+
+    trang 2:  "được so sánh chính xác về mặt NGỮ NGHĨA với đáp án"
+    trang 8:  "Answer (Q&A) sẽ được so sánh dưới dạng CHUỖI CHÍNH XÁC"
+
+Chưa hỏi được BTC thì `tra_loi.don_dap_an()` chọn dạng **an toàn với cả hai**:
+ngắn nhất, chuẩn tắc nhất. `"5"` khớp được nếu chấm chuỗi, và vẫn đúng nếu chấm
+ngữ nghĩa; `"Có 5 cái bát trên bàn"` thì chỉ đúng ở vế sau.
+
+> ⚠️ **Bẫy nằm trong chính ví dụ của BTC.** Quy định ghi *"khoảng trắng đầu/cuối
+> được giữ nguyên, không tự động trim"*, nhưng ví dụ trang 2 lại viết
+> `L01_V028, 3450, "5"` — có khoảng trắng sau dấu phẩy. Đọc bằng parser CSV
+> chuẩn, `answer` ra `' "5"'`: khoảng trắng và cả dấu ngoặc kép thành **ký tự
+> thật**. Ví dụ CSV chuẩn ở trang 4–5 không có khoảng trắng — đó mới là dạng
+> đúng. `_viet_csv()` sinh đúng dạng đó, và `soat_zip()` nay bắt khoảng trắng
+> thừa như một lỗi, phòng người sửa tay theo ví dụ trang 2.
 
 ---
 
@@ -1741,7 +2031,18 @@ và Bước 4 Q&A nhấn mạnh ngữ cảnh (theo D0.3).*
 
 #### Mũi nhọn 1 — Textual KIS & Q&A (TV1, TV3, TV5)
 
+> **Trạng thái sau A22:** cả sáu bước đã có chỗ nối trong `src/mui_nhon_1.py`,
+> gọi được từ `run.py`. Ba bước phụ **mặc định TẮT** vì chưa bước nào thắng
+> được trên tập dev — xem A22. Đo lại từng cờ bằng
+> `python scripts/22_do_mui_nhon_1.py`.
+
 **Bước 1 — Thu hẹp cấp video.** BM25 metadata → top-50 video.
+
+> ⚠️ **Sửa ở A22: XẾP LẠI, không phải CẮT.** Cắt cứng ở top-50 đo được là
+> **tệ hơn** (−0,0286 / −0,0476), vì metadata chỉ phủ **37,1%** số câu ở top-50
+> — đọc "97%" của A12 thành năng lực thu hẹp là đọc sai. Dạng mềm (`uu_tien`)
+> dương ở cả hai mức nhưng **dưới ngưỡng nhiễu**, chưa đủ căn cứ bật:
+> `run.py --uu-tien-video 50`.
 
 **Bước 2 — Truy hồi đa kênh, hợp nhất bằng Reciprocal Rank Fusion.** Bốn kênh
 ở bảng trên. RRF an toàn hơn weighted-sum vì không cần chuẩn hóa thang điểm
@@ -1749,6 +2050,11 @@ giữa cosine (0,2–0,35) và BM25 (không chặn trên).
 
 **Bước 2b — MỚI (4.1): khử trùng lặp rồi mới cắt top-K.** Xem PHẦN C mục 6 và
 A8.8. Đặt *sau* RRF, *trước* khi cắt.
+
+> ⚠️ **A22 đo được: ĐẢO DẤU giữa hai mức dung sai** (−0,0152 ở ±2s, +0,0057 ở
+> ±15s) — kết luận phụ thuộc vào ẩn số BTC chưa chốt, **không dùng để quyết**.
+> Còn ghép với ràng buộc đa dạng thì **tệ hơn ổn định** (−0,0324, 0 thắng–7
+> thua), bác đúng câu A11 dự đoán là hai cái bổ sung nhau. `run.py --dedup`.
 
 **Bước 3 — ~~Tinh chỉnh vị trí frame~~ — TỤT ƯU TIÊN.** *(4.1)* Bước này viết
 là *"chỉ khi BTC xác nhận cửa sổ hẹp ở 0.a"*. Theo A8.1, luật AIC'25 chấm
@@ -1758,6 +2064,11 @@ Bước 3b.
 
 **Bước 3b — MỚI: đi bộ theo thời gian ("nearby frame").** *(A8.7 — kỹ thuật
 đáng giá nhất trên mỗi đơn vị công sức)*
+
+> ⚠️ **A18 bác dùng nó trong TRUY HỒI; A22 đặt lại đúng chỗ của nó là BƯỚC 4.**
+> Chèn khung lân cận vào danh sách nộp là tiêu một trong 100 chỗ để mua lại thứ
+> đã có — BTC chấm theo khoảng 4 giây–5 phút (A9) nên khung ±2s vốn đã tính là
+> đúng. Trong Bước 4 thì nó không tiêu chỗ nào: `mui_nhon_1.khung_ngu_canh()`.
 
 ```python
 # src/lan_can.py
@@ -1772,6 +2083,12 @@ còn đáp án nằm ở **bước cắt** vài giây sau. Truy hồi ngữ ngh�
 cận đủ dày để đi bộ có ý nghĩa.
 
 **Bước 4 — Sinh câu trả lời (riêng Q&A).**
+
+> **Đã nối (A22), chặn ở một lệnh.** `run.py --vlm` gọi
+> `mui_nhon_1.gan_dap_an()` → `tra_loi.tra_loi_qa()`, đưa 3 khung trong cửa sổ
+> ±2s. Máy đang chạy không có model nào **nhìn được ảnh** →
+> `ollama pull qwen2.5vl:7b`. Đây là việc đáng giá nhất còn lại: 42/105 câu dev
+> và 3/24 gói đề mẫu là Q&A, **tất cả đang chắc chắn 0**.
 
 - **Không đưa 1 frame duy nhất.** Câu hỏi dạng đếm cần chuỗi frame.
 - Đưa vào VLM: **3–5 frame trong cửa sổ ±2s + đoạn ASR tương ứng + câu hỏi**.
