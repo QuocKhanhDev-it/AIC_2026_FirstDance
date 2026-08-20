@@ -170,6 +170,76 @@ def quet_objects(index: Path, de: dict, k: int):
     return ra, master
 
 
+# Token xuất hiện ở nhiều hơn ngần này tài liệu OCR thì KHÔNG phải token hiếm.
+NGUONG_HIEM = 200
+
+# Chèn tối đa ngần này ứng viên khớp cứng. Lọc cứng để **đẩy lên**, không phải
+# để **thay thế**: cho nó chiếm cả 100 chỗ là vứt bỏ hoàn toàn kênh xếp hạng,
+# mà token "hiếm" vẫn có thể là một âm tiết tiếng Việt tình cờ ít gặp trong kho
+# OCR (đo được: `nghiên` lọt qua ngưỡng tần suất và kéo về 100 khung).
+TOI_DA_LOC_CUNG = 20
+
+
+def loc_cung(de: dict, bang, master, k: int) -> dict:
+    """Chế độ LỌC CỨNG cho token hiếm (A8.5) — trả ứng viên để chèn lên đầu.
+
+    3/5 ví dụ thực chiến của đội AIC'25 thắng bằng cách này chứ không bằng xếp
+    hạng: `/filter all ocr{hidro}`. Với token hiếm, lọc dứt khoát hơn hẳn BM25
+    hoà RRF — `hidro` có ở 3 khung thì lọc trả đúng 3, còn hoà RRF thì ba kênh
+    kia dìm nó xuống dưới hạng 20.
+
+    ⚠️ **`phat_hien_token_hiem` của TV4 quá tham trên văn bản thật.** Nó coi chữ
+    hoa là tên riêng, mà tiếng Việt câu nào cũng viết hoa chữ đầu — đo được: nó
+    bắt `Một`, `Đây`, `Trong`, `Sau` và nổ ở **24/24 gói đề mẫu**. Nhét những
+    thứ đó lên đầu là đẩy ứng viên tốt khỏi hạng 1, mà R@1 chiếm 1/5 tổng điểm.
+
+    Nên lọc lại bằng **chính kho OCR**: token chỉ được coi là hiếm khi nó xuất
+    hiện ở `<= NGUONG_HIEM` tài liệu. Đo trên 47.064 tài liệu OCR:
+
+        Một 2.397 · Trong 4.994 · Sau 2.688   -> không hiếm
+        Debby 16 · Carolina 7                 -> hiếm
+
+    Đây là đúng ý IDF, cùng nguyên tắc đã dùng ở `objects.py`, và không cần
+    bảng từ dừng viết tay.
+    """
+    import collections
+    import re as _re
+    # `pipeline_OCR_ASR` nam o goc repo, ma sys.path chi co src/ (xem dau file).
+    if str(GOC) not in sys.path:
+        sys.path.insert(0, str(GOC))
+    from pipeline_OCR_ASR.loc_cung_token_hiem import bo_dau, phat_hien_token_hiem
+    from schema import Candidate
+
+    co = bang[bang.text.fillna("").str.strip() != ""].copy()
+    co["kd"] = co.text.map(bo_dau)
+    df = collections.Counter()
+    for x in co.kd:
+        df.update(set(_re.findall(r"[^\W_]+", x)))
+
+    ra = {}
+    for ten, nd in de.items():
+        if loai_cua(ten) == "trake":
+            continue
+        hiem = [t for t in phat_hien_token_hiem(nd)
+                if 0 < df.get(bo_dau(t), 0) <= NGUONG_HIEM]
+        if not hiem:
+            continue
+        # ĐÒI ĐỦ MỌI token hiếm, không phải bất kỳ cái nào. Nhiều token cùng
+        # xuất hiện là tín hiệu mạnh hơn hẳn; `any` thì một âm tiết lạc cũng
+        # kéo về cả trăm khung không liên quan.
+        kd_hiem = [bo_dau(t) for t in hiem]
+        mat = co.kd.apply(lambda x: all(t in x for t in kd_hiem))
+        khop = co[mat].head(min(k, TOI_DA_LOC_CUNG))
+        if khop.empty:
+            continue
+        ra[ten] = [Candidate(row_id=int(r), video_id=master.video_id.iloc[r],
+                             frame_idx=int(master.frame_idx.iloc[r]),
+                             score=1.0, source="loc_cung")
+                   for r in khop.row_id]
+        print(f"  lọc cứng {ten}: {hiem} -> {len(ra[ten])} khung")
+    return ra
+
+
 def quet_van_ban(master, de: dict, k: int, index: Path) -> dict:
     """Kênh 2 (metadata) + kênh 3 (OCR/ASR nếu có file). Nhẹ, không cần model."""
     from bm25 import KenhVanBan
@@ -188,6 +258,13 @@ def quet_van_ban(master, de: dict, k: int, index: Path) -> dict:
               GOC / "pipeline_OCR_ASR" / "output" / "ocr_asr.parquet"):
         if p.exists():
             b = pd.read_parquet(p)
+            # ⚠️ File TON TAI khong co nghia la CO DU LIEU. `run_production_
+            # pipeline.py` tu sinh mot ocr_asr.parquet 177.321 dong TOAN RONG
+            # khi chua co ocr.parquet nguon — da gap that. Nhan nham file do la
+            # kenh 3 im lang khong tra ve gi, khong bao loi nao.
+            if b.get("text", pd.Series(dtype=str)).fillna("").str.strip().eq("").all():
+                print(f"  kênh 3: {p} KHÔNG có dòng nào có chữ — bỏ qua")
+                continue
             k3 = KenhVanBan.tu_bang_khung(master, b, cot="text", ten="ocr_asr")
             print(f"  kênh 3: OCR/ASR, {len(k3):,} khung có chữ ({p.name})")
             for ten, nd in de.items():
@@ -352,6 +429,9 @@ def main():
                     help="ma trận kênh 1. SigLIP2 đo được 0,3258; "
                          "clip.npy chỉ 0,0000 trên tiếng Việt (A10/A17)")
     ap.add_argument("--k", type=int, default=TOI_DA_DONG)
+    ap.add_argument("--loc-cung", action="store_true",
+                    help="chen ung vien khop CUNG token hiem len dau (A8.5). "
+                         "CHUA DO DUOC tren tap dev — xem docstring loc_cung()")
     ap.add_argument("--kenh", default="anh", choices=("anh", "objects"),
                     help="objects = KHONG can model lon, chay duoc tren may "
                          "thieu RAM. Chat luong kem han (0,0412 so voi 0,3258) "
@@ -387,6 +467,18 @@ def main():
         kq1, master = quet_anh(a.index, a.matrix, de, a.k)
     phu = quet_van_ban(master, de, a.k, a.index) if a.hop_nhat else {}
 
+    lc = {}
+    if a.loc_cung:
+        for p in (a.index / "ocr_asr.parquet",
+                  GOC / "pipeline_OCR_ASR" / "output" / "ocr_asr.parquet"):
+            if p.exists():
+                b = pd.read_parquet(p)
+                if not b.get("text", pd.Series(dtype=str)).fillna("").str.strip().eq("").all():
+                    lc = loc_cung(de, b, master, a.k)
+                    break
+        else:
+            print("  lọc cứng: chưa có ocr_asr.parquet — bỏ qua")
+
     goi, so_su_kien = {}, {}
     for ten in sorted(de):
         loai = loai_cua(ten)
@@ -398,6 +490,10 @@ def main():
             so_su_kien[ten] = len(ds)
         else:
             uv = kq1[ten]
+            if lc.get(ten):
+                # Khớp CỨNG lên đầu, phần còn lại giữ nguyên thứ tự của kênh.
+                da = {x.row_id for x in lc[ten]}
+                uv = lc[ten] + [x for x in uv if x.row_id not in da]
             if not uv:
                 print(f"     ⚠️  {ten}: kênh không trả về gì — bù cho đủ "
                       f"{a.k} dòng (nộp bừa hơn nộp rỗng)")
