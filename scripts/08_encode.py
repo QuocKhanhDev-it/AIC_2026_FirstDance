@@ -62,6 +62,19 @@ def chon_theo_tap_dev(master: pd.DataFrame, f_dev) -> np.ndarray:
     return master[master.video_id.isin(vids)].row_id.values
 
 
+def chon_theo_danh_sach(master: pd.DataFrame, f_video: str) -> np.ndarray:
+    """Encode TRỌN VẸN các video_id liệt kê trong file (mỗi dòng một id).
+
+    Dùng để vá riêng một lô keyframe mới tải (vd một gói `Keyframes_Lxx_y`)
+    mà không phải chạy lại toàn kho — ghép kết quả vào ma trận chính bằng
+    tay sau, xem docs/08_nhat_ky_encode_GPU.md §11.
+    """
+    vids = [v.strip() for v in Path(f_video).read_text("utf-8").splitlines()
+            if v.strip()]
+    print(f"Danh sách {len(vids)} video -> encode trọn vẹn")
+    return master[master.video_id.isin(vids)].row_id.values
+
+
 def chon_video(master: pd.DataFrame, so_video: int | None) -> np.ndarray:
     """Trả về row_id cần encode. `so_video=None` -> toàn kho.
 
@@ -128,8 +141,12 @@ def encode(a):
     import open_clip
 
     master = pd.read_parquet(a.index / "master.parquet")
-    row_ids = (chon_theo_tap_dev(master, a.theo_tap_dev) if a.theo_tap_dev
-               else chon_video(master, a.videos))
+    if a.theo_tap_dev:
+        row_ids = chon_theo_tap_dev(master, a.theo_tap_dev)
+    elif a.chi_video:
+        row_ids = chon_theo_danh_sach(master, a.chi_video)
+    else:
+        row_ids = chon_video(master, a.videos)
 
     thiet_bi = "cuda" if torch.cuda.is_available() else "cpu"
     if thiet_bi == "cpu":
@@ -357,6 +374,9 @@ def main():
     ap.add_argument("--theo-tap-dev", type=Path, default=None,
                     help="encode TRỌN VẸN các video có đáp án trong tập dev "
                          "— cách rẻ nhất để đo một model mới")
+    ap.add_argument("--chi-video", type=Path, default=None,
+                    help="encode TRỌN VẸN các video_id liệt kê trong file "
+                         "(mỗi dòng một id) — vá riêng một lô mới tải")
     ap.add_argument("--batch", type=int, default=16)
     ap.add_argument("--workers", type=int, default=8)
     ap.add_argument("--fp16", action="store_true", default=True)
