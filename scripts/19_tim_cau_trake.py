@@ -26,6 +26,17 @@ cảnh **đang biến đổi mà chưa đổi hẳn** — cosine giữa hai keyf
 trong "dải hành động" 0,72–0,92. Trên 0,92 là cảnh đứng yên (không có gì để tả
 thành nhiều bước); dưới 0,72 là cắt cảnh sang chủ đề khác.
 
+LOAI NOI DUNG NAO SOAN DUOC CAU TRAKE — DA KIEM TAN MAT
+
+    L27 (Viet Nam Di La Ghien)   DUOC   phong su, hanh dong lien tuc
+    L21 / L22 (60 Giay)          KHONG  ban tin: chuoi mau tin ROI RAC
+
+Da mo anh xem: ung vien manh nhat cua L21_V019 la khung 1 studio hai bien tap
+vien, khung 2 la B-roll cua MOT TIN HOAN TOAN KHAC ('Ha Giang: Xe o to lao
+xuong vuc'). Diem cosine cao vi canh doi that, nhung do khong phai chuoi su
+kien. **Ban tin khong dung duoc cho TRAKE ve mat cau truc** — dung phi thoi
+gian duyet L21/L22, chuyen sang nhom co phong su.
+
     python scripts/19_tim_cau_trake.py --nhom L27 --so-su-kien 3
     python scripts/19_tim_cau_trake.py --video L27_V013 --so-su-kien 4 --mo
 
