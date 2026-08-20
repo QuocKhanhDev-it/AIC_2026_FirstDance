@@ -53,5 +53,8 @@ desktop.ini
 
 # ---- bai nop ----
 # File sinh ra tu ket qua chay, khong phai ma nguon. Moi lan chay moi khac.
-submission/
+# `submission*/` chu khong phai `submission/`: luat cu ghi dung mot ten thu muc
+# nen `submission_v2/` lot qua. Cung kieu loi da lam lot 15 anh keyframe khi
+# doi ten thu muc (xem muc Benchmark_OCR_ASR o tren).
+submission*/
 *.zip

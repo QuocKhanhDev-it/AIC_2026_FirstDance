@@ -27,6 +27,11 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
+try:
+    from .schema import Candidate
+except ImportError:                     # chạy trực tiếp: python src/objects.py
+    from schema import Candidate
+
 MIN_SCORE = 0.5      # điểm cân bằng: phủ 89,6% keyframe, 3,4 detection/keyframe
 
 
@@ -206,6 +211,72 @@ def dem_nhan(row_ids, label, channel: dict) -> np.ndarray:
     sub = o[(o.label == label) & (o.row_id.isin(row_ids))]
     return (sub.groupby("row_id").size()
             .reindex(row_ids, fill_value=0).values.astype(np.int32))
+
+
+class KenhObjects:
+    """Bọc `objects.py` thành kênh trả `list[Candidate]`, đồng dạng với
+    `dense.KenhAnh` và `bm25.KenhVanBan`.
+
+    Nhờ đồng dạng mà `rrf.hop_nhat` không cần biết kênh nào là kênh nào — xem
+    docstring `schema.Candidate`.
+
+    ⚠️ Lớp này TRƯỚC ĐÂY nằm trong `scripts/16_do_rrf.py`, và `src/run.py` phải
+    `exec_module` một script đánh số để lấy nó ra lúc chạy. Nghĩa là đường ống
+    nộp bài phụ thuộc vào một file trong `scripts/` — nơi quy ước của repo cho
+    phép thêm/sửa thoải mái theo số thứ tự. Chuyển về đây để chỗ phụ thuộc nằm
+    trong `src/`.
+
+    `rut_nhan_that_bai` đếm số câu KHÔNG rút ra được nhãn nào. Đó không phải
+    thống kê cho vui: kênh này im lặng trả rỗng khi truy vấn không chạm bảng
+    nhãn, và trên bộ đề mẫu đã có 2/24 gói rơi vào đúng cảnh đó
+    (`run.bu_cho_du` sinh ra để đỡ).
+    """
+
+    def __init__(self, index_dir, master, bang=None):
+        self.master = master
+        self.ch = load_channel(index_dir)
+        self.bang = nap_bang_nhan() if bang is None else bang
+        self.rid = master.row_id.values
+        self.rut_nhan_that_bai = 0
+
+    def nhan(self, cau: str) -> list[str]:
+        return nhan_tu_truy_van(cau, self.bang)
+
+    def tim(self, cau, k: int = 100, moi_video: int | None = None,
+            be=None) -> list[Candidate]:
+        """Tối đa `k` ứng viên, điểm cao xuống thấp.
+
+        `cau` nhận cả chuỗi lẫn danh sách chuỗi — giống hai kênh kia. Nhiều
+        mệnh đề thì GỘP NHÃN của tất cả, không lấy max như kênh ảnh: điểm ở đây
+        vốn đã là tổng theo nhãn, nên gộp nhãn chính là cách cộng bằng chứng
+        đúng với công thức của nó.
+
+        `be` là mặt nạ bool giới hạn bể ứng viên (Bước 1 của Mũi nhọn 1).
+        """
+        cac_cau = [cau] if isinstance(cau, str) else list(cau)
+        nhan = sorted({x for c in cac_cau for x in self.nhan(c)})
+        if not nhan:
+            self.rut_nhan_that_bai += 1
+            return []                    # không rút ra nhãn nào -> im lặng, đừng bịa
+        d = object_score(self.rid, nhan, self.ch)
+        if be is not None:
+            d = np.where(np.asarray(be, dtype=bool), d, 0.0)
+        top = np.argsort(-d)[:k * (moi_video or 1) + 200]
+        m, ra, dem = self.master, [], {}
+        for i in top:
+            if d[i] <= 0:
+                break
+            v = m.video_id.iloc[i]
+            if moi_video and dem.get(v, 0) >= moi_video:
+                continue
+            dem[v] = dem.get(v, 0) + 1
+            ra.append(Candidate(row_id=int(i), video_id=v,
+                                frame_idx=int(m.frame_idx.iloc[i]),
+                                score=float(d[i]), source="objects",
+                                meta={"pts_time": float(m.pts_time.iloc[i])}))
+            if len(ra) >= k:
+                break
+        return ra
 
 
 def main():

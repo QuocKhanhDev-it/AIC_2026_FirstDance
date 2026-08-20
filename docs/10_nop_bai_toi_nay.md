@@ -7,10 +7,15 @@ mỗi gói, và **sai định dạng vẫn tính là một lần**.*
 
 ## ⛔ Ai chạy trên máy nào — quyết định TRƯỚC KHI làm gì khác
 
-| Máy | Chạy được gì | Điểm ước tính |
-| --- | --- | --- |
-| **Máy ≥ 16 GB RAM** *(máy Khánh)* | SigLIP2 — `--matrix clip_siglip2.npy` | **0,3258** (A17) |
-| Máy 7,7 GB | **chỉ** `--matrix clip.npy` | **0,0000** trên tiếng Việt (A10) |
+| Máy | Chạy được gì | Điểm dev | Điểm leaderboard |
+| --- | --- | --- | --- |
+| **Máy ≥ 16 GB RAM** *(máy Khánh)* | SigLIP2 — `--matrix clip_siglip2.npy` | **0,3258** (A17) | **3,8** — lượt #3 (A24) |
+| Máy 7,7 GB | objects + OCR, không cần model | 0,0781 (A23) | 2,6 — lượt #2 và #4 |
+| Máy 7,7 GB | `--matrix clip.npy` (CLIP) | **0,0000** trên tiếng Việt (A10) | — |
+
+> **Vòng thật phải chạy trên máy khỏe.** Điều này nay có bằng chứng NGOÀI, không
+> chỉ tập dev: lượt #3 (SigLIP2) được **3,8**, lượt #2 và #4 (objects+OCR) được
+> **2,6**. Cấu hình model-free chỉ là đường lui khi không mượn được máy.
 
 **Máy 7,7 GB không nạp nổi SigLIP2.** Đã thử hai lần, cả hai lần **treo cứng
 máy** — không phải báo lỗi, mà đứng hẳn phải khởi động lại. `dense.kiem_ram()`
@@ -48,11 +53,30 @@ $env:PYTHONIOENCODING = "utf-8"
 .venv\Scripts\python.exe src\run.py --de de_thi --ra submission --tra-loi "không rõ"
 ```
 
-**Trên máy yếu**, chỉ để kiểm định dạng:
+**Trên máy yếu** — đây là cấu hình **đã ăn 2,6 điểm** trên leaderboard, không
+phải bản chạy cho có:
+
+```powershell
+.venv\Scripts\python.exe src\run.py --de de_thi --ra submission `
+    --kenh objects --hop-nhat --bo-metadata --tra-loi "không rõ"
+```
+
+> **Đừng thêm `--trong-so-phu 0.3`.** Mặc định nay là **1,0** (ngang nhau) và đó
+> là cấu hình đã ghi điểm. Dìm OCR xuống 0,3 đo được là **tệ đi ổn định**
+> (0,0781 → 0,0476, gần bằng objects đứng một mình) — A23. Con số 0,3 chỉ đúng
+> cho cảnh một kênh mạnh cộng một kênh yếu (A14.2), không phải cảnh này.
+
+Chỉ để **kiểm định dạng** bằng kênh ảnh trên máy yếu (gần như chắc chắn 0 điểm,
+vì CLIP mù tiếng Việt):
 
 ```powershell
 .venv\Scripts\python.exe src\run.py --de de_thi --ra submission --matrix clip.npy --tra-loi "không rõ"
 ```
+
+Chạy xong, `submission\lenh_da_chay.txt` giữ **nguyên văn lệnh đã sinh ra các
+file CSV**. Giữ file đó lại: một điểm số trên leaderboard mà không truy được về
+một lệnh cụ thể thì không dạy được gì (A23 — bản nộp 2,6 suýt mất dấu vì đúng
+chuyện này). File này **không lọt vào zip** — `dong_goi()` chỉ nén `*.csv`.
 
 ### Đọc kỹ hai thứ script in ra
 
@@ -74,8 +98,24 @@ bảo đã chạy xong, thì file chưa được chép về — đặt vào
 ## 3. Soát rồi nén
 
 ```powershell
-.venv\Scripts\python.exe src\nop_bai.py --soat submission --nen bai_nop.zip
+.venv\Scripts\python.exe src\nop_bai.py --soat submission --nen firstdance1.zip
 ```
+
+Lệnh này nay chạy **hai cổng**: soát thư mục, nén, rồi **soát lại chính file
+zip** theo checklist BTC. Soát một file zip đã có:
+
+```powershell
+.venv\Scripts\python.exe src\nop_bai.py --soat-zip firstdance1.zip
+```
+
+> **Vì sao phải soát chính file zip.** Soát thư mục rồi nén là soát thứ sắp nộp
+> *gián tiếp* — giữa hai bước còn một thao tác nén mà người ta làm tay được, và
+> BTC xếp *"nén trực tiếp file CSV thay vì thư mục"* là lỗi phổ biến **thứ hai**.
+> Cổng này đọc đúng thứ sẽ upload.
+
+**Tên file zip: chỉ chữ và số.** BTC khuyến cáo vậy (`firstdance1.zip`, không
+phải `firstdance_p1_v2.zip`). Bản nộp đợt 1 có gạch dưới và vẫn được nhận, nên
+đây là khuyến cáo chứ không phải luật — nhưng không mất gì khi tuân thủ.
 
 Phải thấy `✅ Định dạng hợp lệ.` Bộ soát chặn sẵn:
 
@@ -101,7 +141,65 @@ Cảnh báo `mới 30/100 dòng` **không phải lỗi** — nhưng đang mất 
 - [ ] Trong zip có thư mục `submission/` (đã kiểm ở bước 3)
 - [ ] Còn mấy lần nộp? **Tối đa 3, lấy lần CUỐI để xếp hạng**
 
+> ⚠️ **"Lần CUỐI" chứ không phải "lần tốt nhất".** BTC: *"Kết quả được dùng để
+> xếp hạng là kết quả đội nộp lần cuối cùng"*. Nộp thử một cấu hình yếu ở lần
+> thứ 3 là **tự hạ điểm của chính mình**, không phải thử nghiệm miễn phí.
+>
+> Và điểm thấy trên bảng chỉ là **50% đáp án** (Public Leaderboard); xếp hạng
+> thật chấm 100% ở Private. Xem C7 của kế hoạch.
+
+### Đừng sửa tay file CSV theo ví dụ ở trang 2 của BTC
+
+Trang 2 viết `L01_V028, 3450, "5"` — **có khoảng trắng sau dấu phẩy**. Nhưng
+chính BTC ghi *"khoảng trắng đầu/cuối được giữ nguyên, không tự động trim"*, nên
+đọc bằng parser CSV chuẩn thì `answer` ra `' "5"'`, tức khoảng trắng và dấu
+ngoặc kép thành **ký tự thật** trong đáp án:
+
+```text
+L01_V028, 3450, "5"   ->  answer = ' "5"'    ❌
+L01_V028,3450,5       ->  answer = '5'       ✅  (dạng chuẩn trang 4-5)
+```
+
+`nop_bai` luôn ghi dạng dưới, và `--soat-zip` bắt khoảng trắng thừa như một lỗi.
+
 ---
+
+## Mũi nhọn 1 — ba cờ mới, **mặc định tắt** (A22)
+
+Cả ba đã nối vào `run.py` và đã đo. **Không cờ nào thắng được tập dev**, nên
+mặc định tắt — bật là quyết định có ý thức, không phải mặc nhiên.
+
+| Cờ | Bước | Đo được | Có nên bật |
+| --- | --- | --- | --- |
+| `--uu-tien-video 50` | 1 (mềm) | +0,0095 ở cả hai mức | 🟡 dưới ngưỡng nhiễu |
+| `--thu-hep-cung` | 1 (cứng) | −0,0286 / −0,0476 | ❌ **đừng** — metadata chỉ phủ 37% ở top-50 |
+| `--dedup` | 2b | đảo dấu giữa hai mức | ❌ không dùng để quyết |
+| `--vlm` | 4 | chưa đo được | 🔴 xem dưới |
+
+Đo lại bất cứ lúc nào: `python scripts\22_do_mui_nhon_1.py`
+
+## Bước 4 — cho VLM trả lời câu Q&A
+
+Đây là chỗ đắt nhất còn lại: **3/24 gói đề mẫu là Q&A và cả ba đang chắc chắn
+0 điểm** vì `answer` là hằng số. Code đã nối sẵn, chặn ở đúng một lệnh tải model:
+
+```powershell
+ollama serve                      # nếu chưa chạy
+ollama pull qwen2.5vl:3b          # ~3,2 GB. Bản 7b (~6 GB) sát trần máy 7,7 GB
+
+.venv\Scripts\python.exe scripts\22_do_mui_nhon_1.py --vlm --so-cau 20   # ĐO TRƯỚC
+.venv\Scripts\python.exe src\run.py --de de_thi --ra submission --vlm    # rồi mới nộp
+```
+
+**Đo trước khi nộp, đừng đảo thứ tự.** `tra_loi.kiem_model_nhin_duoc()` chặn
+model thuần văn bản, nhưng nó không chặn được một model *nhìn được* mà *trả lời
+sai định dạng* — mà sai định dạng thì 0 điểm y như bỏ trống (PHẦN C mục 4).
+`--so-cau 20` chạy nhanh, đủ để nhìn ra đáp án có ngắn và chuẩn tắc không.
+
+> Máy này chỉ có ảnh của **L21, L22, L27** (21.810/177.321 dòng có `kf_path`).
+> Câu Q&A rơi vào nhóm khác thì VLM không có gì để nhìn — `gan_dap_an()` trả về
+> `--tra-loi` làm đáp án dự phòng chứ **không bao giờ để trống**, vì `answer`
+> rỗng làm `nop_bai.soat` chặn cả gói.
 
 ## Điều phải biết về câu Q&A
 
