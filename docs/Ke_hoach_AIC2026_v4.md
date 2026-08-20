@@ -1185,6 +1185,106 @@ phép đo sau **phải để dành cho máy ≥ 16 GB**:
 
 ---
 
+### A18 — `lan_can` và ràng buộc đa dạng: **cả hai đều LÀM TỆ ĐI**
+
+`scripts/21_do_lan_can.py`, 100 câu tập dev, mốc nền **RRF(objects, OCR)** =
+0,0640 — cấu hình mạnh nhất chạy được không cần model.
+
+Viết script này sau khi grep toàn repo và thấy: `lan_can.py` **không module nào
+import**, `gioi_han_moi_video` **không ai gọi**. Cả hai viết xong rồi để đó.
+
+| Cấu hình | ±2s | ±15s | so với mốc |
+| --- | ---: | ---: | --- |
+| **RRF(objects, OCR)** | **0,0640** | **0,0940** | *(mốc nền)* |
+| + lân cận ±2 | 0,0560 | 0,0660 | −0,0280 ✅ ổn định |
+| + lân cận ±5 | 0,0420 | 0,0500 | −0,0440 ✅ ổn định |
+| + lân cận ±10 | 0,0260 | 0,0320 | −0,0620 ✅ ổn định |
+| + mỗi video ≤ 2 | 0,0420 | 0,0760 | −0,0220 ✅ ổn định |
+| + mỗi video ≤ 3 | 0,0460 | 0,0880 | −0,0180 🟡 |
+| + mỗi video ≤ 5 | 0,0600 | 0,0900 | −0,0040 🟡 |
+
+#### `lan_can` — A9 đã vô hiệu hoá nó từ trước
+
+A8.7 xếp **"nearby frame" hạng 1 về lợi/công**, lấy từ bài báo AIC'25. Đo ra
+**âm, và càng nới càng tệ** (−0,0280 → −0,0620 khi đi từ ±2 lên ±10 bước). Đơn
+điệu như vậy là dấu hiệu cơ chế, không phải nhiễu.
+
+**Cơ chế: nó trùng việc với `no_cua_so()`.** BTC chấm theo cửa sổ 4 giây–5 phút
+(A9), nên keyframe lân cận **đã được tính đúng sẵn** nếu khung trung tâm đúng.
+Chèn thêm chúng vào danh sách không tạo ra cú trúng mới nào, chỉ **đẩy ứng viên
+khác ra khỏi top-100**.
+
+> Đây là chỗ hai phát hiện cũ gặp nhau: **A9 (cửa sổ rộng) làm A8.7 #1 mất tác
+> dụng.** Kỹ thuật đó có giá trị ở luật chấm hẹp — nơi trúng lân cận vẫn tính là
+> trượt. Với luật thật thì không.
+
+#### Ràng buộc đa dạng — **PHẦN C mục 2 nói CỨNG, đo ra là SAI**
+
+PHẦN C mục 2 ghi: *"Ràng buộc cứng: mỗi video ≤ 2 slot trong top-5; top-20 trải
+trên ≥ 8 video khác nhau."* Đo: **mv = 2 mất −0,0220 (ổn định)**, và điểm chỉ
+hồi về mốc khi nới tới mv = 5, tức khi ràng buộc gần như không còn tác dụng.
+
+Lập luận ban đầu — *"đoán sai video thì phí cả 100 chỗ"* — nghe hợp lý nhưng
+không đúng thực tế: top-100 của các kênh **vốn đã trải ra hàng chục video**
+(A11 đo được 40–63 video/truy vấn). Ràng buộc không thêm đa dạng, nó chỉ **cắt
+mất ứng viên tốt** của video đúng.
+
+> **Sửa PHẦN C mục 2: bỏ chữ "cứng".** Ràng buộc đa dạng là **giả thuyết đã bị
+> bác**, không phải luật. Giữ hàm lại để đo với SigLIP2 — bể ứng viên khác thì
+> kết luận có thể khác — nhưng **không bật mặc định**.
+
+**Đây là lần thứ tư một kỹ thuật lấy từ bài báo AIC'25 hoặc từ trực giác thiết
+kế bị chính phép đo bác** (sau dedup A11, RRF thô A14, hợp nhất hai tầng A14.1).
+Danh sách "đã thử mà không hiệu quả" nay dài hơn danh sách "đang dùng".
+
+---
+
+### A20 — Leaderboard 0,8 → 2,6, và tập dev **không giải thích được** phần lớn mức tăng
+
+Phép đo NGOÀI đầu tiên có hai điểm để so. Đợt 1 nộp bằng kênh objects đơn lẻ;
+đợt 2 thêm ba thay đổi: cắt truy vấn theo câu, thêm kênh OCR hợp nhất RRF, bỏ
+kênh metadata khỏi hợp nhất.
+
+| | Điểm | |
+| --- | ---: | --- |
+| Đợt 1 — objects đơn lẻ | **0,8** | hạng 77 |
+| Đợt 2 — RRF(objects, OCR) + cắt truy vấn | **2,6** | **×3,25** |
+| Tập dev dự đoán | — | **×1,55** |
+
+**Thực tế gấp hơn hai lần dự đoán của tập dev.** Truy nguyên phần chênh:
+
+| Thay đổi | Tập dev đo được |
+| --- | --- |
+| Thêm kênh OCR + RRF | +0,0228 (0,0412 → 0,0640) = ×1,55 |
+| Bỏ kênh metadata | đã đo ở A14.2 |
+| **Cắt truy vấn theo câu** | **⚪ KHÔNG ĐỔI GÌ — 0–0–100** |
+
+Cắt truy vấn cho **0-0-100 trên tập dev**, và không phải vì nó vô dụng mà vì
+**tập dev không kích hoạt được nó**:
+
+| | Truy vấn bị tách | Mệnh đề TB |
+| --- | ---: | ---: |
+| Tập dev | **7/97 (7%)** | 1,1 |
+| **Đề thi thật** | **18/21 (86%)** | 2,4 |
+
+> **Đây là lần thứ hai tập dev tỏ ra mù với một lỗi thật.** Lần đầu: 57% truy
+> vấn đề thật bị cắt cụt token trong khi dev chỉ 1/40 (A19). Lần này: 86% đề
+> thật bị tách trong khi dev chỉ 7%.
+>
+> Cả hai đều cùng một nguyên nhân — **câu dev tự soạn dài 22 từ, đề thật dài 63
+> từ**. Ta đang đo trên một phân bố truy vấn khác với phân bố đi thi.
+
+**Không kết luận được cắt truy vấn đóng góp bao nhiêu trong ×3,25.** Ba thay đổi
+đi cùng một lần nộp, mà mỗi gói chỉ có 3 lần nộp nên không A/B được trên
+leaderboard. Chỉ biết: phần dev giải thích được là ×1,55, phần còn lại chưa quy
+được cho ai.
+
+> **Việc quan trọng nhất cho tập dev từ nay không phải THÊM CÂU, mà là THÊM CÂU
+> DÀI NHƯ ĐỀ THẬT** — nhiều câu, nhiều mệnh đề, có bối cảnh trước/sau. Không có
+> chúng thì mọi con số ta đo tiếp tục nói về một bài toán dễ hơn bài đang thi.
+
+---
+
 ## PHẦN B — QUYẾT ĐỊNH HẠ TẦNG
 
 ### B1. Không dùng Supabase / Postgres / Milvus / Elasticsearch — ĐÃ KIỂM CHỨNG

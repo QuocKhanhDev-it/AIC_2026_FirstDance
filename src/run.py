@@ -113,6 +113,56 @@ def tach_su_kien(noi_dung: str) -> list[str]:
     return phan if len(phan) > 1 else [noi_dung.strip()]
 
 
+# Trần token của text encoder: CLIP 77, SigLIP2 **chỉ 64** (xem `model_configs`
+# của open_clip). Vượt trần là encoder LẶNG LẼ CẮT phần đuôi, không báo gì.
+#
+# Đổi ra TỪ thì phụ thuộc tokenizer, và hai model chênh nhau rất xa trên tiếng
+# Việt — đo trên chính tập dev + đề mẫu:
+#
+#     CLIP (BPE tiếng Anh)        3,21 token/từ  -> 23 từ đã chạm trần 77
+#     SigLIP2 (Gemma đa ngôn ngữ) 1,18 token/từ  -> ~50 từ mới chạm trần 64
+#
+# Lấy 40 từ: an toàn cho SigLIP2 (~47 token). CLIP vẫn bị cắt ở mức này, nhưng
+# CLIP đang được 0,0000 trên tiếng Việt (A10) nên không đáng tối ưu theo nó.
+TRAN_TOKEN = 40
+
+
+def tach_truy_van(cau: str, tran_tu: int = TRAN_TOKEN) -> list[str]:
+    """Truy vấn dài -> nhiều mệnh đề ngắn, để encoder không cắt mất phần đuôi.
+
+    ⚠️ **ĐO ĐƯỢC: 100% truy vấn của bộ đề mẫu bị cắt cụt.** Đề thi thật dài
+    trung bình 63 từ / 281 ký tự (gấp 3 lần câu tập dev tự soạn), trong khi
+    `ViT-SO400M-14-SigLIP2-378` chỉ nhận **64 token** và CLIP nhận 77. Encoder
+    không báo lỗi — nó cắt rồi chạy tiếp, nên nửa sau mỗi truy vấn **biến mất
+    mà không có gì cảnh báo**.
+
+    Cách chữa rẻ nhất: cắt theo CÂU, encode từng câu, rồi lấy ĐIỂM CAO NHẤT
+    trên từng keyframe. `dense.KenhAnh.tim` và `bm25.KenhVanBan.tim` **đã nhận
+    sẵn danh sách chuỗi** và tự lấy max — chỉ thiếu thứ cắt câu ra.
+
+    Lấy max chứ không lấy trung bình là có chủ ý: một mệnh đề trúng là đủ, không
+    nên để những mệnh đề tả bối cảnh chung kéo điểm xuống.
+    """
+    cau = " ".join(cau.split())
+    if len(cau.split()) <= tran_tu:
+        return [cau]
+    manh = [x.strip() for x in re.split(r"(?<=[.!?;])\s+", cau) if x.strip()]
+    ra, dem = [], []
+    for m in manh:
+        if dem and len(" ".join(dem + [m]).split()) > tran_tu:
+            ra.append(" ".join(dem))
+            dem = []
+        dem.append(m)
+    if dem:
+        ra.append(" ".join(dem))
+    # mệnh đề đơn lẻ vẫn quá dài thì cắt cứng theo từ
+    cuoi = []
+    for x in ra:
+        t = x.split()
+        cuoi += [" ".join(t[i:i + tran_tu]) for i in range(0, len(t), tran_tu)]             if len(t) > tran_tu else [x]
+    return cuoi or [cau]
+
+
 # ------------------------------------------------------------------ các kênh
 
 def quet_anh(index: Path, matrix: str, de: dict, k: int, mmap=True) -> dict:
@@ -130,12 +180,13 @@ def quet_anh(index: Path, matrix: str, de: dict, k: int, mmap=True) -> dict:
     ra = {}
     for ten, noi_dung in de.items():
         if loai_cua(ten) == "trake":
-            ra[ten] = [kenh.tim(sk, k=k) for sk in tach_su_kien(noi_dung)]
+            ra[ten] = [kenh.tim(tach_truy_van(sk), k=k)
+                       for sk in tach_su_kien(noi_dung)]
         else:
             # Xin GAP DOI: hai row_id khac nhau co the ra cung mot dong nop
             # (A5.7 — 614 keyframe trung frame_idx), nen bo trung xong phai con
             # du de bu cho tron 100.
-            ra[ten] = kenh.tim(noi_dung, k=k * 2)
+            ra[ten] = kenh.tim(tach_truy_van(noi_dung), k=k * 2)
     master = kenh.master
     del kenh
     gc.collect()
@@ -170,29 +221,111 @@ def quet_objects(index: Path, de: dict, k: int):
     return ra, master
 
 
-def quet_van_ban(master, de: dict, k: int, index: Path) -> dict:
+# Token xuất hiện ở nhiều hơn ngần này tài liệu OCR thì KHÔNG phải token hiếm.
+NGUONG_HIEM = 200
+
+# Chèn tối đa ngần này ứng viên khớp cứng. Lọc cứng để **đẩy lên**, không phải
+# để **thay thế**: cho nó chiếm cả 100 chỗ là vứt bỏ hoàn toàn kênh xếp hạng,
+# mà token "hiếm" vẫn có thể là một âm tiết tiếng Việt tình cờ ít gặp trong kho
+# OCR (đo được: `nghiên` lọt qua ngưỡng tần suất và kéo về 100 khung).
+TOI_DA_LOC_CUNG = 20
+
+
+def loc_cung(de: dict, bang, master, k: int) -> dict:
+    """Chế độ LỌC CỨNG cho token hiếm (A8.5) — trả ứng viên để chèn lên đầu.
+
+    3/5 ví dụ thực chiến của đội AIC'25 thắng bằng cách này chứ không bằng xếp
+    hạng: `/filter all ocr{hidro}`. Với token hiếm, lọc dứt khoát hơn hẳn BM25
+    hoà RRF — `hidro` có ở 3 khung thì lọc trả đúng 3, còn hoà RRF thì ba kênh
+    kia dìm nó xuống dưới hạng 20.
+
+    ⚠️ **`phat_hien_token_hiem` của TV4 quá tham trên văn bản thật.** Nó coi chữ
+    hoa là tên riêng, mà tiếng Việt câu nào cũng viết hoa chữ đầu — đo được: nó
+    bắt `Một`, `Đây`, `Trong`, `Sau` và nổ ở **24/24 gói đề mẫu**. Nhét những
+    thứ đó lên đầu là đẩy ứng viên tốt khỏi hạng 1, mà R@1 chiếm 1/5 tổng điểm.
+
+    Nên lọc lại bằng **chính kho OCR**: token chỉ được coi là hiếm khi nó xuất
+    hiện ở `<= NGUONG_HIEM` tài liệu. Đo trên 47.064 tài liệu OCR:
+
+        Một 2.397 · Trong 4.994 · Sau 2.688   -> không hiếm
+        Debby 16 · Carolina 7                 -> hiếm
+
+    Đây là đúng ý IDF, cùng nguyên tắc đã dùng ở `objects.py`, và không cần
+    bảng từ dừng viết tay.
+    """
+    import collections
+    import re as _re
+    # `pipeline_OCR_ASR` nam o goc repo, ma sys.path chi co src/ (xem dau file).
+    if str(GOC) not in sys.path:
+        sys.path.insert(0, str(GOC))
+    from pipeline_OCR_ASR.loc_cung_token_hiem import bo_dau, phat_hien_token_hiem
+    from schema import Candidate
+
+    co = bang[bang.text.fillna("").str.strip() != ""].copy()
+    co["kd"] = co.text.map(bo_dau)
+    df = collections.Counter()
+    for x in co.kd:
+        df.update(set(_re.findall(r"[^\W_]+", x)))
+
+    ra = {}
+    for ten, nd in de.items():
+        if loai_cua(ten) == "trake":
+            continue
+        hiem = [t for t in phat_hien_token_hiem(nd)
+                if 0 < df.get(bo_dau(t), 0) <= NGUONG_HIEM]
+        if not hiem:
+            continue
+        # ĐÒI ĐỦ MỌI token hiếm, không phải bất kỳ cái nào. Nhiều token cùng
+        # xuất hiện là tín hiệu mạnh hơn hẳn; `any` thì một âm tiết lạc cũng
+        # kéo về cả trăm khung không liên quan.
+        kd_hiem = [bo_dau(t) for t in hiem]
+        mat = co.kd.apply(lambda x: all(t in x for t in kd_hiem))
+        khop = co[mat].head(min(k, TOI_DA_LOC_CUNG))
+        if khop.empty:
+            continue
+        ra[ten] = [Candidate(row_id=int(r), video_id=master.video_id.iloc[r],
+                             frame_idx=int(master.frame_idx.iloc[r]),
+                             score=1.0, source="loc_cung")
+                   for r in khop.row_id]
+        print(f"  lọc cứng {ten}: {hiem} -> {len(ra[ten])} khung")
+    return ra
+
+
+def quet_van_ban(master, de: dict, k: int, index: Path,
+                 bo_metadata: bool = False) -> dict:
     """Kênh 2 (metadata) + kênh 3 (OCR/ASR nếu có file). Nhẹ, không cần model."""
     from bm25 import KenhVanBan
     ra = {}
 
-    k2 = KenhVanBan.tu_metadata(master)
-    print(f"  kênh 2: metadata, {len(k2)} video")
-    for ten, nd in de.items():
-        if loai_cua(ten) != "trake":
-            ra.setdefault(ten, []).append(k2.tim(nd, k=k, moi_video=3))
-    del k2
-    gc.collect()
+    if bo_metadata:
+        print("  kênh 2: BỎ (đo được 0,0000 ở ±2s — cộng vào là pha loãng)")
+    else:
+        k2 = KenhVanBan.tu_metadata(master)
+        print(f"  kênh 2: metadata, {len(k2)} video")
+        for ten, nd in de.items():
+            if loai_cua(ten) != "trake":
+                ra.setdefault(ten, []).append(k2.tim(tach_truy_van(nd), k=k,
+                                                     moi_video=3))
+        del k2
+        gc.collect()
 
     # Kênh 3: TV4 sinh ra `ocr_asr.parquet` với cột row_id + text.
     for p in (index / "ocr_asr.parquet",
               GOC / "pipeline_OCR_ASR" / "output" / "ocr_asr.parquet"):
         if p.exists():
             b = pd.read_parquet(p)
+            # ⚠️ File TON TAI khong co nghia la CO DU LIEU. `run_production_
+            # pipeline.py` tu sinh mot ocr_asr.parquet 177.321 dong TOAN RONG
+            # khi chua co ocr.parquet nguon — da gap that. Nhan nham file do la
+            # kenh 3 im lang khong tra ve gi, khong bao loi nao.
+            if b.get("text", pd.Series(dtype=str)).fillna("").str.strip().eq("").all():
+                print(f"  kênh 3: {p} KHÔNG có dòng nào có chữ — bỏ qua")
+                continue
             k3 = KenhVanBan.tu_bang_khung(master, b, cot="text", ten="ocr_asr")
             print(f"  kênh 3: OCR/ASR, {len(k3):,} khung có chữ ({p.name})")
             for ten, nd in de.items():
                 if loai_cua(ten) != "trake":
-                    ra.setdefault(ten, []).append(k3.tim(nd, k=k))
+                    ra.setdefault(ten, []).append(k3.tim(tach_truy_van(nd), k=k))
             del k3
             gc.collect()
             break
@@ -352,6 +485,9 @@ def main():
                     help="ma trận kênh 1. SigLIP2 đo được 0,3258; "
                          "clip.npy chỉ 0,0000 trên tiếng Việt (A10/A17)")
     ap.add_argument("--k", type=int, default=TOI_DA_DONG)
+    ap.add_argument("--loc-cung", action="store_true",
+                    help="chen ung vien khop CUNG token hiem len dau (A8.5). "
+                         "CHUA DO DUOC tren tap dev — xem docstring loc_cung()")
     ap.add_argument("--kenh", default="anh", choices=("anh", "objects"),
                     help="objects = KHONG can model lon, chay duoc tren may "
                          "thieu RAM. Chat luong kem han (0,0412 so voi 0,3258) "
@@ -359,6 +495,10 @@ def main():
     ap.add_argument("--hop-nhat", action="store_true",
                     help="RRF kênh 1 với kênh văn bản. ĐÃ ĐO LÀ LÀM TỆ ĐI "
                          "(A14/A17) — chỉ bật khi đo lại thấy thắng")
+    ap.add_argument("--bo-metadata", action="store_true",
+                    help="hop nhat MA KHONG lay kenh 2. Kenh 2 duoc 0,0000 o "
+                         "±2s (A12) nen cong vao la PHA LOANG (A14.2). Cau hinh "
+                         "do duoc tot nhat khong can model la RRF(objects, OCR)")
     ap.add_argument("--trong-so-phu", type=float, default=0.3,
                     help="trọng số cho kênh phụ khi --hop-nhat (A14.2)")
     ap.add_argument("--tra-loi", default="",
@@ -385,7 +525,20 @@ def main():
         kq1, master = quet_objects(a.index, de, a.k)
     else:
         kq1, master = quet_anh(a.index, a.matrix, de, a.k)
-    phu = quet_van_ban(master, de, a.k, a.index) if a.hop_nhat else {}
+    phu = (quet_van_ban(master, de, a.k, a.index, a.bo_metadata)
+           if a.hop_nhat else {})
+
+    lc = {}
+    if a.loc_cung:
+        for p in (a.index / "ocr_asr.parquet",
+                  GOC / "pipeline_OCR_ASR" / "output" / "ocr_asr.parquet"):
+            if p.exists():
+                b = pd.read_parquet(p)
+                if not b.get("text", pd.Series(dtype=str)).fillna("").str.strip().eq("").all():
+                    lc = loc_cung(de, b, master, a.k)
+                    break
+        else:
+            print("  lọc cứng: chưa có ocr_asr.parquet — bỏ qua")
 
     goi, so_su_kien = {}, {}
     for ten in sorted(de):
@@ -398,6 +551,10 @@ def main():
             so_su_kien[ten] = len(ds)
         else:
             uv = kq1[ten]
+            if lc.get(ten):
+                # Khớp CỨNG lên đầu, phần còn lại giữ nguyên thứ tự của kênh.
+                da = {x.row_id for x in lc[ten]}
+                uv = lc[ten] + [x for x in uv if x.row_id not in da]
             if not uv:
                 print(f"     ⚠️  {ten}: kênh không trả về gì — bù cho đủ "
                       f"{a.k} dòng (nộp bừa hơn nộp rỗng)")
