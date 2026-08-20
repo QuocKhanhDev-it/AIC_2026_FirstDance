@@ -176,3 +176,41 @@ def test_qa_kenh_khong_sinh_answer_thi_chi_cham_truy_hoi(master):
     x = master.iloc[r]
     kq = [Candidate(r, x.video_id, int(x.frame_idx), 1.0, "test")]
     assert cham([_cau_qa(r)], lambda c: kq).diem.iloc[0] == pytest.approx(1.0)
+
+
+# ---- chấm TRAKE theo mô hình BÀI NỘP --------------------------------------
+#
+# `diem_trake()` chấm KÊNH: một danh sách ứng viên, mỗi sự kiện có nằm trong đó
+# không. `diem_trake_bai_nop()` chấm BÀI NỘP: mỗi dòng là một BỘ N khung, vị trí
+# i chỉ được so với sự kiện i. Kênh tìm đủ mà lắp sai vị trí -> BTC cho 0.
+
+def test_trake_bai_nop_dung_het_thi_tron_diem():
+    from cham_diem import diem_trake_bai_nop
+    assert diem_trake_bai_nop([[1, 2, 3]], [{1}, {2}, {3}]) == pytest.approx(1.0)
+
+
+def test_trake_bai_nop_cham_tung_phan():
+    """A8.1: *"partial credit proportional to the number of correctly matched
+    frames"* — đúng 2/3 vị trí thì được 2/3."""
+    from cham_diem import diem_trake_bai_nop
+    assert diem_trake_bai_nop([[1, 2, 9]], [{1}, {2}, {3}]) == pytest.approx(2 / 3)
+
+
+def test_trake_bai_nop_SAI_VI_TRI_thi_khong_duoc_diem():
+    """Chốt cho khác biệt quan trọng nhất: đủ cả ba khung đúng nhưng LẮP SAI
+    THỨ TỰ thì BTC cho 0. `diem_trake()` không bắt được điều này."""
+    from cham_diem import diem_trake_bai_nop
+    assert diem_trake_bai_nop([[3, 2, 1]], [{1}, {2}, {3}]) == pytest.approx(1 / 3)
+
+
+def test_trake_bai_nop_lay_dong_TOT_NHAT_trong_top_k():
+    """`R@k = max R-Score trong top-k`. Dòng đúng ở hạng 2 vẫn kéo được R@5."""
+    from cham_diem import diem_trake_bai_nop
+    d = diem_trake_bai_nop([[9, 9, 9], [1, 2, 3]], [{1}, {2}, {3}])
+    assert d == pytest.approx((0 + 1 + 1 + 1 + 1) / 5)
+
+
+def test_trake_bai_nop_rong_thi_khong_no_loi():
+    from cham_diem import diem_trake_bai_nop
+    assert diem_trake_bai_nop([], [{1}, {2}]) == 0.0
+    assert diem_trake_bai_nop([[1, 2]], []) == 0.0
