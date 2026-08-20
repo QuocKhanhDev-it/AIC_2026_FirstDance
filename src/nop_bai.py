@@ -61,7 +61,10 @@ THU_MUC = "submission"     # "PHẢI có thư mục `submission` bên trong file
 
 # Tên file quyết định BTC chấm bằng bộ luật nào — hậu tố sai là chấm sai loại.
 HAU_TO = {"kis": AnswerKIS, "qa": AnswerQA, "trake": AnswerTRAKE}
-TEN_FILE = re.compile(r"^query-\d+-(kis|qa|trake)$")
+# Tài liệu BTC ví dụ `query-1-kis`, nhưng bộ đề mẫu thật dùng `query-p1-1-kis`
+# — có mã đợt ở giữa. Nhận cả hai. Thứ BẮT BUỘC đúng là HẬU TỐ: BTC chấm theo
+# đó, đặt sai là bị chấm bằng bộ luật của loại khác.
+TEN_FILE = re.compile(r"^query-.+-(kis|qa|trake)$")
 TEN_VIDEO = re.compile(r"^[A-Za-z0-9_]+$")
 
 
@@ -177,8 +180,21 @@ def tu_ung_vien(ung_vien: list, loai: str, dap_an: str | None = None,
             "TRAKE phải dựng từ các chuỗi đã dóng hàng, không từ danh sách "
             "ứng viên phẳng. Tự tạo list[AnswerTRAKE] rồi gọi ghi_goi().")
 
-    ra = []
-    for c in ung_vien[:gioi_han]:
+    # ⚠️ BỎ TRÙNG RỒI MỚI CẮT 100, không cắt trước.
+    #
+    # Hai `row_id` KHÁC NHAU có thể ra CÙNG một dòng nộp: bài nộp mang
+    # `(video_id, frame_idx)`, mà A5.7 đo được **614 keyframe trùng hệt
+    # `frame_idx`** với dòng liền trước. Cắt 100 trước rồi mới bỏ trùng là nộp
+    # 99 dòng và phí một chỗ; bỏ trùng trước thì lấy tiếp ứng viên sau để bù.
+    # Đã gặp thật trên bộ đề mẫu: `query-p1-2-kis` trùng ở dòng 44.
+    ra, thay = [], set()
+    for c in ung_vien:
+        if len(ra) >= gioi_han:
+            break
+        khoa = (c.video_id, int(c.frame_idx))
+        if khoa in thay:
+            continue
+        thay.add(khoa)
         if loai == "kis":
             ra.append(AnswerKIS(c.video_id, int(c.frame_idx)))
         elif loai == "qa":

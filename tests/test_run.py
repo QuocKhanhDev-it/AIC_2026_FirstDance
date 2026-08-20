@@ -108,10 +108,26 @@ def test_trake_don_cuc_thi_rai_deu():
     assert f[-1] - f[0] > R.DON_NHAU, f"vẫn dồn cục: {f}"
 
 
-def test_trake_khong_lay_video_khong_co_su_kien_nao():
+def test_trake_video_co_su_kien_dung_TRUOC_video_bu():
+    """Video có sự kiện phải xếp trước; video bù chỉ để lấp chỗ trống.
+
+    Bù là có chủ ý: TRAKE chấm TỪNG PHẦN và không có điểm phạt, nên để trống
+    75/100 dòng là vứt không 75 cơ hội. Nhưng thứ tự phải đúng — R@1 chiếm 1/5
+    tổng điểm, không được để dòng bù chen lên đầu.
+    """
     m = master_gia()
     ds = R.dung_trake([uv("L01_V000", [1000]), uv("L01_V000", [2000])], m)
-    assert all(x.video_id == "L01_V000" for x in ds)
+    assert ds[0].video_id == "L01_V000"
+    assert len(ds) > 1, "phải bù thêm dòng, không để trống"
+
+
+def test_trake_bu_cho_du_so_dong():
+    """Không để trống slot: dòng thứ 100 vẫn đáng 0,2 nếu trúng một vị trí."""
+    m = master_gia(n_video=200, n_khung=10)
+    ds = R.dung_trake([uv("L01_V000", [1000])] * 2, m, so_dong=100)
+    assert len(ds) == 100
+    assert all(len(x.frame_idxs) == 2 for x in ds)
+    assert all(list(x.frame_idxs) == sorted(x.frame_idxs) for x in ds)
 
 
 def test_trake_khong_vuot_100_dong():

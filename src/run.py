@@ -44,7 +44,13 @@ from nop_bai import (TOI_DA_DONG, dong_goi, ghi_goi,          # noqa: E402
                      tu_ung_vien)
 from schema import AnswerTRAKE                                # noqa: E402
 
-TEN_DE = re.compile(r"^(query-\d+-(kis|qa|trake))$")
+# Tên file đề. Tài liệu BTC ví dụ `query-1-kis`, nhưng bộ đề mẫu thật dùng
+# `query-p1-1-kis` — có thêm mã đợt. Nhận cả hai; thứ BẮT BUỘC đúng là HẬU TỐ,
+# vì BTC chấm theo đó.
+TEN_DE = re.compile(r"^(query-.+-(kis|qa|trake))$")
+
+# Sự kiện TRAKE trong đề mẫu đánh dấu bằng `E1:`, `E2:`...
+_SU_KIEN = re.compile(r"^\s*E\s*\d+\s*[:.]\s*", re.I)
 
 # Duoi nguong nay coi la N khung "don cuc" -> rai deu. ~100 frame la 3-4 giay
 # o moi muc fps trong kho (25 / 26,44 / 29,97 / 30).
@@ -81,6 +87,21 @@ def tach_su_kien(noi_dung: str) -> list[str]:
     tách được để người kiểm bằng mắt.
     """
     dong = [x.strip() for x in noi_dung.splitlines() if x.strip()]
+
+    # Đề mẫu thật đánh dấu sự kiện bằng `E1:`, `E2:`... và thường có một dòng
+    # MỞ ĐẦU tả cả video trước đó.
+    #
+    # ⚠️ ĐẾM THEO DÒNG, KHÔNG THEO SỐ. Đề mẫu `query-p1-18-trake` đánh nhầm
+    # `E1, E2, E2, E4` — không có E3. Bốn dòng là bốn sự kiện; tin vào con số
+    # thì ra ba, mà sai số sự kiện là **sai định dạng, mất trắng cả câu**.
+    ky = [x for x in dong if _SU_KIEN.match(x)]
+    if ky:
+        # dòng trước sự kiện đầu tiên = bối cảnh chung, ghép vào MỌI sự kiện
+        dau = dong.index(ky[0])
+        boi_canh = " ".join(dong[:dau]).rstrip(":. ")
+        return [f"{boi_canh} {_SU_KIEN.sub('', x)}".strip() if boi_canh
+                else _SU_KIEN.sub("", x).strip() for x in ky]
+
     if len(dong) > 1:
         # bỏ tiền tố đánh số "1." / "1)" / "- " nếu có
         return [re.sub(r"^\s*(\d+\s*[.)]|[-*])\s*", "", x) for x in dong]
@@ -111,9 +132,40 @@ def quet_anh(index: Path, matrix: str, de: dict, k: int, mmap=True) -> dict:
         if loai_cua(ten) == "trake":
             ra[ten] = [kenh.tim(sk, k=k) for sk in tach_su_kien(noi_dung)]
         else:
-            ra[ten] = kenh.tim(noi_dung, k=k)
+            # Xin GAP DOI: hai row_id khac nhau co the ra cung mot dong nop
+            # (A5.7 — 614 keyframe trung frame_idx), nen bo trung xong phai con
+            # du de bu cho tron 100.
+            ra[ten] = kenh.tim(noi_dung, k=k * 2)
     master = kenh.master
     del kenh
+    gc.collect()
+    return ra, master
+
+
+def quet_objects(index: Path, de: dict, k: int):
+    """Kenh 4 (objects) — KHONG can model lon.
+
+    Duong thoat cho may thieu RAM: chot `dense.kiem_ram` chan model anh, nhung
+    van phai nop duoc bai. Chat luong kem han han (0,0412 so voi 0,3258 cua
+    SigLIP2 — A14/A17), nhung ra file DUNG DINH DANG, va dinh dang sai thi van
+    tinh mot trong ba lan nop.
+    """
+    import importlib.util
+    import pandas as pd
+    master = pd.read_parquet(index / "master.parquet")
+    s = importlib.util.spec_from_file_location(
+        "r16", GOC / "scripts" / "16_do_rrf.py")
+    m = importlib.util.module_from_spec(s)
+    s.loader.exec_module(m)
+    k4 = m.KenhObjects(index, master)
+    print("  kênh 4: objects + IDF (không cần model)")
+    ra = {}
+    for ten, nd in de.items():
+        if loai_cua(ten) == "trake":
+            ra[ten] = [k4.tim(x, k=k) for x in tach_su_kien(nd)]
+        else:
+            ra[ten] = k4.tim(nd, k=k * 2)     # xem ghi chu o quet_anh
+    del k4
     gc.collect()
     return ra, master
 
@@ -146,6 +198,40 @@ def quet_van_ban(master, de: dict, k: int, index: Path) -> dict:
             break
     else:
         print("  kênh 3: chưa có ocr_asr.parquet — bỏ qua")
+    return ra
+
+
+def bu_cho_du(uv: list, master, k: int, mam: int = 0) -> list:
+    """Không bao giờ nộp file RỖNG. Thiếu thì bù bằng khung rải đều toàn kho.
+
+    ⚠️ Kênh trả về rỗng là chuyện có thật, không phải giả định: trên bộ đề mẫu,
+    kênh objects không rút được nhãn nào cho `query-p1-15-qa` và
+    `query-p1-21-kis` -> 0 dòng -> `nop_bai.soat` chặn cả gói.
+
+    Nộp bừa **luôn tốt hơn nộp rỗng**: PHẦN C mục 1 — *"không có điểm phạt, câu
+    thứ 100 vẫn đáng 0,2"*. File rỗng thì chắc chắn 0 VÀ có thể làm hỏng cả lần
+    nộp (mà chỉ có 3 lần).
+
+    Rải đều theo `row_id` thay vì lấy 100 dòng đầu: 100 khung liên tiếp của một
+    video là gần như một khoảnh khắc, còn rải đều thì phủ được nhiều video.
+    """
+    from schema import Candidate
+    if len(uv) >= k:
+        return uv
+    co = {(c.video_id, int(c.frame_idx)) for c in uv}
+    ra = list(uv)
+    n = len(master)
+    buoc = max(1, n // (k * 2))
+    for i in range(mam, n, buoc):
+        if len(ra) >= k:
+            break
+        g = master.iloc[i]
+        khoa = (g.video_id, int(g.frame_idx))
+        if khoa in co:
+            continue
+        co.add(khoa)
+        ra.append(Candidate(row_id=int(i), video_id=g.video_id,
+                            frame_idx=int(g.frame_idx), score=0.0, source="bu"))
     return ra
 
 
@@ -234,6 +320,24 @@ def dung_trake(cac_su_kien: list, master, so_dong: int = TOI_DA_DONG) -> list:
         ra.append(AnswerTRAKE(vid, khung))
         if len(ra) >= so_dong:
             break
+
+    # Bu cho du 100 dong. Video khong co su kien nao van dang nop: TRAKE cham
+    # TUNG PHAN, va khong co diem phat — dong thu 100 van dang 0,2 neu trung
+    # mot vi tri. De trong 75 dong la vut khong 75 co hoi.
+    if len(ra) < so_dong:
+        da_co = {x.video_id for x in ra}
+        con = [v for v in bien.index if v not in da_co]
+        buoc = max(1, len(con) // max(so_dong - len(ra), 1))
+        for v in con[::buoc]:
+            if len(ra) >= so_dong:
+                break
+            lo, hi = int(bien.loc[v, "min"]), int(bien.loc[v, "max"])
+            b = (hi - lo) / (n + 1)
+            kh = [lo + round(b * (i + 1)) for i in range(n)]
+            for i in range(1, n):
+                if kh[i] <= kh[i - 1]:
+                    kh[i] = kh[i - 1] + 1
+            ra.append(AnswerTRAKE(v, kh))
     return ra
 
 
@@ -248,6 +352,10 @@ def main():
                     help="ma trận kênh 1. SigLIP2 đo được 0,3258; "
                          "clip.npy chỉ 0,0000 trên tiếng Việt (A10/A17)")
     ap.add_argument("--k", type=int, default=TOI_DA_DONG)
+    ap.add_argument("--kenh", default="anh", choices=("anh", "objects"),
+                    help="objects = KHONG can model lon, chay duoc tren may "
+                         "thieu RAM. Chat luong kem han (0,0412 so voi 0,3258) "
+                         "nhung ra file dung dinh dang")
     ap.add_argument("--hop-nhat", action="store_true",
                     help="RRF kênh 1 với kênh văn bản. ĐÃ ĐO LÀ LÀM TỆ ĐI "
                          "(A14/A17) — chỉ bật khi đo lại thấy thắng")
@@ -273,7 +381,10 @@ def main():
                       "dạng, mất trắng cả câu — ép bằng --so-su-kien nếu lệch.")
     print()
 
-    kq1, master = quet_anh(a.index, a.matrix, de, a.k)
+    if a.kenh == "objects":
+        kq1, master = quet_objects(a.index, de, a.k)
+    else:
+        kq1, master = quet_anh(a.index, a.matrix, de, a.k)
     phu = quet_van_ban(master, de, a.k, a.index) if a.hop_nhat else {}
 
     goi, so_su_kien = {}, {}
@@ -287,11 +398,15 @@ def main():
             so_su_kien[ten] = len(ds)
         else:
             uv = kq1[ten]
+            if not uv:
+                print(f"     ⚠️  {ten}: kênh không trả về gì — bù cho đủ "
+                      f"{a.k} dòng (nộp bừa hơn nộp rỗng)")
             if a.hop_nhat and phu.get(ten):
                 from rrf import hop_nhat
                 ds = [uv] + phu[ten]
                 uv = hop_nhat(ds, trong_so=[1.0] + [a.trong_so_phu] * len(phu[ten]))
-            goi[ten] = tu_ung_vien(uv, loai, dap_an=a.tra_loi, gioi_han=a.k)
+            goi[ten] = tu_ung_vien(bu_cho_du(uv, master, a.k), loai,
+                                   dap_an=a.tra_loi, gioi_han=a.k)
         print(f"  {ten:<20} {len(goi[ten]):>3} dòng")
 
     if any(loai_cua(t) == "qa" for t in de) and not a.tra_loi.strip():
