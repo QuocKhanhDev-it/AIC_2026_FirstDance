@@ -201,14 +201,9 @@ def quet_objects(index: Path, de: dict, k: int):
     SigLIP2 — A14/A17), nhung ra file DUNG DINH DANG, va dinh dang sai thi van
     tinh mot trong ba lan nop.
     """
-    import importlib.util
-    import pandas as pd
+    from objects import KenhObjects
     master = pd.read_parquet(index / "master.parquet")
-    s = importlib.util.spec_from_file_location(
-        "r16", GOC / "scripts" / "16_do_rrf.py")
-    m = importlib.util.module_from_spec(s)
-    s.loader.exec_module(m)
-    k4 = m.KenhObjects(index, master)
+    k4 = KenhObjects(index, master)
     print("  kênh 4: objects + IDF (không cần model)")
     ra = {}
     for ten, nd in de.items():
@@ -499,13 +494,38 @@ def main():
                     help="hop nhat MA KHONG lay kenh 2. Kenh 2 duoc 0,0000 o "
                          "±2s (A12) nen cong vao la PHA LOANG (A14.2). Cau hinh "
                          "do duoc tot nhat khong can model la RRF(objects, OCR)")
-    ap.add_argument("--trong-so-phu", type=float, default=0.3,
-                    help="trọng số cho kênh phụ khi --hop-nhat (A14.2)")
+    ap.add_argument("--trong-so-phu", type=float, default=1.0,
+                    help="trọng số cho kênh phụ khi --hop-nhat. MẶC ĐỊNH 1,0 "
+                         "(ngang nhau) — A23 đo được dìm xuống 0,3 làm TỆ ĐI "
+                         "ổn định. Chỉ hạ khi kênh chính mạnh hơn hẳn (A14.2)")
     ap.add_argument("--tra-loi", default="",
                     help="chuỗi `answer` dùng chung cho mọi dòng Q&A khi chưa "
                          "có VLM. Sai đáp án = 0 điểm, nhưng vẫn phải nộp")
     ap.add_argument("--so-su-kien", type=int, default=0,
                     help="ép số sự kiện TRAKE, thay vì tự tách từ đề")
+    # --- Mũi nhọn 1 (Giai đoạn 2). Cả ba mặc định TẮT — xem A22 ------------
+    ap.add_argument("--uu-tien-video", type=int, default=0, metavar="N",
+                    help="BƯỚC 1: đưa ứng viên thuộc top-N video của BM25 "
+                         "metadata lên trước. Đo được +0,0095 ở N=50 nhưng "
+                         "DƯỚI ngưỡng nhiễu (A22) — chưa đủ căn cứ bật")
+    ap.add_argument("--thu-hep-cung", action="store_true",
+                    help="BƯỚC 1 dạng CỨNG: bỏ hẳn ứng viên ngoài top-N. ĐÃ ĐO "
+                         "LÀ TỆ HƠN (−0,0286): metadata chỉ phủ 37%% số câu ở "
+                         "top-50 nên cắt cứng là mất 63%% (A22)")
+    ap.add_argument("--dedup", nargs="?", type=float, const=0.99, default=None,
+                    metavar="NGUONG",
+                    help="BƯỚC 2b: khử keyframe gần trùng trước khi cắt 100. "
+                         "ĐÃ ĐO: ĐẢO DẤU giữa hai mức dung sai (A22) — không "
+                         "dùng để quyết")
+    ap.add_argument("--vlm", action="store_true",
+                    help="BƯỚC 4: VLM nhìn 3 khung quanh ứng viên hạng 1 rồi "
+                         "sinh `answer` cho gói Q&A. Cần Ollama + model NHÌN "
+                         "ĐƯỢC ẢNH (`ollama pull qwen2.5vl:7b`)")
+    ap.add_argument("--vlm-so-khung", type=int, default=3,
+                    help="số khung đưa vào VLM (PHẦN D Bước 4: 3-5)")
+    ap.add_argument("--vlm-so-ung-vien", type=int, default=1,
+                    help="hỏi VLM trên N ứng viên đầu ở N video khác nhau rồi "
+                         "lấy đa số. Đắt gấp N lần, chưa đo được cái nào hơn")
     ap.add_argument("--nen", metavar="FILE.zip", help="soát xong thì nén luôn")
     a = ap.parse_args()
 
@@ -540,6 +560,26 @@ def main():
         else:
             print("  lọc cứng: chưa có ocr_asr.parquet — bỏ qua")
 
+    # Bước 1 cần kênh 2 (nhẹ: 873 tài liệu). Dựng MỘT lần, không dựng trong
+    # vòng lặp — `tu_metadata` phải quét cả bảng cái mỗi lần gọi.
+    k2_uu = None
+    if a.uu_tien_video:
+        from bm25 import KenhVanBan
+        k2_uu = KenhVanBan.tu_metadata(master)
+        print(f"  bước 1: ưu tiên top-{a.uu_tien_video} video theo metadata"
+              f"{' (CỨNG — bỏ hẳn phần ngoài)' if a.thu_hep_cung else ''}")
+
+    # Bước 2b chỉ so ẢNH với ảnh, nên ma trận nào cũng được — mmap để không nạp
+    # cả 390 MB vào RAM chỉ để đọc vài trăm dòng.
+    mat_dedup = None
+    if a.dedup:
+        import numpy as np
+        p = a.index / a.matrix
+        if not p.exists():
+            p = a.index / "clip.npy"
+        mat_dedup = np.load(p, mmap_mode="r")
+        print(f"  bước 2b: dedup ngưỡng {a.dedup} ({p.name})")
+
     goi, so_su_kien = {}, {}
     for ten in sorted(de):
         loai = loai_cua(ten)
@@ -562,11 +602,33 @@ def main():
                 from rrf import hop_nhat
                 ds = [uv] + phu[ten]
                 uv = hop_nhat(ds, trong_so=[1.0] + [a.trong_so_phu] * len(phu[ten]))
-            goi[ten] = tu_ung_vien(bu_cho_du(uv, master, a.k), loai,
-                                   dap_an=a.tra_loi, gioi_han=a.k)
+
+            # --- Mũi nhọn 1, Bước 1 và 2b. Cả hai MẶC ĐỊNH TẮT (A22) ---------
+            if k2_uu is not None:
+                from mui_nhon_1 import thu_hep, uu_tien, video_uu_tien
+                vids = video_uu_tien(k2_uu, tach_truy_van(de[ten]),
+                                     a.uu_tien_video)
+                uv = (thu_hep(uv, vids) if a.thu_hep_cung
+                      else uu_tien(uv, vids))
+            if mat_dedup is not None:
+                from dedup import gom_ban_sao
+                uv = gom_ban_sao(uv, mat_dedup, nguong=a.dedup)
+
+            uv = bu_cho_du(uv, master, a.k)
+
+            # --- Bước 4: VLM sinh `answer`, chỉ cho gói Q&A ------------------
+            if loai == "qa" and a.vlm:
+                from mui_nhon_1 import gan_dap_an
+                uv = gan_dap_an(uv[:a.k], master, de[ten],
+                                so_khung=a.vlm_so_khung,
+                                mac_dinh=a.tra_loi or "không rõ",
+                                so_ung_vien=a.vlm_so_ung_vien)
+                print(f"     VLM trả lời {ten}: {uv[0].meta['answer']!r}")
+
+            goi[ten] = tu_ung_vien(uv, loai, dap_an=a.tra_loi, gioi_han=a.k)
         print(f"  {ten:<20} {len(goi[ten]):>3} dòng")
 
-    if any(loai_cua(t) == "qa" for t in de) and not a.tra_loi.strip():
+    if any(loai_cua(t) == "qa" for t in de) and not a.tra_loi.strip() and not a.vlm:
         raise SystemExit(
             "\n❌ Có gói Q&A nhưng chưa có `answer`.\n"
             "   BTC chấm: khung đúng NHƯNG answer sai -> 0 điểm. Bỏ trống là\n"
@@ -576,6 +638,24 @@ def main():
             "   Đúng cách: cần VLM sinh đáp án — việc 12 của PHẦN H.")
 
     d = ghi_goi(goi, a.ra, so_su_kien)
+
+    # Ghi lại ĐÚNG lệnh đã chạy, cạnh các file CSV.
+    #
+    # ⚠️ A23: bản nộp ăn 2,6 điểm trên leaderboard KHÔNG dựng lại được bằng lệnh
+    # ghi trong sổ tay — nó chạy với `--trong-so-phu 1.0` còn mặc định lúc đó là
+    # 0,3, và khác biệt đó ra **19/24 file khác nhau**. Không ai biết cho tới khi
+    # dựng lại và so từng byte. Điểm ngoài mà không truy nguyên được về một lệnh
+    # thì nó không dạy ta điều gì cả.
+    #
+    # `dong_goi` chỉ nén `*.csv` nên file này KHÔNG lọt vào bài nộp.
+    (d / "lenh_da_chay.txt").write_text(
+        "# Lệnh đã sinh ra các file .csv trong thư mục này.\n"
+        "# Không nằm trong zip nộp BTC (dong_goi chỉ nén *.csv).\n\n"
+        # Bọc ngoặc kép cho tham số có khoảng trắng — `--tra-loi không rõ`
+        # chép nguyên si sẽ chạy sai, mà chép nguyên si là cách nó sẽ được dùng.
+        f"python {' '.join(f'\"{x}\"' if ' ' in x else x for x in sys.argv)}\n",
+        encoding="utf-8")
+
     print(f"\n✅ Đã ghi {d}")
     if a.nen:
         print(f"   Đã nén -> {dong_goi(d, a.nen)}")
