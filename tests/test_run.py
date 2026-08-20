@@ -143,3 +143,100 @@ def test_trake_qua_duoc_bo_soat_cua_nop_bai():
     ds = R.dung_trake([uv("L01_V000", [5000]), uv("L01_V000", [1000]),
                        uv("L01_V000", [3000])], m)
     assert not soat("query-4-trake", ds, so_su_kien=3)
+
+
+# ---- dong_hang_dp (Bước 5) — sửa lỗi sorted() hoán đổi nhầm sự kiện -------
+
+def test_dp_khong_hoan_doi_khung_giua_hai_su_kien():
+    """Lỗi thật đã sửa: sự kiện 0 chỉ có ứng viên 5000, sự kiện 1 chỉ có ứng
+    viên 1000 (NHỎ HƠN). `sorted([5000, 1000])` sẽ cho sự kiện 0 nhận nhầm
+    giá trị 1000 (của sự kiện 1). DP không được làm vậy: không ép được chuỗi
+    tăng dần hợp lệ thì để None, không hoán đổi bừa.
+    """
+    ra = R.dong_hang_dp([[(5000, 1.0)], [(1000, 1.0)]])
+    assert ra[1] == 1000, ra
+    assert ra[0] != 1000, f"hoán đổi nhầm: sự kiện 0 nhận khung của sự kiện 1: {ra}"
+
+
+def test_dp_chon_ung_vien_hang_hai_khi_hang_mot_khong_tang_dan_duoc():
+    """Sự kiện 0 có 2 ứng viên: 5000 (điểm cao) và 500 (điểm thấp). Chỉ 500
+    mới tăng dần được với khung 1000 của sự kiện 1 — DP phải chọn 500, không
+    phải rank-1 (5000), để giữ được chuỗi tăng dần."""
+    ra = R.dong_hang_dp([[(5000, 0.9), (500, 0.5)], [(1000, 1.0)]])
+    assert ra == [500, 1000], ra
+
+
+def test_dp_giu_thu_tu_ngay_ca_khi_tang_dan_san():
+    """Khi ứng viên đã tăng dần sẵn theo đúng thứ tự sự kiện, DP giữ nguyên
+    liên kết — không có gì để hoán đổi."""
+    ra = R.dong_hang_dp([[(1000, 1.0)], [(2000, 1.0)], [(3000, 1.0)]])
+    assert ra == [1000, 2000, 3000]
+
+
+def test_dp_su_kien_khong_co_ung_vien_ra_none():
+    ra = R.dong_hang_dp([[(1000, 1.0)], [], [(3000, 1.0)]])
+    assert ra == [1000, None, 3000]
+
+
+def test_dp_tat_ca_rong_ra_toan_none():
+    assert R.dong_hang_dp([[], []]) == [None, None]
+
+
+# ---- lam_day_bang_trich_day (Bước 4) ---------------------------------------
+
+class _KenhGia:
+    """Giả `KenhAnh` — không nạp model thật, trả điểm số cố định để kiểm
+    logic ghép ứng viên, không kiểm chất lượng encode (đã kiểm riêng ở
+    test_dense.py bằng model thật). `vec @ q` phải ra đúng "diem" gắn sẵn
+    trên từng KhungDay giả -> vector 1 chiều [diem], truy vấn 1 chiều [1.0]."""
+
+    def encode_text(self, cau):
+        import numpy as np
+        return np.array([1.0], dtype=np.float32)
+
+    def encode_image(self, anh):
+        import numpy as np
+        return np.array([[a.diem] for a in anh], dtype=np.float32)
+
+
+class _KhungGia:
+    def __init__(self, frame_idx, diem):
+        self.frame_idx = frame_idx
+        self.diem = diem
+        self.anh = self   # __matmul__ ở _KenhGia đọc lại .diem qua chính object
+
+
+def test_trich_day_them_ung_vien_moi_khong_trung_frame_cu(monkeypatch):
+    """Khung trích dày mới phải được nối vào, không đè lên ứng viên cũ."""
+    import trich_day as td
+
+    def fake_trich_day(video_path, vid, center_frame, center_pts_time, fps,
+                       radius_sec=2.0, stride=2, cache_dir="cache"):
+        return [_KhungGia(1500, 0.5), _KhungGia(2500, 0.9)]
+
+    monkeypatch.setattr(td, "trich_day", fake_trich_day)
+
+    master = master_gia()   # L01_V000 có sẵn frame_idx=2000 (i=4, xem master_gia)
+    ung_vien = [[(2000, 0.4)]]   # neo duy nhất của sự kiện 0
+    R.lam_day_bang_trich_day("L01_V000", "gia.mp4", ["câu hỏi"], ung_vien,
+                             _KenhGia(), master)
+    frames = {f for f, _ in ung_vien[0]}
+    assert frames == {2000, 1500, 2500}, ung_vien
+
+
+def test_trich_day_bo_qua_su_kien_khong_co_neo(monkeypatch):
+    """Sự kiện không có ứng viên nào trong video này thì không trích gì cả —
+    không có neo để biết trích quanh đâu."""
+    import trich_day as td
+    goi = {"lan": 0}
+
+    def fake_trich_day(*a, **k):
+        goi["lan"] += 1
+        return []
+
+    monkeypatch.setattr(td, "trich_day", fake_trich_day)
+    master = master_gia()
+    ung_vien = [[], [(1000, 0.5)]]
+    R.lam_day_bang_trich_day("L01_V000", "gia.mp4", ["c1", "c2"], ung_vien,
+                             _KenhGia(), master)
+    assert goi["lan"] == 1, "phải gọi trích dày đúng 1 lần (sự kiện có neo)"

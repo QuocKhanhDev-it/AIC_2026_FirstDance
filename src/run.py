@@ -165,12 +165,19 @@ def tach_truy_van(cau: str, tran_tu: int = TRAN_TOKEN) -> list[str]:
 
 # ------------------------------------------------------------------ các kênh
 
-def quet_anh(index: Path, matrix: str, de: dict, k: int, mmap=True) -> dict:
+def quet_anh(index: Path, matrix: str, de: dict, k: int, mmap=True,
+            giu_kenh: bool = False):
     """Chạy kênh ảnh cho MỌI truy vấn rồi giải phóng model.
 
     TRAKE cần một danh sách riêng cho từng sự kiện con, nên giá trị trả về là
     `{tên gói: list[Candidate]}` với KIS/QA và `{tên gói: [list, list, ...]}`
     với TRAKE.
+
+    `giu_kenh=True` KHÔNG giải phóng model — trả thêm `kenh` làm giá trị thứ
+    ba. Chỉ bật khi cần Bước 4 (trích dày) cho TRAKE: nó cần encode ảnh bằng
+    ĐÚNG model kênh 1, mà model đã giải phóng thì phải nạp lại (tốn thêm thời
+    gian + RAM đỉnh). Mặc định `False`, giữ đúng hành vi cũ — "nạp MỘT model,
+    chạy HẾT, giải phóng".
     """
     from dense import KenhAnh
     kenh = KenhAnh(index, matrix=matrix, mmap=mmap)
@@ -188,6 +195,8 @@ def quet_anh(index: Path, matrix: str, de: dict, k: int, mmap=True) -> dict:
             # du de bu cho tron 100.
             ra[ten] = kenh.tim(tach_truy_van(noi_dung), k=k * 2)
     master = kenh.master
+    if giu_kenh:
+        return ra, master, kenh
     del kenh
     gc.collect()
     return ra, master
@@ -365,41 +374,180 @@ def bu_cho_du(uv: list, master, k: int, mam: int = 0) -> list:
 
 # --------------------------------------------------------------------- TRAKE
 
-def dung_trake(cac_su_kien: list, master, so_dong: int = TOI_DA_DONG) -> list:
+K_UNG_VIEN_MOI_SU_KIEN = 20   # candidate xét mỗi sự kiện trong dong_hang_dp()
+
+
+def dong_hang_dp(cac_su_kien_trong_video: list) -> list:
+    """Bước 5 — quy hoạch động dóng N sự kiện thành N khung TĂNG DẦN, **giữ
+    đúng chỉ số sự kiện** ở từng vị trí.
+
+    ⚠️ SỬA LỖI THẬT ở bản heuristic trước: nó lấy khung tốt nhất (rank-1) của
+    từng sự kiện trong video rồi `sorted(tot)` để ép tăng dần theo THỜI GIAN —
+    nhưng sort theo GIÁ TRỊ, không theo sự kiện. Mỗi sự kiện truy hồi độc lập,
+    không biết gì về thứ tự của các sự kiện khác, nên khung rank-1 của sự kiện
+    2 hoàn toàn có thể nhỏ hơn khung rank-1 của sự kiện 1 — `sorted()` khi đó
+    HOÁN ĐỔI khung giữa hai sự kiện, nộp nhầm khung sự kiện 2 cho vị trí sự
+    kiện 1. Hàm này không sort gì cả: DP chọn ứng viên cho VỊ TRÍ i luôn lấy
+    từ danh sách ứng viên CỦA sự kiện i, chỉ ràng buộc khung(i) < khung(i+1).
+
+    Còn xét ĐA ỨNG VIÊN mỗi sự kiện (không chỉ rank-1): nếu ứng viên tốt nhất
+    của sự kiện i không tăng dần được so với sự kiện trước, DP thử ứng viên
+    tốt nhì, tốt ba... tối đa `K_UNG_VIEN_MOI_SU_KIEN` — thay vì heuristic cũ
+    chỉ có đúng MỘT lựa chọn mỗi sự kiện nên bó tay khi nó không tăng dần.
+
+    `cac_su_kien_trong_video[i]` là `list[(frame_idx, score)]` đã bỏ trùng
+    frame_idx (giữ điểm cao nhất), KHÔNG cần sắp sẵn theo điểm hay theo frame.
+    Sự kiện không có ứng viên nào thì truyền `[]`.
+
+    Trả về `list[int | None]` cùng độ dài — `None` ở vị trí không chọn được
+    ứng viên tăng dần hợp lệ (kể cả khi rỗng hoàn toàn); người gọi tự nội suy
+    như trước. Độ phức tạp O(N·K²), K nhỏ (~20) nên không đáng kể — plan gốc
+    ghi O(N·K) bằng cách giữ prefix-max, bỏ qua tối ưu đó vì N·K² ở quy mô này
+    (~1.600 phép) không đo được khác biệt thời gian nào.
+    """
+    n = len(cac_su_kien_trong_video)
+    dp: list[list[tuple[int, float, int, int]] | None] = [None] * n
+    truoc_i = None   # chỉ số sự kiện HỢP LỆ gần nhất (có ít nhất 1 ứng viên)
+
+    for i, cands in enumerate(cac_su_kien_trong_video):
+        if not cands:
+            continue
+        lop = []
+        if truoc_i is None:
+            for fidx, sc in cands:
+                lop.append((fidx, sc, -1, -1))
+        else:
+            truoc_lop = dp[truoc_i]
+            for fidx, sc in cands:
+                hop_le = [(j, t) for j, t in enumerate(truoc_lop) if t[0] < fidx]
+                if hop_le:
+                    j, t = max(hop_le, key=lambda x: x[1][1])
+                    lop.append((fidx, sc + t[1], truoc_i, j))
+                else:
+                    # không có tiền nhiệm hợp lệ -> bắt đầu lại chuỗi từ đây
+                    lop.append((fidx, sc, -1, -1))
+        dp[i] = lop
+        truoc_i = i
+
+    if truoc_i is None:
+        return [None] * n
+
+    ket_lop = dp[truoc_i]
+    j = max(range(len(ket_lop)), key=lambda x: ket_lop[x][1])
+    ra: list = [None] * n
+    i = truoc_i
+    while i is not None and i != -1 and j != -1:
+        fidx, _, pi, pj = dp[i][j]
+        ra[i] = fidx
+        i, j = (pi, pj) if pi != -1 else (None, -1)
+    return ra
+
+
+def lam_day_bang_trich_day(vid: str, video_path: str, cac_su_kien_text: list,
+                           cac_ung_vien_video: list, kenh1, master,
+                           ban_kinh_giay=2.0, stride=2) -> None:
+    """Bước 4 — trích thêm khung QUANH ứng viên tốt nhất của mỗi sự kiện,
+    encode bằng chính model kênh 1, thêm làm ứng viên MỚI cho DP chọn.
+
+    ⚠️ Chỉ gọi khi máy CÓ file `.mp4` thật (`video_path`) — thiếu thì nơi gọi
+    bỏ qua lặng lẽ, không phải lỗi (đúng nguyên tắc "kênh nào thiếu thì bỏ
+    qua" của `run.py`).
+
+    Sửa TRỰC TIẾP `cac_ung_vien_video[i]` (list `(frame_idx, score)` của
+    từng sự kiện) bằng cách nối thêm ứng viên mới — không trả về gì, gọi ngay
+    trước khi đưa vào `dong_hang_dp()`.
+
+    Cần một ỨNG VIÊN NEO có sẵn cho sự kiện đó (từ keyframe) để biết trích
+    quanh đâu và lấy `pts_time`/`fps` THẬT (không suy từ `frame_idx/fps` —
+    xem cảnh báo ở `trich_day.py`). Sự kiện hoàn toàn không có ứng viên
+    trong video này thì bỏ qua, để `dong_hang_dp` + nội suy xử lý như cũ.
+    """
+    from trich_day import trich_day
+
+    for i, ung_vien in enumerate(cac_ung_vien_video):
+        if not ung_vien:
+            continue
+        neo_fidx, _ = max(ung_vien, key=lambda x: x[1])
+        hang = master[(master.video_id == vid) & (master.frame_idx == neo_fidx)]
+        if hang.empty:
+            continue
+        r = hang.iloc[0]
+        khung_moi = trich_day(video_path, vid, int(neo_fidx), float(r.pts_time),
+                              float(r.fps), radius_sec=ban_kinh_giay, stride=stride)
+        if not khung_moi:
+            continue
+        vec = kenh1.encode_image([k.anh for k in khung_moi])
+        q = kenh1.encode_text(cac_su_kien_text[i])
+        diem = vec @ q
+        co = {f for f, _ in ung_vien}
+        for k, sc in zip(khung_moi, diem):
+            if k.frame_idx not in co:
+                ung_vien.append((k.frame_idx, float(sc)))
+
+
+def dung_trake(cac_su_kien: list, master, so_dong: int = TOI_DA_DONG,
+               su_kien_text: list | None = None, kenh1=None,
+               so_video_trich_day: int = 5) -> list:
     """Từ N danh sách ứng viên (mỗi sự kiện một danh sách) -> các dòng TRAKE.
 
-    Chọn video chứa TRỌN chuỗi trước (`thoi_gian.video_du_chuoi`), rồi trong mỗi
-    video lấy khung tốt nhất cho từng sự kiện. Ép **tăng dần theo thời gian** —
-    BTC đòi *"thứ tự phải tuân theo thứ tự thời gian của các events"*, và
-    `nop_bai.soat` sẽ chặn nếu không.
+    Chọn video bằng điểm MỀM (`thoi_gian.xep_video_theo_chuoi` — Bước 2b),
+    rồi trong mỗi video lấy khung tốt nhất cho từng sự kiện. Ép **tăng dần
+    theo thời gian** — BTC đòi *"thứ tự phải tuân theo thứ tự thời gian của
+    các events"*, và `nop_bai.soat` sẽ chặn nếu không.
 
     Video không có đủ N sự kiện vẫn được dùng: TRAKE chấm **từng phần** theo số
     sự kiện khớp (A8.1), nên điền bừa một vị trí còn hơn bỏ trống — bỏ trống
     chắc chắn 0, đoán sai cũng 0.
+
+    `su_kien_text` + `kenh1` bật Bước 4 (trích dày — xem
+    `lam_day_bang_trich_day`) cho `so_video_trich_day` video ưu tiên đầu
+    tiên: cần văn bản gốc của từng sự kiện (để encode) và kênh 1 đang nạp
+    (để encode ảnh CÙNG model). Để trống thì bỏ qua Bước 4, giữ đúng hành vi
+    cũ — máy chưa có `.mp4` vẫn chạy được bình thường.
     """
-    from thoi_gian import video_du_chuoi
+    from thoi_gian import xep_video_theo_chuoi
     n = len(cac_su_kien)
     if n == 0:
         return []
 
-    uu_tien = video_du_chuoi(cac_su_kien)
-    # nới ra: thêm mọi video xuất hiện ở bất kỳ sự kiện nào, giữ thứ tự
-    for ds in cac_su_kien:
-        for c in ds:
-            if c.video_id not in uu_tien:
-                uu_tien.append(c.video_id)
+    # xep_video_theo_chuoi() đã trả về MỌI video xuất hiện ở bất kỳ sự kiện
+    # nào, xếp theo điểm mềm (thưởng video có sự kiện lân cận cũng khớp) —
+    # không cần bước "nới ra" thủ công như bản dùng video_du_chuoi() (giao
+    # cứng) trước đây.
+    uu_tien = xep_video_theo_chuoi(cac_su_kien)
 
     # Khoảng frame thật của từng video, để điền chỗ trống cho có nghĩa.
     bien = master.groupby("video_id").frame_idx.agg(["min", "max"])
 
+    # video nào CÓ file .mp4 thật — tra một lần, dùng lại cho mọi vòng lặp
+    video_path_that = {}
+    if su_kien_text and kenh1 is not None:
+        co_video = master[master.video_path.notna()]
+        video_path_that = dict(zip(co_video.video_id, co_video.video_path))
+
     ra = []
+    so_da_trich_day = 0
     for vid in uu_tien[:so_dong]:
-        # Bước 1: khung TỐT NHẤT của từng sự kiện trong video này. Chưa ép thứ
-        # tự — ép ngay sẽ khiến sự kiện đầu ăn mất khung tốt của sự kiện sau.
-        tot = []
+        # Bước 1 + 5: DP chọn khung cho từng sự kiện trong video này, GIỮ ĐÚNG
+        # chỉ số sự kiện và đã ép tăng dần ngay trong DP (xem dong_hang_dp).
+        cac_ung_vien_trong_video = []
         for ds in cac_su_kien:
-            trong = [c for c in ds if c.video_id == vid]
-            tot.append(int(trong[0].frame_idx) if trong else None)
+            trong: dict = {}
+            for c in ds:
+                if c.video_id == vid and (c.frame_idx not in trong
+                                          or c.score > trong[c.frame_idx]):
+                    trong[c.frame_idx] = c.score
+            top = sorted(trong.items(), key=lambda x: -x[1])[:K_UNG_VIEN_MOI_SU_KIEN]
+            cac_ung_vien_trong_video.append(top)
+
+        # Bước 4: trích dày CHỈ cho vài video ưu tiên đầu (chi phí ffmpeg +
+        # encode không rẻ) và CHỈ khi máy có file .mp4 thật cho video này.
+        if (so_da_trich_day < so_video_trich_day and vid in video_path_that):
+            lam_day_bang_trich_day(vid, video_path_that[vid], su_kien_text,
+                                   cac_ung_vien_trong_video, kenh1, master)
+            so_da_trich_day += 1
+
+        tot = dong_hang_dp(cac_ung_vien_trong_video)
 
         if all(x is None for x in tot):
             continue
@@ -428,10 +576,11 @@ def dung_trake(cac_su_kien: list, master, so_dong: int = TOI_DA_DONG) -> list:
                 tot[i] = max(lo, sau[0][1] - round((sau[0][1] - lo)
                                                    * (sau[0][0] - i) / n))
 
-        # Bước 3: BTC đòi thứ tự tăng dần theo thời gian. Sắp xếp giữ nguyên
-        # toàn bộ khung tốt, chỉ sửa những đảo lộn nhỏ — tốt hơn hẳn việc vứt
-        # khung tốt đi để lấy một khung "đúng thứ tự" nhưng sai cảnh.
-        khung = sorted(int(x) for x in tot)
+        # Bước 3: DP (bước trên) đã chọn khung tăng dần cho các sự kiện CÓ
+        # ứng viên, giữ đúng vị trí — KHÔNG sort ở đây nữa (sort theo giá trị
+        # sẽ hoán đổi nhầm khung giữa các sự kiện, xem docstring dong_hang_dp).
+        # Khung nội suy ở bước 2 nằm giữa hai neo DP nên vẫn tăng dần tự nhiên.
+        khung = [int(x) for x in tot]
 
         # N sự kiện KHÔNG THỂ nằm gọn trong vài phần trăm giây. Nếu cả N khung
         # dồn vào một chỗ thì truy hồi đã không phân biệt được các sự kiện —
@@ -526,6 +675,12 @@ def main():
     ap.add_argument("--vlm-so-ung-vien", type=int, default=1,
                     help="hỏi VLM trên N ứng viên đầu ở N video khác nhau rồi "
                          "lấy đa số. Đắt gấp N lần, chưa đo được cái nào hơn")
+    ap.add_argument("--trich-day", action="store_true",
+                    help="TRAKE Bước 4: trích thêm khung quanh ứng viên tốt "
+                         "nhất mỗi sự kiện (cần file .mp4 thật + giữ model "
+                         "kênh 1 lâu hơn, tốn thêm RAM/thời gian — xem "
+                         "lam_day_bang_trich_day). Video nào thiếu .mp4 thì "
+                         "tự bỏ qua, không lỗi")
     ap.add_argument("--nen", metavar="FILE.zip", help="soát xong thì nén luôn")
     a = ap.parse_args()
 
@@ -541,8 +696,13 @@ def main():
                       "dạng, mất trắng cả câu — ép bằng --so-su-kien nếu lệch.")
     print()
 
+    co_trake = any(loai_cua(t) == "trake" for t in de)
+    giu_kenh = bool(a.trich_day and co_trake and a.kenh != "objects")
+    kenh1_obj = None
     if a.kenh == "objects":
         kq1, master = quet_objects(a.index, de, a.k)
+    elif giu_kenh:
+        kq1, master, kenh1_obj = quet_anh(a.index, a.matrix, de, a.k, giu_kenh=True)
     else:
         kq1, master = quet_anh(a.index, a.matrix, de, a.k)
     phu = (quet_van_ban(master, de, a.k, a.index, a.bo_metadata)
@@ -585,9 +745,15 @@ def main():
         loai = loai_cua(ten)
         if loai == "trake":
             ds = kq1[ten]
+            sk = tach_su_kien(de[ten])
             if a.so_su_kien and len(ds) != a.so_su_kien:
                 ds = (ds + [ds[-1]] * a.so_su_kien)[:a.so_su_kien]
-            goi[ten] = dung_trake(ds, master, a.k)
+                sk = (sk + [sk[-1]] * a.so_su_kien)[:a.so_su_kien]
+            if giu_kenh:
+                goi[ten] = dung_trake(ds, master, a.k, su_kien_text=sk,
+                                      kenh1=kenh1_obj)
+            else:
+                goi[ten] = dung_trake(ds, master, a.k)
             so_su_kien[ten] = len(ds)
         else:
             uv = kq1[ten]
@@ -627,6 +793,10 @@ def main():
 
             goi[ten] = tu_ung_vien(uv, loai, dap_an=a.tra_loi, gioi_han=a.k)
         print(f"  {ten:<20} {len(goi[ten]):>3} dòng")
+
+    if kenh1_obj is not None:      # giu_kenh=True: giải phóng khi đã dùng xong
+        del kenh1_obj
+        gc.collect()
 
     if any(loai_cua(t) == "qa" for t in de) and not a.tra_loi.strip() and not a.vlm:
         raise SystemExit(
