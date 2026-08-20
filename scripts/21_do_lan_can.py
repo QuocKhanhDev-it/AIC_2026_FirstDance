@@ -31,7 +31,6 @@ tôn trọng cảnh báo đó mà không cần chấm lại bằng kênh khác.
 """
 
 import argparse
-import importlib.util
 import sys
 from pathlib import Path
 
@@ -44,6 +43,7 @@ import tap_dev                                        # noqa: E402
 from bm25 import KenhVanBan                           # noqa: E402
 from cham_diem import bao_cao_do_nhay, MOC_DUNG_SAI   # noqa: E402
 from lan_can import bien_video, lan_can               # noqa: E402
+from objects import KenhObjects                       # noqa: E402
 from rrf import gioi_han_moi_video, hop_nhat          # noqa: E402
 
 
@@ -81,10 +81,7 @@ def main():
 
     # Mốc nền = cấu hình MẠNH NHẤT chạy được không cần model: RRF(objects, OCR)
     # đo được 0,0640 — xem commit kênh 3.
-    s = importlib.util.spec_from_file_location("r16", GOC / "scripts" / "16_do_rrf.py")
-    r16 = importlib.util.module_from_spec(s)
-    s.loader.exec_module(r16)
-    k4 = r16.KenhObjects(a.index, master)
+    k4 = KenhObjects(a.index, master)
 
     p = a.index / "ocr_asr.parquet"
     if not p.exists():
