@@ -1673,6 +1673,258 @@ nạp model lại là thứ treo máy.
 
 ---
 
+### A26 — Q&A trả lời từ OCR/ASR: **31% khớp chuỗi chính xác** ở khung đúng
+
+#### Trước hết: `.env` suýt lọt lên GitHub
+
+Khoá Gemini được đặt vào `c:\Code\aic2026\.env`, mà `.gitignore` **không có luật
+nào cho `.env`**. Git chưa kịp theo dõi nó nên chưa lọt, nhưng chỉ cần một lần
+`git add -A` là xong — đúng kiểu lỗ hổng đã làm lọt 15 ảnh keyframe. Đã vá:
+`.env`, `.env.*`, chừa `!.env.mau`.
+
+Hai chi tiết kỹ thuật đáng ghi vì cả hai đều làm mất thời gian:
+
+* Tên biến trong file thật ghi `GEMINI_API_KEY =...` — **có dấu cách trước `=`**.
+  Không cắt khoảng trắng quanh TÊN thì tra cứu trượt, mà triệu chứng lại là
+  "không tìm thấy khoá" → rất dễ đổ nhầm cho việc chưa đặt khoá. `tra_loi.nap_khoa()`
+  cắt cả hai phía.
+* Khoá của nhóm dạng **`AQ.A...` 53 ký tự**, không phải `AIza...` 39 ký tự mà
+  `14_sinh_caption.py` viết cho, và nó đi qua **header `x-goog-api-key`** chứ
+  không phải `?key=` trên URL. Đã thử và xác nhận: hỏi `/v1beta/models` trả về
+  50 model, có `gemini-3.1-flash-lite`.
+
+#### Đường OCR → LLM, không cần VLM
+
+Ba câu Q&A của đề mẫu đều hỏi **chữ hiện trên hình** (A25), tức cần **đọc** chứ
+không cần **nhìn**. Chữ đó đã nằm trong `ocr_asr.parquet`. Nên `src/tra_loi_ocr.py`
+đi đường này, và nó **không cần VLM, không cần ảnh trên đĩa, không đụng chốt RAM**.
+
+Thử trên đúng ba câu đề mẫu, ở khung đã xác minh bằng mắt:
+
+| Gói | Gemini 3.1 flash-lite trả về | Đáp án đã xác minh |
+| --- | --- | --- |
+| `15-qa` | `Giang Ly` | ✅ đúng |
+| `19-qa` | `Hỏa hồng Nhật Tảo oanh thiên địa, kiếm **bạc** Kiên Giang khấp quỷ thần` | 🟡 sai một chữ (`bạt`) |
+| `22-qa` | `Bánh ít trần` | ✅ đúng |
+
+Câu thứ ba đáng nói: đó là câu **tôi không xác minh được bằng mắt** vì máy không
+có ảnh L26, chỉ suy từ OCR. Gemini độc lập rút ra cùng đáp án — một phép kiểm
+chéo, không phải bằng chứng, nhưng làm tăng độ tin.
+
+#### Đo trên 42 câu Q&A của tập dev, tại KHUNG ĐÁP ÁN
+
+`scripts/27_do_tra_loi_qa.py`. Chấm ở khung đúng chứ không phải khung do truy hồi
+trả về — đây là **trần trên**, vì điểm Q&A thi thật là tích của hai thứ.
+
+| Mức khớp | Đúng | Tỷ lệ |
+| --- | ---: | ---: |
+| **chuỗi chính xác** | 13/42 | **31,0%** |
+| không phân biệt hoa/dấu câu | 15/42 | 35,7% |
+| chứa nhau (một bên nằm trong bên kia) | 24/42 | **57,1%** |
+
+Báo cả ba vì **BTC tự mâu thuẫn** giữa *"ngữ nghĩa"* (tr.2) và *"chuỗi chính
+xác"* (tr.8) — C7. Con số thật nằm giữa 31% và 57%, và **khoảng cách đó chính là
+giá của việc chưa hỏi BTC**.
+
+Con số này khớp đúng dự đoán của D0.3: *"trần độ đúng ~30–50% ở MỌI model"*.
+
+#### Câu nào trượt — và nó chia làm hai loại rất rạch ròi
+
+    "Có bao nhiêu con mèo được chàng trai cho ăn?"      -> không rõ
+    "Những chùm nho có màu gì?"                         -> không rõ
+    "Có bao nhiêu gói Blendy xếp chồng trên đĩa?"       -> không rõ
+
+Toàn bộ câu **đếm** và câu **màu sắc** đều trượt, và trượt đúng cách nên trượt:
+OCR không chứa thông tin đó. Đây là ranh giới của đường này, và nó **đúng bằng
+chỗ VLM phải vào**. Hai đường bổ sung nhau, không thay nhau:
+
+    câu hỏi CHỮ trên hình  -> OCR + LLM văn bản   (rẻ, chạy máy yếu, phủ toàn kho)
+    câu hỏi ĐẾM / MÀU      -> VLM nhìn ảnh        (cần model vision + ảnh trên đĩa)
+
+Loại trượt thứ hai tinh vi hơn — đọc được nhưng đọc sai:
+
+    qa-L28-003   đáp án "Cừ Đứt"   -> "Cù lao Cù Dút"   (OCR mất dấu, đoán nhầm)
+    qa-L29-006   đáp án "Tân Hôn"  -> "Đôi Mắt"          (đọc nhầm chữ khác trong khung)
+
+#### `qwen2.5:3b` không đủ, và luật thì đủ cho một loại câu
+
+Model 3B local đọc đúng chuỗi OCR `XaGiang Ly.huyen Khanh Vinh.tinh Khanh Hod`
+mà vẫn trả *"không rõ"* — nó không gỡ nổi chữ dính mất dấu. Nên `doan_dia_danh()`
+rút bằng **luật**: `\s*` chứ không phải `\s+`, vì OCR dính chữ. Chạy đúng trên
+dữ liệu thật: `xã → Giang Ly`, `huyện → Khanh Vinh`.
+
+Luật gỡ được vì nó **không cần hiểu**. Giữ nó làm đường lui khi không có mạng
+hoặc hết quota.
+
+#### Một lỗi đã đo và đã sửa: ASR chôn mất OCR
+
+Bản đầu dùng thẳng cột `text` (đã gộp `ocr + " . " + asr`). ASR dài trung bình
+**463 ký tự và lặp y hệt trên nhiều khung liền nhau**, OCR chỉ ~90 — gộp phẳng
+thì phần chữ trên màn hình bị chôn giữa một biển lời thoại. Ba câu ra ba lỗi:
+
+    "xã này tên gì"  -> "không rõ"       (OCR chứa đáp án, bị chôn)
+    "hai câu thơ"    -> chỉ ra vế đầu
+    "tên món ăn"     -> "Bánh ít trơn"   (nghe theo ASR; OCR ghi TRAN)
+
+Sửa: tách OCR khỏi ASR, **OCR lên trước**, bỏ trùng theo mặt chữ. Sau khi sửa,
+Gemini trả đúng cả ba.
+
+---
+
+### A27 — **3,8 → 4,8**: lọc xếp tầng thắng ở đúng chỗ RRF đã thua bốn lần
+
+Lượt #8 nộp `firstdance5.zip`: **4,8 điểm**, tăng 1,0 so với mọi lượt trước đó.
+Đây là mức tăng đầu tiên kể từ lượt #3, và là lần đầu một kênh phụ **giúp được**
+kênh 1 thay vì kéo nó xuống.
+
+#### Thay đổi là gì, và vì sao nó khác bốn lần thất bại trước
+
+| | RRF (A14, A14.1, A17, A22) | Lọc xếp tầng (đây) |
+| --- | --- | --- |
+| Kênh yếu được làm gì | **bỏ phiếu ngang hàng** — cộng `1/(k+hạng)` như kênh mạnh | **chỉ xếp lại** trong bể kênh 1 đã chọn |
+| Ứng viên có bị mất không | không, nhưng bị đẩy lùi bởi ứng viên kênh yếu | không — chỉ đảo thứ tự trong top-20 |
+| Kết quả đo | ❌ tệ đi, cả bốn lần | ✅ **+1,0 điểm trên leaderboard** |
+
+`scripts/28_xep_lai_bang_gemini.py`: lấy 20 ứng viên đầu của mỗi gói KIS trong
+bài nộp 3,8, đưa **chữ OCR/ASR của chính các khung đó** cho `gemini-3.1-flash-lite`,
+hỏi khung nào có bằng chứng RÕ khớp truy vấn, rồi đẩy chúng lên đầu. Phần còn
+lại giữ nguyên thứ tự.
+
+Trên 18 gói KIS: **10 gói được xếp lại**, 8 gói Gemini trả `[]` (văn bản không
+giúp gì — hành vi đúng cho truy vấn thuần thị giác). Gói Q&A và TRAKE giữ nguyên
+từng byte.
+
+> **Bài học đắt nhất của repo này vừa được sửa lại cho chính xác hơn.** Không
+> phải *"kênh yếu luôn làm tệ đi"* — mà là *"kênh yếu không được bỏ phiếu ngang
+> hàng"*. Cùng một kênh OCR, cùng một bể ứng viên: hoà RRF thì lỗ, xếp lại trong
+> bể thì lãi 1,0 điểm.
+
+#### Và một phát hiện về chính công cụ đo
+
+Bảng public **đọc được** thay đổi ở gói KIS (18/24 gói) nhưng **mù** với gói Q&A
+(3/24 — A25/A26). Nghĩa là từ nay ta có một vòng đo NGOÀI thật sự, nhưng **chỉ
+cho KIS**:
+
+    doi kenh truy hoi (21 goi)      2,6 -> 3,8    doc duoc
+    xep lai top-20 KIS (18 goi)     3,8 -> 4,8    doc duoc
+    sua dap an Q&A (3 goi)          3,8 -> 3,8    MU
+    pha hong han Q&A (3 goi)        3,8 -> 3,8    MU
+
+Hệ quả cho cách tiêu lượt nộp: **thử nghiệm KIS thì nộp, thử nghiệm Q&A thì đo
+trên tập dev** — nộp chỉ tốn lượt mà không trả lời được gì.
+
+#### Chưa biết, và đang dò
+
+`--top` là siêu tham số duy nhất của kỹ thuật này, và **chưa có căn cứ nào cho
+con số 20** — nó chỉ là mức thận trọng tôi chọn. Đang dò: `--top 50` để trả lời
+"đọc sâu hơn thì lãi thêm hay bắt đầu lỗ".
+
+⚠️ Không đo được trên tập dev vì bể ứng viên do SigLIP2 sinh ra, mà máy dựng
+repo không chạy nổi SigLIP2 (A25). Đây là **cấu hình dò bằng leaderboard**, khác
+mọi cấu hình khác trong tài liệu này — ghi rõ để người sau không đọc nhầm thành
+đã chứng minh trên dev.
+
+---
+
+### A28 — Đường liều của xếp lại: **bão hoà ở top-50**, và lọc cứng OCR **làm tệ đi**
+
+Bốn lượt nộp liên tiếp, mỗi lượt đổi **đúng một thứ** trên cùng một nền
+(bài nộp 3,8 của SigLIP2):
+
+| Lượt | Cấu hình | Điểm | So với trước |
+| --- | --- | ---: | --- |
+| #3,5,6,7 | không xếp lại | 3,8 | mốc |
+| #8 | xếp lại **top-20** | **4,8** | **+1,0** |
+| #9 | xếp lại **top-50** | **5,4** | **+0,6** |
+| #10 | xếp lại **top-100** | 5,4 | ⚪ **+0,0 — bão hoà** |
+| #11 | top-50 **+ lọc cứng OCR toàn kho** | 5,0 | ❌ **−0,4** |
+
+#### Bão hoà ở 50, và vì sao con số đó hợp lý
+
+Mức tăng giảm dần rồi tắt: **+1,0 → +0,6 → +0,0**. Lời nhắc buộc Gemini chỉ đẩy
+lên khi có **bằng chứng RÕ** trong văn bản, mà những ứng viên như thế nằm tập
+trung ở đầu danh sách của SigLIP2 — quét sâu tới 100 chỉ thêm những khung không
+có bằng chứng gì, và Gemini bỏ qua chúng đúng như được dặn.
+
+→ **Chốt `--top 50`.** Quét sâu hơn chỉ tốn thêm lượt gọi API.
+
+#### Lọc cứng OCR toàn kho: kỹ thuật thứ **sáu** từ bài báo AIC'25 bị bác
+
+`scripts/29_loc_cung_gemini.py` quét cả 165.259 khung có OCR và chèn khung
+SigLIP2 **chưa từng trả về** lên đầu. Đây là A8.5 — cú pháp `/filter all
+ocr{hidro}` thắng **3/5 ví dụ thực chiến** của đội AIC'25. Đo được: **−0,4**.
+
+Và nó thua đúng theo cơ chế đã ghi sẵn trong docstring của chính nó:
+
+> *28 chỉ xáo thứ tự nên xấu nhất là hoà; 29 **đẩy khung mới lên hạng 1**, tức
+> đánh đổi hạng 1 của SigLIP2 lấy một phỏng đoán dựa trên chữ.*
+
+Ranh giới nay đã rõ và **đo được cả hai phía**:
+
+    XẾP LẠI trong bể kênh 1 đã chọn   -> +1,6 điểm  (3,8 -> 5,4)
+    THAY THẾ bằng ứng viên mới         -> -0,4 điểm  (5,4 -> 5,0)
+
+Cùng một kênh OCR, cùng một model Gemini, cùng một truy vấn. Khác nhau **duy
+nhất ở chỗ kênh yếu được phép làm gì**.
+
+> **Đây là phát biểu chính xác nhất tới giờ của bài học đắt nhất trong repo,**
+> sau khi A27 đã sửa nó một lần:
+>
+> * ~~"kênh yếu làm tệ đi"~~ — sai, A27 bác
+> * ~~"kênh yếu không được bỏ phiếu ngang hàng"~~ — đúng nhưng chưa đủ
+> * **"kênh yếu chỉ được XẾP LẠI những gì kênh mạnh đã chọn, không được THÊM
+>   hay THAY"** — khớp cả sáu phép đo
+
+Chẩn đoán của chính script cũng nói trước điều này: trong 21 gói KIS/QA, Gemini
+nêu được cụm chữ đặc trưng cho 4 gói, và với `query-p1-24-kis` nó nhận `'Team'`
+làm token hiếm — một từ tiếng Anh thông thường lọt qua ngưỡng tần suất chỉ vì kho
+OCR tiếng Việt ít gặp nó. Đúng kiểu lỗi `run.loc_cung` đã mắc với `Một`, `Trong`,
+`Sau`, chỉ là ở tầng khác.
+
+#### Còn dư địa ở đâu
+
+Bão hoà nằm ở **lượng ứng viên được xem**, không nhất thiết ở **lượng bằng chứng
+về mỗi ứng viên**. Hiện Gemini chỉ thấy 240 ký tự OCR + 240 ký tự ASR của đúng
+một khung. Hướng tiếp: thêm **tiêu đề video** vào bằng chứng
+(`28_xep_lai_bang_gemini.py --metadata`).
+
+Vì sao đáng thử dù A12 đo kênh 2 chỉ được 0,0000: tiêu đề mô tả **cả video**, nên
+nó vô dụng khi chọn giữa các khung TRONG một video — nhưng ở đây Gemini đang chọn
+giữa các khung của **nhiều video khác nhau**, và *"video này nói về cái gì"* đúng
+là thứ tiêu đề trả lời được.
+
+**ĐÃ ĐO — KHÔNG ĐỔI GÌ (lượt #12: 5,4).** Thêm tiêu đề video đổi thứ tự ở 7/18
+gói KIS mà điểm đứng yên. Nên giả thuyết *"cùng một dữ liệu, đổi vai trò thì đổi
+giá trị"* — đúng với kênh OCR — **không mở rộng được sang kênh 2**.
+
+> Ba lần liên tiếp không đổi điểm (top-100, metadata) trong khi hai lần đầu tăng
+> mạnh: trần 5,4 **không phá được bằng cách cho Gemini nhiều bằng chứng hơn về
+> cùng những ứng viên đó**. Phần còn thiếu nằm ở BỂ ỨNG VIÊN — tức ở kênh 1.
+
+#### Xếp lại bằng ẢNH THẬT: 5,2 — và thủ phạm là **hiện vật của máy**
+
+Cho Gemini nhìn ảnh thay vì đọc chữ (`scripts/30_xep_lai_thi_giac.py`) nhắm đúng
+chỗ thủng — 8/18 gói KIS mà bộ xếp lại bằng chữ trả về rỗng đều là truy vấn thuần
+thị giác. Kết quả: **5,4 → 5,2**.
+
+Nhưng đừng vội khép hướng này, vì có một nghi phạm đo được:
+
+| | |
+| --- | --- |
+| Máy dựng repo chỉ có ảnh L21/L22/L24/L27/L30 | **21% toàn kho** |
+| Top-50 của 18 gói KIS | 537/900 khung có ảnh (60%), lệch mạnh: gói thì 50/50, gói thì 2/50 |
+| Hạng 1 là khung **có ảnh**, sau khi xếp lại bằng ảnh | **13/18** (bản 5,4: 10/18) |
+
+Bộ xếp lại **chỉ đẩy lên được thứ nó nhìn thấy**, nên nó đẩy 21% kho lên trên 79%
+còn lại. Nó xếp theo *"máy nào đã tải nhóm nào"*, không theo chất lượng — đúng
+họ hàng với bẫy `be_chung` ở A-mục dedup, nơi bể ứng viên hẹp hơn thắng vì lý do
+không liên quan tới chất lượng.
+
+→ **Chưa kết luận được.** Đo lại trên máy có đủ keyframe toàn kho — xem
+[12_viec_cho_may_manh.md](12_viec_cho_may_manh.md) Việc 6.
+
+---
+
 ## PHẦN B — QUYẾT ĐỊNH HẠ TẦNG
 
 ### B1. Không dùng Supabase / Postgres / Milvus / Elasticsearch — ĐÃ KIỂM CHỨNG

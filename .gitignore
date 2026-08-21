@@ -68,3 +68,10 @@ de_thi/
 # Khong phai ma nguon cua ta: khac giay phep, va lam phinh repo. Doc thi doc,
 # dung commit.
 github_repo/
+
+# ---- khoa API ----
+# Repo CONG KHAI. File .env chua khoa that -> khong bao gio duoc theo doi.
+# Mau khong co khoa thi dat ten .env.mau va commit binh thuong.
+.env
+.env.*
+!.env.mau
