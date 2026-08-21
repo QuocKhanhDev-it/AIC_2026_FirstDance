@@ -1901,6 +1901,28 @@ giá trị"* — đúng với kênh OCR — **không mở rộng được sang k
 > mạnh: trần 5,4 **không phá được bằng cách cho Gemini nhiều bằng chứng hơn về
 > cùng những ứng viên đó**. Phần còn thiếu nằm ở BỂ ỨNG VIÊN — tức ở kênh 1.
 
+#### Xếp lại bằng ẢNH THẬT: 5,2 — và thủ phạm là **hiện vật của máy**
+
+Cho Gemini nhìn ảnh thay vì đọc chữ (`scripts/30_xep_lai_thi_giac.py`) nhắm đúng
+chỗ thủng — 8/18 gói KIS mà bộ xếp lại bằng chữ trả về rỗng đều là truy vấn thuần
+thị giác. Kết quả: **5,4 → 5,2**.
+
+Nhưng đừng vội khép hướng này, vì có một nghi phạm đo được:
+
+| | |
+| --- | --- |
+| Máy dựng repo chỉ có ảnh L21/L22/L24/L27/L30 | **21% toàn kho** |
+| Top-50 của 18 gói KIS | 537/900 khung có ảnh (60%), lệch mạnh: gói thì 50/50, gói thì 2/50 |
+| Hạng 1 là khung **có ảnh**, sau khi xếp lại bằng ảnh | **13/18** (bản 5,4: 10/18) |
+
+Bộ xếp lại **chỉ đẩy lên được thứ nó nhìn thấy**, nên nó đẩy 21% kho lên trên 79%
+còn lại. Nó xếp theo *"máy nào đã tải nhóm nào"*, không theo chất lượng — đúng
+họ hàng với bẫy `be_chung` ở A-mục dedup, nơi bể ứng viên hẹp hơn thắng vì lý do
+không liên quan tới chất lượng.
+
+→ **Chưa kết luận được.** Đo lại trên máy có đủ keyframe toàn kho — xem
+[12_viec_cho_may_manh.md](12_viec_cho_may_manh.md) Việc 6.
+
 ---
 
 ## PHẦN B — QUYẾT ĐỊNH HẠ TẦNG
