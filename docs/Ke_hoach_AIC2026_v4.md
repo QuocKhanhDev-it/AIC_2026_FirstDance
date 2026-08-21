@@ -1771,6 +1771,61 @@ Gemini trả đúng cả ba.
 
 ---
 
+### A27 — **3,8 → 4,8**: lọc xếp tầng thắng ở đúng chỗ RRF đã thua bốn lần
+
+Lượt #8 nộp `firstdance5.zip`: **4,8 điểm**, tăng 1,0 so với mọi lượt trước đó.
+Đây là mức tăng đầu tiên kể từ lượt #3, và là lần đầu một kênh phụ **giúp được**
+kênh 1 thay vì kéo nó xuống.
+
+#### Thay đổi là gì, và vì sao nó khác bốn lần thất bại trước
+
+| | RRF (A14, A14.1, A17, A22) | Lọc xếp tầng (đây) |
+| --- | --- | --- |
+| Kênh yếu được làm gì | **bỏ phiếu ngang hàng** — cộng `1/(k+hạng)` như kênh mạnh | **chỉ xếp lại** trong bể kênh 1 đã chọn |
+| Ứng viên có bị mất không | không, nhưng bị đẩy lùi bởi ứng viên kênh yếu | không — chỉ đảo thứ tự trong top-20 |
+| Kết quả đo | ❌ tệ đi, cả bốn lần | ✅ **+1,0 điểm trên leaderboard** |
+
+`scripts/28_xep_lai_bang_gemini.py`: lấy 20 ứng viên đầu của mỗi gói KIS trong
+bài nộp 3,8, đưa **chữ OCR/ASR của chính các khung đó** cho `gemini-3.1-flash-lite`,
+hỏi khung nào có bằng chứng RÕ khớp truy vấn, rồi đẩy chúng lên đầu. Phần còn
+lại giữ nguyên thứ tự.
+
+Trên 18 gói KIS: **10 gói được xếp lại**, 8 gói Gemini trả `[]` (văn bản không
+giúp gì — hành vi đúng cho truy vấn thuần thị giác). Gói Q&A và TRAKE giữ nguyên
+từng byte.
+
+> **Bài học đắt nhất của repo này vừa được sửa lại cho chính xác hơn.** Không
+> phải *"kênh yếu luôn làm tệ đi"* — mà là *"kênh yếu không được bỏ phiếu ngang
+> hàng"*. Cùng một kênh OCR, cùng một bể ứng viên: hoà RRF thì lỗ, xếp lại trong
+> bể thì lãi 1,0 điểm.
+
+#### Và một phát hiện về chính công cụ đo
+
+Bảng public **đọc được** thay đổi ở gói KIS (18/24 gói) nhưng **mù** với gói Q&A
+(3/24 — A25/A26). Nghĩa là từ nay ta có một vòng đo NGOÀI thật sự, nhưng **chỉ
+cho KIS**:
+
+    doi kenh truy hoi (21 goi)      2,6 -> 3,8    doc duoc
+    xep lai top-20 KIS (18 goi)     3,8 -> 4,8    doc duoc
+    sua dap an Q&A (3 goi)          3,8 -> 3,8    MU
+    pha hong han Q&A (3 goi)        3,8 -> 3,8    MU
+
+Hệ quả cho cách tiêu lượt nộp: **thử nghiệm KIS thì nộp, thử nghiệm Q&A thì đo
+trên tập dev** — nộp chỉ tốn lượt mà không trả lời được gì.
+
+#### Chưa biết, và đang dò
+
+`--top` là siêu tham số duy nhất của kỹ thuật này, và **chưa có căn cứ nào cho
+con số 20** — nó chỉ là mức thận trọng tôi chọn. Đang dò: `--top 50` để trả lời
+"đọc sâu hơn thì lãi thêm hay bắt đầu lỗ".
+
+⚠️ Không đo được trên tập dev vì bể ứng viên do SigLIP2 sinh ra, mà máy dựng
+repo không chạy nổi SigLIP2 (A25). Đây là **cấu hình dò bằng leaderboard**, khác
+mọi cấu hình khác trong tài liệu này — ghi rõ để người sau không đọc nhầm thành
+đã chứng minh trên dev.
+
+---
+
 ## PHẦN B — QUYẾT ĐỊNH HẠ TẦNG
 
 ### B1. Không dùng Supabase / Postgres / Milvus / Elasticsearch — ĐÃ KIỂM CHỨNG
