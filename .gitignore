@@ -63,3 +63,8 @@ submission*/
 # Repo cong khai. De thi la tai lieu thi, khong phai ma nguon -> khong duoc
 # lo len GitHub cong khai.
 de_thi/
+
+# ---- ma nguon doi khac tai ve de tham khao ----
+# Khong phai ma nguon cua ta: khac giay phep, va lam phinh repo. Doc thi doc,
+# dung commit.
+github_repo/

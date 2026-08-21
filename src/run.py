@@ -166,7 +166,7 @@ def tach_truy_van(cau: str, tran_tu: int = TRAN_TOKEN) -> list[str]:
 # ------------------------------------------------------------------ các kênh
 
 def quet_anh(index: Path, matrix: str, de: dict, k: int, mmap=True,
-            giu_kenh: bool = False):
+            giu_kenh: bool = False, cache=None):
     """Chạy kênh ảnh cho MỌI truy vấn rồi giải phóng model.
 
     TRAKE cần một danh sách riêng cho từng sự kiện con, nên giá trị trả về là
@@ -179,10 +179,34 @@ def quet_anh(index: Path, matrix: str, de: dict, k: int, mmap=True,
     gian + RAM đỉnh). Mặc định `False`, giữ đúng hành vi cũ — "nạp MỘT model,
     chạy HẾT, giải phóng".
     """
-    from dense import KenhAnh
-    kenh = KenhAnh(index, matrix=matrix, mmap=mmap)
-    print(f"  kênh 1: {matrix} {kenh.mat.shape} "
-          f"{kenh.model_tag}/{kenh.pretrained}")
+    # `cache` = file .npz vector truy vấn mã hoá sẵn (25_ma_hoa_truy_van.py).
+    # Có nó thì KHÔNG nạp model, nên máy thiếu RAM vẫn sinh được bài nộp bằng
+    # kênh 1 — kênh mạnh nhất (SigLIP2 0,3258 / leaderboard 3,8, A24).
+    if cache:
+        from dense import KenhAnhCache
+        kenh = KenhAnhCache(index, cache, matrix=matrix, mmap=mmap)
+        print(f"  kênh 1: {matrix} {kenh.mat.shape} {kenh.model_tag} "
+              f"— TỪ CACHE {Path(cache).name}, không nạp model")
+        # Hỏng SỚM: thiếu một chuỗi là thiếu giữa chừng, mà lúc đó đã chạy nửa
+        # đường ống. `co_du` hỏi trước khi tốn công.
+        can = []
+        for ten, nd in de.items():
+            nguon = tach_su_kien(nd) if loai_cua(ten) == "trake" else [nd]
+            for x in nguon:
+                can += tach_truy_van(x)
+        thieu = kenh.co_du(can)
+        if thieu:
+            raise SystemExit(
+                f"\n❌ {len(thieu)}/{len(can)} chuỗi truy vấn chưa có trong "
+                f"cache.\n   Ví dụ: {thieu[0][:90]!r}\n\n"
+                f"   Mã hoá thêm (máy đủ RAM hoặc Colab):\n"
+                f"     python scripts/25_ma_hoa_truy_van.py "
+                f"--de <thư mục đề> --gop")
+    else:
+        from dense import KenhAnh
+        kenh = KenhAnh(index, matrix=matrix, mmap=mmap)
+        print(f"  kênh 1: {matrix} {kenh.mat.shape} "
+              f"{kenh.model_tag}/{kenh.pretrained}")
 
     ra = {}
     for ten, noi_dung in de.items():
@@ -629,6 +653,10 @@ def main():
                     help="ma trận kênh 1. SigLIP2 đo được 0,3258; "
                          "clip.npy chỉ 0,0000 trên tiếng Việt (A10/A17)")
     ap.add_argument("--k", type=int, default=TOI_DA_DONG)
+    ap.add_argument("--cache", default=None, metavar="FILE.npz",
+                    help="vector truy vấn đã mã hoá sẵn — chạy kênh 1 mà "
+                         "KHÔNG nạp model, dùng được trên máy thiếu RAM. "
+                         "Sinh bằng scripts/25_ma_hoa_truy_van.py")
     ap.add_argument("--loc-cung", action="store_true",
                     help="chen ung vien khop CUNG token hiem len dau (A8.5). "
                          "CHUA DO DUOC tren tap dev — xem docstring loc_cung()")
@@ -702,9 +730,10 @@ def main():
     if a.kenh == "objects":
         kq1, master = quet_objects(a.index, de, a.k)
     elif giu_kenh:
-        kq1, master, kenh1_obj = quet_anh(a.index, a.matrix, de, a.k, giu_kenh=True)
+        kq1, master, kenh1_obj = quet_anh(a.index, a.matrix, de, a.k,
+                                          giu_kenh=True, cache=a.cache)
     else:
-        kq1, master = quet_anh(a.index, a.matrix, de, a.k)
+        kq1, master = quet_anh(a.index, a.matrix, de, a.k, cache=a.cache)
     phu = (quet_van_ban(master, de, a.k, a.index, a.bo_metadata)
            if a.hop_nhat else {})
 

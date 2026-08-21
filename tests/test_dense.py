@@ -160,3 +160,115 @@ def test_nhieu_bien_the_lay_diem_cao_nhat(kenh):
     nhieu = kenh.tim([cau, "xyzzy khong lien quan gi ca"], k=5)
     assert nhieu[0].row_id == mot[0].row_id
     assert nhieu[0].score >= mot[0].score - 1e-6
+
+
+# ---- KenhAnhCache: kênh 1 chạy không nạp model ----------------------------
+
+def _D():
+    """Nạp `dense` trong hàm, giống các test khác của file này."""
+    import dense
+    return dense
+
+
+def _index_gia(tmp_path, chieu=4, n=6):
+    """Bảng cái + ma trận tí hon, đủ để `tim()` chạy thật."""
+    import numpy as np
+    import pandas as pd
+    d = []
+    for v in range(2):
+        for i in range(n // 2):
+            d.append({"row_id": len(d), "video_id": f"L01_V{v:03d}", "kf_n": i,
+                      "frame_idx": i * 100, "pts_time": float(i), "fps": 25.0,
+                      "kf_path": None, "title": "t", "description": "",
+                      "keywords": ""})
+    m = pd.DataFrame(d)
+    m.to_parquet(tmp_path / "master.parquet", index=False)
+    mat = np.zeros((n, chieu), dtype=np.float32)
+    for i in range(n):
+        mat[i, i % chieu] = 1.0
+    np.save(tmp_path / "clip.npy", mat)
+    return m, mat
+
+
+def _cache_gia(tmp_path, cac_cau, vecs, matrix="clip.npy", model="model-thu"):
+    import json
+    import numpy as np
+    f = tmp_path / "truy_van.npz"
+    np.savez_compressed(
+        f, cau=np.array(cac_cau, dtype=object).astype(str),
+        vec=np.asarray(vecs, dtype=np.float32),
+        ghi_chu=json.dumps({"model": model, "pretrained": "x",
+                            "matrix": matrix, "chieu": len(vecs[0])}))
+    return f
+
+
+def test_cache_tim_duoc_ma_khong_nap_model(tmp_path):
+    """Bất biến chính: chạy được kênh 1 mà không import torch/open_clip."""
+    import numpy as np
+    _index_gia(tmp_path)
+    q = np.zeros(4, dtype=np.float32); q[1] = 1.0     # trùng hệt dòng row_id 1
+    f = _cache_gia(tmp_path, ["câu thử"], [q])
+    kenh = _D().KenhAnhCache(tmp_path, f)
+    kq = kenh.tim("câu thử", k=3)
+    assert kq[0].row_id == 1
+    assert kq[0].score == pytest.approx(1.0)
+    assert kq[0].source == "clip"
+
+
+def test_cache_dung_lai_tim_cua_kenh_that(tmp_path):
+    """`tim()` phải là hàm THỪA KẾ, không phải bản chép — hai nhánh lệch nhau
+    âm thầm thì số đo máy yếu không so được với số đo máy khoẻ."""
+    assert _D().KenhAnhCache.tim is _D().KenhAnh.tim
+
+
+def test_cache_nhan_danh_sach_menh_de_lay_max(tmp_path):
+    """`run.tach_truy_van` cắt câu dài thành nhiều mệnh đề (A19/A20)."""
+    import numpy as np
+    _index_gia(tmp_path)
+    a = np.zeros(4, dtype=np.float32); a[0] = 1.0
+    b = np.zeros(4, dtype=np.float32); b[2] = 1.0
+    f = _cache_gia(tmp_path, ["mệnh đề một", "mệnh đề hai"], [a, b])
+    kenh = _D().KenhAnhCache(tmp_path, f)
+    kq = kenh.tim(["mệnh đề một", "mệnh đề hai"], k=6)
+    assert {c.row_id for c in kq[:2]} == {0, 2}
+
+
+def test_cache_thieu_cau_thi_NEM_LOI_chu_khong_doan_bua(tmp_path):
+    """Trả vector 0 sẽ cho ra 100 ứng viên ngẫu nhiên trông hợp lệ — đúng loại
+    hỏng im lặng cả repo này dựng để chặn."""
+    import numpy as np
+    _index_gia(tmp_path)
+    f = _cache_gia(tmp_path, ["có trong cache"], [np.ones(4, dtype=np.float32)])
+    kenh = _D().KenhAnhCache(tmp_path, f)
+    with pytest.raises(KeyError):
+        kenh.tim("chưa từng mã hoá", k=5)
+
+
+def test_cache_co_du_bao_truoc_cau_con_thieu(tmp_path):
+    import numpy as np
+    _index_gia(tmp_path)
+    f = _cache_gia(tmp_path, ["a"], [np.ones(4, dtype=np.float32)])
+    kenh = _D().KenhAnhCache(tmp_path, f)
+    assert kenh.co_du(["a", "b", "c"]) == ["b", "c"]
+
+
+def test_cache_lech_so_chieu_thi_dung_ngay(tmp_path):
+    """Sai cặp cache/ma trận là sai không gian vector — mọi kết quả sau đó vô
+    nghĩa mà vẫn trông hợp lệ."""
+    import numpy as np
+    _index_gia(tmp_path, chieu=4)
+    f = _cache_gia(tmp_path, ["a"], [np.ones(8, dtype=np.float32)])
+    with pytest.raises(SystemExit):
+        _D().KenhAnhCache(tmp_path, f)
+
+
+def test_cache_ap_dung_duoc_moi_rang_buoc_cua_tim(tmp_path):
+    """`be`, `video_id`, `moi_video` — thừa kế nên phải chạy y hệt."""
+    import numpy as np
+    m, _ = _index_gia(tmp_path)
+    q = np.ones(4, dtype=np.float32) / 2
+    f = _cache_gia(tmp_path, ["q"], [q])
+    kenh = _D().KenhAnhCache(tmp_path, f)
+    assert all(c.video_id == "L01_V001"
+               for c in kenh.tim("q", k=6, video_id="L01_V001"))
+    assert len(kenh.tim("q", k=6, moi_video=1)) == 2
