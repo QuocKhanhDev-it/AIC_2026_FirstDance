@@ -1,0 +1,4 @@
+# Lệnh đã sinh ra các file .csv trong thư mục này.
+# Không nằm trong zip nộp BTC (dong_goi chỉ nén *.csv).
+
+python src/run.py --de dev/THUNGHIEM-bo-de-thi --ra sub_anh_rieng_buoc1 --matrix clip_siglip2.npy --cache index/truy_van.npz --tra-loi "không rõ" --nen sub_anh_rieng_buoc1.zip

@@ -701,6 +701,13 @@ def main():
                     help="trọng số cho kênh phụ khi --hop-nhat. MẶC ĐỊNH 1,0 "
                          "(ngang nhau) — A23 đo được dìm xuống 0,3 làm TỆ ĐI "
                          "ổn định. Chỉ hạ khi kênh chính mạnh hơn hẳn (A14.2)")
+    ap.add_argument("--hop-nhat-chi-cau-ngan", action="store_true",
+                    help="CHỈ áp --hop-nhat cho câu KHÔNG bị tach_truy_van cắt "
+                         "(<=1 mệnh đề) — câu dài giữ nguyên kênh 1 một mình. "
+                         "A34: RRF(1,3) lãi trên câu ngắn (A30, n=125) nhưng "
+                         "⚪ KHÔNG ĐỔI GÌ tới 🟡 âm nhẹ trên câu dài kiểu đề "
+                         "thật (n=32) — bài nộp thật đã tụt điểm vì áp RRF "
+                         "đều cho mọi câu. Cần --hop-nhat bật kèm cờ này")
     ap.add_argument("--tra-loi", default="",
                     help="chuỗi `answer` dùng chung cho mọi dòng Q&A khi chưa "
                          "có VLM. Sai đáp án = 0 điểm, nhưng vẫn phải nộp")
@@ -819,10 +826,15 @@ def main():
             if not uv:
                 print(f"     ⚠️  {ten}: kênh không trả về gì — bù cho đủ "
                       f"{a.k} dòng (nộp bừa hơn nộp rỗng)")
-            if a.hop_nhat and phu.get(ten):
+            cau_ngan = len(tach_truy_van(de[ten])) <= 1
+            if a.hop_nhat and phu.get(ten) and (
+                    cau_ngan or not a.hop_nhat_chi_cau_ngan):
                 from rrf import hop_nhat
                 ds = [uv] + phu[ten]
                 uv = hop_nhat(ds, trong_so=[1.0] + [a.trong_so_phu] * len(phu[ten]))
+            elif a.hop_nhat and a.hop_nhat_chi_cau_ngan and phu.get(ten):
+                print(f"     {ten}: câu dài (bị tách mệnh đề) — bỏ qua "
+                      f"--hop-nhat, giữ kênh 1 một mình (A34)")
 
             # --- Mũi nhọn 1, Bước 1 và 2b. Cả hai MẶC ĐỊNH TẮT (A22) ---------
             if k2_uu is not None:
