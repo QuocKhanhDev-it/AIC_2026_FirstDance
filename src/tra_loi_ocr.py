@@ -35,6 +35,8 @@ việc của LLM ở đây, và cũng là lý do `don_dap_an` của `tra_loi.py`
 nguyên vẹn: cùng một ràng buộc 100 ký tự, cùng một cách cắt chữ đưa đẩy.
 """
 
+import base64
+import io
 import json
 import re
 import sys
@@ -209,6 +211,64 @@ def tra_loi_tu_ocr(cau_hoi: str, van_ban: str, goi=None, backend: str = "ollama"
             goi = (lambda ln: _goi_ollama(ln, model or MODEL_MAC_DINH))
     tho = goi(NHAC.format(van_ban=van_ban[:4000], cau_hoi=cau_hoi))
     return don_dap_an(tho, toi_da)
+
+
+def _goi_gemini_anh(loi_nhac: str, anh: list, model: str = MODEL_GEMINI,
+                    key: str = "", timeout: int = 120) -> str:
+    """Như `_goi_gemini` nhưng gửi kèm ẢNH — Gemini NHÌN, không chỉ đọc.
+
+    Vì sao cần: bộ xếp lại hiện chỉ thấy chữ, nên nó bó tay với truy vấn thuần
+    thị giác ("người phụ nữ thái cà chua bên chảo") — đo được 8/18 gói KIS của
+    đề mẫu trả về danh sách rỗng. Đó đúng là nhóm gói mà kênh 1 cần giúp nhất.
+
+    ⚠️ **Thu nhỏ ảnh trước khi gửi.** Keyframe gốc 1280×720 (~150 KB); gửi 20
+    khung là ~3 MB mỗi lượt, chậm và dễ chạm trần. Thu về 512px/chất lượng 70
+    còn ~30 KB mà vẫn đủ để nhận ra cảnh.
+    """
+    key = key or nap_khoa()
+    if not key:
+        raise RuntimeError("Chưa có khoá Gemini trong .env")
+    phan = [{"text": loi_nhac}]
+    for b in anh:
+        phan.append({"inline_data": {"mime_type": "image/jpeg",
+                                     "data": base64.b64encode(b).decode()}})
+    body = {"contents": [{"parts": phan}],
+            "generationConfig": {"temperature": 0.0}}
+    req = urllib.request.Request(
+        API_GEMINI.format(model=model), data=json.dumps(body).encode(),
+        headers={"Content-Type": "application/json", "x-goog-api-key": key})
+    cho = 8
+    for lan in range(4):
+        try:
+            with urllib.request.urlopen(req, timeout=timeout) as r:
+                d = json.loads(r.read())
+            break
+        except urllib.error.HTTPError as e:
+            if e.code in (429, 500, 503) and lan < 3:
+                time.sleep(cho)
+                cho *= 2
+                continue
+            raise
+    else:
+        return ""
+    try:
+        return d["candidates"][0]["content"]["parts"][0]["text"].strip()
+    except (KeyError, IndexError):
+        return ""
+
+
+def thu_nho(duong_dan, rong: int = 512, chat_luong: int = 70) -> bytes:
+    """Đọc ảnh, thu nhỏ, trả JPEG bytes. Rỗng nếu đọc không được."""
+    try:
+        from PIL import Image
+        im = Image.open(duong_dan).convert("RGB")
+        if im.width > rong:
+            im = im.resize((rong, round(im.height * rong / im.width)))
+        buf = io.BytesIO()
+        im.save(buf, "JPEG", quality=chat_luong)
+        return buf.getvalue()
+    except Exception:
+        return b""
 
 
 # Cấp hành chính đứng trước một địa danh trong băng rôn/phụ đề.
