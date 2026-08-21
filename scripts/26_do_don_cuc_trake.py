@@ -43,6 +43,7 @@ import run as R                                       # noqa: E402
 import tap_dev                                        # noqa: E402
 from bm25 import KenhVanBan                           # noqa: E402
 from cham_diem import MOC_DUNG_SAI, diem_trake_bai_nop, no_cua_so  # noqa: E402
+from dense import KenhAnhCache                        # noqa: E402
 
 
 def bang_tra_nguoc(master) -> dict:
@@ -57,6 +58,13 @@ def main():
     ap = argparse.ArgumentParser(description="do chot chong don cuc cua TRAKE")
     ap.add_argument("--index", default=GOC / "index", type=Path)
     ap.add_argument("--k", type=int, default=100)
+    ap.add_argument("--cache", type=Path, default=None,
+                    help="file .npz vector truy vấn đã mã hoá sẵn "
+                         "(scripts/25_ma_hoa_truy_van.py) — dùng ỨNG VIÊN "
+                         "KÊNH 1 (SigLIP2) thay vì kênh 3. Kênh 3 một mình "
+                         "không tìm ra sự kiện TRAKE nào (điểm 0.0000 cả ba "
+                         "biến thể), nên phép so chỉ có ý nghĩa với kênh 1")
+    ap.add_argument("--matrix", default="clip_siglip2.npy")
     a = ap.parse_args()
 
     master = pd.read_parquet(a.index / "master.parquet")
@@ -65,20 +73,35 @@ def main():
     if not cau:
         raise SystemExit("Tập dev chưa có câu TRAKE nào.")
 
-    p = a.index / "ocr_asr.parquet"
-    if not p.exists():
-        raise SystemExit(f"Chưa có {p}")
-    k3 = KenhVanBan.tu_bang_khung(master, pd.read_parquet(p),
-                                  cot="text", ten="ocr_asr")
-    print(f"{len(cau)} câu TRAKE | ứng viên từ kênh 3 ({len(k3):,} khung có chữ)")
+    if a.cache:
+        print(f"Ứng viên từ kênh 1 (SigLIP2), cache {a.cache} — KHÔNG nạp model")
+        k = KenhAnhCache(str(a.index), a.cache, matrix=a.matrix)
+        thieu = k.co_du([sk for c in cau for sk in R.tach_su_kien(c.cau_hoi)])
+        if thieu:
+            raise SystemExit(
+                f"{len(thieu)} mệnh đề sự kiện chưa có trong cache, ví dụ:\n"
+                f"  {thieu[0][:100]!r}\n"
+                f"Mã hoá thêm: python scripts/25_ma_hoa_truy_van.py "
+                f"--tap-dev --gop")
+    else:
+        p = a.index / "ocr_asr.parquet"
+        if not p.exists():
+            raise SystemExit(f"Chưa có {p}")
+        k = KenhVanBan.tu_bang_khung(master, pd.read_parquet(p),
+                                      cot="text", ten="ocr_asr")
+        print(f"Ứng viên từ kênh 3 ({len(k):,} khung có chữ)")
+    print(f"{len(cau)} câu TRAKE")
     print("⚠️  n nhỏ — đọc thắng-thua-hoà, đừng đọc mỗi điểm trung bình\n")
 
     # Ứng viên dựng MỘT LẦN, dùng chung cho cả ba biến thể — nếu dựng lại theo
     # từng biến thể thì khác biệt đo được có thể đến từ nhiễu của kênh.
     kho = {}
     for c in cau:
-        kho[c.id] = [k3.tim(R.tach_truy_van(sk), k=a.k)
-                     for sk in R.tach_su_kien(c.cau_hoi)]
+        if a.cache:
+            kho[c.id] = [k.tim(sk, k=a.k) for sk in R.tach_su_kien(c.cau_hoi)]
+        else:
+            kho[c.id] = [k.tim(R.tach_truy_van(sk), k=a.k)
+                         for sk in R.tach_su_kien(c.cau_hoi)]
 
     for dung_sai in MOC_DUNG_SAI:
         print(f"=== dung sai ±{dung_sai}s " + "=" * 50)

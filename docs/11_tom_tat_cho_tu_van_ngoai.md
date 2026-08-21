@@ -22,7 +22,7 @@ dòng. Không có điểm phạt — dòng thứ 100 vẫn đáng 0,2. Public Le
 **50% đáp án**; xếp hạng cuối chấm 100% và lấy **lượt nộp CUỐI**, không phải lượt
 tốt nhất.
 
-**Điểm hiện tại: 5,4.** Đội cao nhất **12,2**.
+**Điểm hiện tại: 6,2** (cập nhật 21/08 tối). Đội cao nhất **12,2**.
 
 ---
 
@@ -39,6 +39,8 @@ tốt nhất.
 | #10 | xếp lại top-100 | 5,4 — bão hoà |
 | #11 | top-50 + lọc cứng OCR toàn kho | 5,0 — **tệ đi** |
 | #12 | top-50 + thêm tiêu đề video vào bằng chứng | 5,4 — không đổi |
+| #13 | RRF(1,3,w=0,1) bể ứng viên + xếp lại bằng ẢNH | ~5,0 — **tệ đi** (mục 5 #14) |
+| #14 | quay lại công thức #9 (SigLIP2+xếp lại chữ) + vá 3 đáp án Q&A đã xác minh | **6,2** — cao nhất từ trước tới nay |
 
 ---
 
@@ -90,8 +92,11 @@ thắng–thua–hoà kèm ngưỡng nhiễu.
 | 9 | Xếp lại sâu hơn top-50 (top-100) | không đổi |
 | 10 | Thêm **tiêu đề video** vào bằng chứng cho bộ xếp lại | không đổi |
 | 11 | Sửa **đáp án Q&A** cho đúng (đã xác minh bằng mắt) | không đổi điểm public — 3 gói Q&A **không nằm trong 50% được chấm public** |
+| 12 | Chống dồn cục TRAKE **xét từng cặp liền kề** (thay vì tổng độ trải) | bắt sạch 100% dồn cục nhưng **tệ đi** (−0,058 đến −0,116) — ép rải đều mất nhiều hơn được |
+| 13 | **Phân rã truy vấn bằng LLM** thành 3 mệnh đề cố định góc nhìn + gộp điểm `max+λ·tổng` | **tệ đi ổn định** (−0,053/−0,073) trên câu NGẮN — nhưng đo trên câu dev, vốn ngắn hơn đề thật 3 lần nên có thể không đại diện, xem mục 6 |
+| 14 | **RRF(kênh1, kênh3) trên câu DÀI đã tách mệnh đề** (khác #2: đây là kênh 1 mạnh + kênh 3 mới, không phải hai kênh yếu ngang hàng) | ⚪ **KHÔNG ĐỔI GÌ** ở w=0,05-0,1 (n=32, câu ≥40 từ), **🟡 âm nhẹ** ở w=0,3 — dương rõ trên câu NGẮN (A30) nhưng biến mất trên câu DÀI kiểu đề thật. Đã nộp thật và tụt điểm (5,4→~5,0) trước khi phát hiện, xem mục 6 |
 
-### Quy luật rút ra từ 11 phép đo trên
+### Quy luật rút ra từ 14 phép đo trên
 
 > **Kênh yếu chỉ được XẾP LẠI những gì kênh mạnh đã chọn — không được THÊM ứng
 > viên mới, không được THAY thế.**
@@ -111,6 +116,41 @@ THAY THẾ bằng ứng viên mới          →  −0,4 điểm   (5,4 → 5,0)
 thay đổi Q&A). Trần 5,4 **không phá được bằng cách cho bộ xếp lại nhiều bằng
 chứng hơn về cùng những ứng viên đó**. Phần còn thiếu nằm ở **bể ứng viên** —
 tức ở kênh 1 (SigLIP2) — chứ không ở khâu xếp lại.
+
+**Cập nhật 21/08:** đo trực tiếp trên tập dev (trước đây chỉ dò bằng
+leaderboard) xác nhận và làm rõ thêm điều này:
+
+* `RRF(SigLIP2, OCR mới, w=0,1)` — cải thiện **bể ứng viên** — **✅ ổn định**
+  trên dev (+0,0085/+0,0107), kỹ thuật đầu tiên qua ngưỡng này.
+* Chính kỹ thuật xếp lại (đã ăn +1,6 điểm leaderboard) chỉ được **+0,01 YẾU**
+  trên dev — **không tái lập được mức tăng thật**. Tập dev có vẻ **mù với
+  khâu xếp lại** dù nhạy với khâu bể ứng viên (RRF, SigLIP2 — A17).
+* Phân rã truy vấn bằng LLM (mục 5 #13) đo trên câu dev NGẮN thì tệ đi, nhưng
+  dev không có câu dài 63 từ như đề thật để đo đúng vấn đề ban đầu.
+* **Xếp lại bằng ẢNH THẬT** (không chỉ đọc chữ), đo trên máy có đủ 100%
+  keyframe: **+0,03/+0,027, ✅ ổn định, 9 thắng-1 thua** — kết quả rõ ràng
+  nhất trong bốn phép đo trên dev hôm nay, và xác nhận lần thử trước (5,4→5,2
+  trên máy chỉ có 21% ảnh) là do máy thiếu ảnh, không phải kỹ thuật dở.
+
+**Giả thuyết hiện tại:** tập dev tự soạn (biết trước đáp án khi viết câu,
+câu ngắn hơn đề thật 3 lần) là công cụ tốt để đo **bể ứng viên** nhưng
+**không đáng tin cho khâu xếp lại/hậu xử lý** vốn nhạy với độ dài câu và độ
+mơ hồ của ngôn ngữ đề thi thật. Câu hỏi cho tư vấn ngoài: có cách nào đo khâu
+xếp lại đáng tin hơn khi không có quyền truy cập tập test giữ kín hay đề thi
+thật ngoài 24 câu mẫu?
+
+**Bằng chứng mới nhất (21/08 tối, A34):** nộp thật một tổ hợp hai kỹ thuật
+từng đo ✅ ổn định RIÊNG LẺ trên dev (RRF bể ứng viên + xếp lại bằng ảnh) —
+kết quả **tệ hơn mốc cũ** (~5,0 so với 5,4). Nguyên nhân khoanh được: một
+trong hai phép đo dev dùng câu KHÔNG tách, còn bài nộp thật tách câu dài qua
+`tach_truy_van` — dev khi đó chỉ 12/60 câu KIS đủ dài (≥40 từ) để việc tách
+câu này có ý nghĩa. Đây là lần **thứ ba** cùng một dạng mù (câu dev ngắn hơn
+đề thật 3 lần) đánh lừa phép đo, sau A19 (57% đề thật bị cắt cụt token, dev
+1/40) và A20 (86% đề thật bị tách mệnh đề, dev 7%).
+
+**Đã sửa ngay:** soạn thêm 20 câu KIS dev dài 55-70 từ, đo lại RRF trên n=32
+— kết luận rõ: **RRF trung tính trên câu dài** (⚪ không đổi gì ở w=0,1),
+khác hẳn tín hiệu dương trên câu ngắn. Xem mục 5 #14.
 
 Nói cách khác: nếu SigLIP2 không đưa khung đúng vào top-100, không bộ xếp lại nào
 cứu được, và đưa khung mới vào bằng OCR thì đã đo là lỗ.

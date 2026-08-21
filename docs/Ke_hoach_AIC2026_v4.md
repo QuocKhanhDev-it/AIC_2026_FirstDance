@@ -1925,6 +1925,423 @@ không liên quan tới chất lượng.
 
 ---
 
+### A29 — TRAKE đo được lần đầu ở n có ý nghĩa (23 câu, không phải 3), và một chốt "sửa" hoá ra làm tệ đi
+
+Máy này (21/08) có sẵn cả `index/clip_siglip2.npy` toàn kho lẫn
+`index/truy_van.npz` (Việc 1 đã xong) — lần đầu đo được TRAKE với ứng viên
+kênh 1 thật, không phải kênh 3 (vốn ra 0,0000 cả ba biến thể, xem dưới) hay
+n=3 (không đủ để đọc thắng-thua-hoà).
+
+#### 1. `scripts/22_do_trake.py --cache index/truy_van.npz` — n=23
+
+| Biến thể | ±2s | ±15s |
+| --- | ---: | ---: |
+| A_cu (video_du_chuoi + sorted() cũ, kênh 1 một mình) | 0,2464 | 0,3913 |
+| B (xep_video_theo_chuoi + sorted() cũ, kênh 1 một mình) | 0,2493 | 0,3942 |
+| C (xep_video_theo_chuoi + sorted() cũ, RRF kênh1+4) | 0,2435 | 0,3652 |
+| **D_THAT (`run.dung_trake` thật — DP + xep_video_theo_chuoi)** | **0,2928** | **0,4696** |
+
+`D_THAT` — đúng hàm đang chạy trong bài nộp thật — **thắng cả ba biến thể
+giả lập**, xác nhận `run.dung_trake()` không làm tệ đi so với các cách lắp
+ráp đơn giản hơn. Và **RRF kênh1+4 (C) lại thua kênh 1 một mình (B)** —
+cùng quy luật đã đo ở A28: kênh yếu (objects) trộn ngang hàng vào TRAKE cũng
+lỗ, giống hệt lý do RRF thô bị bác ở A14.
+
+#### 2. `scripts/26_do_don_cuc_trake.py --cache index/truy_van.npz` — thêm cờ `--cache` để đo trên kênh 1
+
+Script gốc (13/08) chỉ đo được trên kênh 3 vì máy lúc đó không nạp nổi
+SigLIP2 — và ra **0,0000 cả ba biến thể**, không kết luận được gì (kênh 3
+không tìm ra sự kiện TRAKE nào). Đã thêm `--cache` để dùng ứng viên kênh 1,
+kết quả trên chính 23 câu TRAKE:
+
+| Biến thể | ±2s | ±15s | dòng còn dồn cục |
+| --- | ---: | ---: | ---: |
+| xét TỔNG độ trải (bản đầu) | 0,2841 | 0,4435 | 62 |
+| **xét TỪNG CẶP liền kề (mới)** | **0,2261** | **0,3275** | **0** |
+| tắt hẳn việc rải đều | 0,2841 | 0,4435 | 87 |
+
+Hai phát hiện:
+
+* **"xét TỔNG" và "tắt hẳn" ra CÙNG một điểm** — đúng như docstring của
+  script đã tiên đoán ("bản đầu không bắt được dồn cục MỘT PHẦN"): chốt cũ
+  gần như không bao giờ nổ, tồn tại hay không cũng vậy.
+* **"xét TỪNG CẶP" bắt sạch dồn cục (87→0 dòng) nhưng điểm TỆ ĐI** (−0,058 ở
+  ±2s, −0,116 ở ±15s). Đây là kỹ thuật thứ **mười hai** bị phép đo bác, và
+  cùng họ với mục 5 #5 (ràng buộc đa dạng): ép một ràng buộc "trông hợp lý"
+  (sự kiện không nên dồn vào một chỗ) tưởng chỉ lọc rác, hoá ra lọc luôn cả
+  những trường hợp ba sự kiện thật sự gần nhau về thời gian — **không thêm
+  chốt này vào `run.py`.**
+
+→ **Việc 2 của `12_viec_cho_may_manh.md` coi như xong.** Kết luận: giữ
+nguyên `run.dung_trake()` hiện tại (đã là cấu hình tốt nhất trong 4 biến
+thể), **không** thêm chốt chống dồn cục "từng cặp", **không** trộn kênh 4
+vào TRAKE bằng RRF.
+
+---
+
+### A30 — RRF(SigLIP2, OCR/ASR mới) ở trọng số phụ **0,1**: cải thiện BỂ ỨNG VIÊN đầu tiên qua được ngưỡng ổn định kể từ A17
+
+`scripts/26_do_rrf_siglip2_ocr.py --cache index/truy_van.npz`, 125 câu (97 dev +
+28 câu đề mẫu). Khác mọi phép đo RRF trước đó (A14, mục 5 #2/#7 của
+`11_tom_tat...md`): dùng OCR/ASR **sau A25** (93,2%/77,4% phủ, không phải
+26,5% cũ), và **quét cả dải trọng số phụ** (1,0 → 0,1) thay vì chỉ thử 0,3.
+
+| Cấu hình | ±2s | ±15s | Kết luận |
+| --- | ---: | ---: | --- |
+| kênh 1 SigLIP2 (mốc, A17) | 0,2757 | 0,4043 | — |
+| kênh 3 OCR/ASR mới một mình | 0,1205 | 0,1589 | yếu hơn hẳn kênh 1 |
+| RRF trọng số 1,0:1,0 | 0,2976 | 0,4021 | ❌ ĐẢO DẤU |
+| RRF trọng số phụ 0,5 / 0,3 / 0,2 | 0,294x / 0,280x / 0,283x | 0,413x / 0,412x / 0,414x | 🟡 YẾU |
+| **RRF trọng số phụ 0,1** | **0,2843 (+0,0085)** | **0,4149 (+0,0107)** | **✅ ỔN ĐỊNH** |
+
+Ở trọng số 0,1: **vượt nhiễu ở cả hai mức dung sai** (ngưỡng 0,0084/0,0105),
+cùng dấu, 7 thắng–1 thua–117 hoà (±2s). Chồng lấn giữa hai kênh: chỉ
+**70/125 câu (56%)** có khung chung — đúng cơ chế RRF cần để cộng hưởng.
+
+**Vì sao khác kết luận cũ ("dìm trọng số kênh phụ" bị bác ở mục 5 #7):** phép
+đo cũ dìm trọng số của **hai kênh ngang tầm nhau** (RRF giữa các kênh yếu như
+nhau) — dìm không giúp gì vì không kênh nào đủ mạnh để dẫn dắt. Ở đây kênh 1
+mạnh hơn kênh 3 tới **2,3 lần** (0,2757 so với 0,1205); dìm cực nhẹ (0,1)
+biến kênh 3 thành phiếu "tie-break" chỉ có tiếng nói khi kênh 1 mơ hồ, không
+đủ mạnh để kéo sai — khác cơ chế với RRF ngang hàng.
+
+**Hiệu ứng nhỏ nhưng THẬT**, và đáng chú ý vì đây là kỹ thuật **cải thiện bể
+ứng viên** (không phải xếp lại) đầu tiên vượt ngưỡng ổn định kể từ khi kênh 1
+sống lại (A17) — đúng chỗ ba lần thử trước (A28: top-100, thêm tiêu đề video)
+đã dừng lại vì "không phá được trần bằng cách xếp lại nhiều hơn". Nên thử kết
+hợp: `RRF(kênh1, kênh3, w=0,1)` làm bể ứng viên đầu vào, rồi Gemini xếp lại
+top-50 như cấu hình hiện tại — **CHƯA ĐO** phần kết hợp này, cần Việc 3.
+
+---
+
+### A31 — Việc 3 đo xong: kỹ thuật ăn +1,6 điểm leaderboard chỉ được **+0,01 YẾU** trên dev — tập dev **MÙ LẦN THỨ BA**
+
+`scripts/31_do_xep_lai_tren_dev.py --cache index/truy_van.npz` (script mới,
+tái dùng đúng hàm `xep_lai()` của `scripts/28_xep_lai_bang_gemini.py` qua
+import động — không đo một bản chép lệch). 60 câu KIS của tập dev, model
+`gemini-3.1-flash-lite`, top-50, đúng cấu hình đang chấm 5,4 trên leaderboard.
+
+| Cấu hình | ±2s | ±15s |
+| --- | ---: | ---: |
+| SigLIP2 top-100 (mốc nền) | 0,4167 | 0,5700 |
+| + Gemini xếp lại top-50 | 0,4267 | 0,5833 |
+| **hiệu** | **+0,0100** | **+0,0133** |
+
+Cùng dấu ở cả hai mức, nhưng **KHÔNG vượt nhiễu** (ngưỡng 0,0292/0,0354) —
+**🟡 YẾU**, không phải ⚪ KHÔNG ĐỔI GÌ hay ✅ ỔN ĐỊNH. 5 thắng–5 thua–50 hoà
+(±2s): đúng số câu bị "đẩy lên" (`chon` khác rỗng) ở khoảng 30-35/60 câu,
+nhưng phần lớn không đổi thứ hạng đủ để đổi điểm R@k.
+
+**Đối chiếu với leaderboard (A28):** top-50 đưa điểm thật từ 3,8 lên **5,4**
+— tức **+1,6 điểm trên thang R@{1,5,20,50,100} trung bình 24 gói**. Trên dev,
+cùng kỹ thuật chỉ **+0,01, không đáng tin**. Đây là **lần mù thứ ba** của tập
+dev với một cải tiến thật trên leaderboard (sau A19, A20) — nhưng khác hai
+lần trước ở chỗ **lần này chênh lệch cực lớn** (160 lần), không phải chỉ
+"không thấy gì".
+
+**Ba cách đọc kết quả này, không cách nào loại được bằng phép đo hiện có:**
+
+1. **Tập dev không đại diện cho phân bố đề thi thật** — 60 câu KIS dev do
+   chính đội soạn (biết trước đáp án khi viết câu) có thể thiên về loại câu
+   mà OCR/ASR ít giúp được, khác đề thi thật nơi Gemini đẩy lên tới 47/100
+   dòng có OCR khớp.
+2. **+1,6 trên leaderboard công khai (50% đáp án, n nhỏ) có phần là nhiễu** —
+   leaderboard không báo sai số chuẩn, và một lượt nộp là một mẫu, không phải
+   trung bình nhiều lần.
+3. Cả hai đúng một phần.
+
+**KHÔNG khuyến nghị rút kỹ thuật này khỏi bài nộp** — nó vẫn là cấu hình tốt
+nhất đã biết trên leaderboard thật, và +0,01 trên dev là **cùng dấu**, không
+phải ngược dấu. Nhưng **mọi quyết định TIẾP THEO dựa trên dev cho khâu xếp
+lại này cần thêm dè dặt** — dev không đủ nhạy để phân biệt các biến thể nhỏ
+ở đây. Ưu tiên đo trên **bể ứng viên** (nơi A17, A30 vẫn cho tín hiệu rõ trên
+dev) hơn là tinh chỉnh tiếp khâu xếp lại.
+
+#### Bổ sung cùng ngày: `RRF(1,3,w=0,1)` (A30) cộng dồn với xếp lại — vẫn cùng dấu, vẫn chưa đủ mạnh
+
+`scripts/31_do_xep_lai_tren_dev.py --cache index/truy_van.npz --rrf-w 0.1`,
+cùng 60 câu KIS, ~120 lượt gọi Gemini (một lượt cho bể SigLIP2, một lượt
+riêng cho bể RRF — hai bể khác ứng viên nên không dùng lại được lượt gọi):
+
+| Cấu hình | ±2s | ±15s |
+| --- | ---: | ---: |
+| SigLIP2 top-100 (mốc nền) | 0,4167 | 0,5700 |
+| + Gemini xếp lại top-50 | 0,4267 | 0,5833 |
+| **RRF(1,3,w=0,1) + Gemini xếp lại top-50** | **0,4367** | **0,5833** |
+
+So với mốc nền: +0,0200/+0,0133, vẫn **🟡 YẾU** (ngưỡng nhiễu 0,0280/0,0328)
+— nhưng ở ±2s đã nhích gần ngưỡng hơn hẳn so với xếp lại một mình (+0,01).
+So trực tiếp hai cấu hình xếp lại: bể RRF hơn bể SigLIP2 thuần **+0,01 ở
+±2s, hoà ở ±15s** — cùng hướng với A30 (RRF giúp bể ứng viên), không có dấu
+hiệu triệt tiêu lẫn nhau. **Kết luận: hai kỹ thuật KHÔNG loại trừ nhau, có
+thể dùng cùng lúc**, nhưng cần nhiều câu hơn 60 để tách khỏi nhiễu — không
+phải ưu tiên đo tiếp ngay, ghi nhận làm cấu hình ứng viên cho lượt nộp sau.
+
+---
+
+### A32 — Việc 4 đo xong: phân rã truy vấn bằng LLM làm **TỆ ĐI ổn định** trên dev — kỹ thuật thứ mười ba bị bác, nhưng có nghi phạm là chính tập dev
+
+`scripts/32_do_phan_ra_llm.py --cache index/truy_van.npz --lam 0.15 --fp16`
+(script mới). Gemini viết lại mỗi câu KIS dev thành 3 mệnh đề cố định góc
+nhìn (cảnh tổng thể / hành động / vật cận cảnh), mã hoá cả ba, gộp điểm
+`max + 0,15·tổng`. 60/60 câu phân rã thành công.
+
+| Cấu hình | ±2s | ±15s |
+| --- | ---: | ---: |
+| `tach_truy_van` hiện tại (mốc nền) | 0,4167 | 0,5700 |
+| LLM phân rã 3 mệnh đề, λ=0,15 | 0,3633 | 0,4967 |
+| **hiệu** | **−0,0533** | **−0,0733** |
+
+Cùng dấu ở cả hai mức, vượt nhiễu ở ±15s (ngưỡng 0,0616) — **✅ ỔN ĐỊNH, và
+theo chiều NGƯỢC kỳ vọng**. 8 thắng–18 thua–34 hoà ở ±2s.
+
+**⚠️ Nhưng đọc kết quả này cùng với cảnh báo đã ghi sẵn trong docstring của
+chính script:** câu dev tự soạn dài ~15-20 từ, dưới trần token của SigLIP2
+(64 token) — nên `tach_truy_van` trên dev **hầu như không cắt gì**, mốc nền
+ở đây gần như nguyên văn câu gốc. Kỹ thuật này nhắm đúng vào vấn đề của **câu
+63 từ** (đề thật), thứ tập dev không có mẫu nào đại diện. Vậy phép đo này trả
+lời được câu "phân rã có hại cho câu NGẮN không" (có, rõ ràng), nhưng
+**không trả lời được câu đang thật sự cần hỏi: phân rã có giúp câu DÀI
+không** — đó là lần mù thứ **tư** của tập dev trong một ngày (A31 là lần ba),
+và lần này không phải vì thiếu nhạy mà vì **thiếu đúng loại câu hỏi cần đo**.
+
+Cơ chế hại trên câu ngắn cũng hợp lý và đáng ghi: câu gốc đã là một mô tả cụ
+thể, sắc nét; 3 mệnh đề LLM viết lại — nhất là mệnh đề "cảnh tổng thể" — có
+xu hướng khái quát hoá thành cụm chung chung lặp lại giữa nhiều câu khác hẳn
+nhau (`"Không gian bàn ăn..."`, `"Không gian làm việc..."`, `"Không gian
+phòng khám..."` — 3/12 câu L26 đều mở đầu giống hệt nhau), pha loãng tín hiệu
+sắc của câu gốc bằng phép cộng `λ·tổng`.
+
+> **Khuyến nghị:** không dùng cấu hình này cho câu NGẮN — thêm vào danh sách
+> kỹ thuật bị bác. Nhưng **không kết luận đóng hẳn hướng này** như đã làm với
+> các kỹ thuật khác — muốn biết thật, phải đo trên chính 24 câu đề mẫu (dài
+> đúng kiểu đề thật) chứ không phải tập dev. Đó là việc còn lại nếu muốn theo
+> tiếp hướng này, không phải ưu tiên ngay bây giờ.
+
+---
+
+### A33 — Việc 6 đo xong: xếp lại bằng ẢNH THẬT, với đủ 100% keyframe — kết quả **TỐT NHẤT phiên làm việc 21/08**, xác nhận nghi phạm "hiện vật của máy" ở A28 là đúng
+
+`scripts/33_do_xep_lai_thi_giac_tren_dev.py --cache index/truy_van.npz` (script
+mới, tái dùng đúng hàm `xep_lai()` của `scripts/30_xep_lai_thi_giac.py`). Máy
+này có **177.321/177.321 ảnh (100% kho)** — khác hẳn máy dựng A28 chỉ có 21%.
+60 câu KIS, gửi tối đa 20 ảnh/câu cho `gemini-3.1-flash-lite`.
+
+| Cấu hình | ±2s | ±15s |
+| --- | ---: | ---: |
+| SigLIP2 top-100 (mốc nền) | 0,4167 | 0,5700 |
+| **+ Gemini xếp lại (ẢNH) top-50** | **0,4467** | **0,5967** |
+| **hiệu** | **+0,0300** | **+0,0267** |
+
+Vượt nhiễu ở ±2s (ngưỡng 0,0229), cùng dấu cả hai mức → **✅ ỔN ĐỊNH**. **9
+thắng – 1 thua – 50 hoà** ở ±2s — tỷ lệ thắng/thua tốt nhất trong TOÀN BỘ các
+phép so theo cặp đo được hôm nay (so với 5-5 của xếp lại bằng chữ ở A31).
+
+**Đối chiếu trực tiếp với A28:** trên máy chỉ có 21% ảnh, kỹ thuật y hệt này
+làm bài nộp **tệ đi** (5,4→5,2). Trên máy đủ 100% ảnh, cùng kỹ thuật là
+**cấu hình xếp lại tốt nhất đo được trên dev cho tới nay** — tốt hơn cả xếp
+lại bằng chữ (A31: +0,01) lẫn RRF+chữ (A31: +0,02). **Xác nhận dứt điểm nghi
+ngờ đã nêu ở A28: vấn đề là do máy thiếu ảnh, không phải do kỹ thuật.** Đây
+là câu trả lời rõ ràng nhất — không mù, không mơ hồ — trong cả 4 phép đo trên
+dev hôm nay (so với A31, A31-combo, A32 đều yếu hoặc mù).
+
+> **Khuyến nghị mạnh: đưa `30_xep_lai_thi_giac.py` vào bài nộp chính**, chạy
+> trên máy có đủ ảnh (máy này, hoặc bất kỳ máy nào sync đủ `index/`/keyframe
+> toàn kho qua Drive). Đáng thử kết hợp với A30/A31: `RRF(1,3,w=0,1)` làm bể
+> ứng viên → xếp lại bằng ẢNH top-50 (chưa đo phần kết hợp ba tầng này).
+
+---
+
+### A34 — Nộp thật tổ hợp A30+A33 hôm nay: **~5,0, TỆ HƠN mốc 5,4** — cái giá của việc bỏ qua cảnh báo A19/A20
+
+Nộp `RRF(1,3,w=0,1)` (A30) làm bể ứng viên + xếp lại bằng ẢNH top-50 (A33) lên
+leaderboard thực hành. Kết quả **~5 điểm — tệ hơn mốc 5,4** đã có từ trước
+(A27/A28), dù cả hai kỹ thuật đều đo **✅ ổn định dương** trên tập dev cùng
+ngày. Đã lập tức nộp lại bản AN TOÀN (đúng cấu hình A27/A28: SigLIP2 + xếp
+lại bằng CHỮ top-50) để phục hồi mốc nền.
+
+**Nguyên nhân khoanh được — lần thứ BA dính đúng lỗi đã cảnh báo ở A19/A20:**
+`scripts/26_do_rrf_siglip2_ocr.py` (đo ra A30) gọi `k1.tim(c.cau_hoi, ...)` —
+**chuỗi câu NGUYÊN VĂN, không qua `tach_truy_van()`**. Trên tập dev (48/60 câu
+KIS < 40 từ) điều này gần như không khác gì so với có tách, vì `tach_truy_van`
+là NO-OP ở độ dài đó. Nhưng bài nộp thật chạy qua `run.py --hop-nhat`, nơi
+**cả kênh 1 lẫn kênh 3 đều được tách câu trước khi đưa vào RRF** — một đường
+tính KHÁC HẲN, chưa từng được đo. Đúng công thức A19/A20 đã ghi: *"câu dev tự
+soạn dài 22 từ, đề thật dài 63 từ — ta đang đo trên một phân bố khác với phân
+bố đi thi"*.
+
+**Đo bổ sung ngay sau đó, đúng đường tính CÓ tách câu, trên 12 câu KIS dev đủ
+dài (≥40 từ, mô phỏng đề thật):**
+
+| Cấu hình | ±2s | ±15s |
+| --- | ---: | ---: |
+| SigLIP2 (có tách câu, mốc nền) | 0,2833 | 0,4500 |
+| RRF(1,3,w=0,1) CÓ tách câu | 0,2833 (hoà 0-0-12) | 0,4667 |
+| RRF(1,3,w=0,3) CÓ tách câu | 0,2833 (hoà 0-0-12) | 0,4833 |
+
+Không âm — nhưng **n=12 quá nhỏ để kết luận gì**, và **0-0-12 ở ±2s nghĩa là
+RRF không đổi hạng-1 của BẤT KỲ câu nào trong 12 câu** khi có tách câu, khác
+hẳn tín hiệu dương rõ đo được ở A30 (n=125, không tách). Chưa loại được RRF
+là thủ phạm, cũng chưa kết tội được nó — **n=12 không đủ**.
+
+#### Cập nhật cùng ngày: soạn thêm 20 câu dev DÀI, đo lại với n=32 — **kết luận rõ: RRF trung tính-tới-âm trên câu dài**
+
+Soạn 20 câu KIS dev mới dạng phóng sự/chương trình dài 55-70 từ (paraphrase từ
+20 câu ngắn hiện có, GIỮ NGUYÊN `row_id_dung` — khác bộ `-101/102/103` cũ ở
+chỗ **không chép chữ OCR của khung đáp án** vào bối cảnh, để không làm giả
+tín hiệu kênh 3). Gộp vào `tap_dev.jsonl` qua đúng quy trình (`--gop`,
+`--no-cum`, `--kiem`) — tổng 163 câu, 32/80 câu KIS nay ≥ 40 từ (trước đó
+12/60). Đo lại RRF trên đúng 32 câu này, cùng đường tính CÓ tách câu:
+
+| Cấu hình | ±2s | ±15s |
+| --- | ---: | ---: |
+| SigLIP2 (có tách câu, mốc nền) | 0,3063 | 0,4062 |
+| RRF(1,3,w=0,05) | 0,3063 (0-0-32) | 0,4062 (0-0-32) |
+| RRF(1,3,w=0,1) | 0,3063 (0-0-32) | 0,4062 (1-1-30) |
+| RRF(1,3,w=0,3) | 0,2937 (0-2-30) | 0,4000 (2-3-27) |
+
+**⚪ w=0,05 và w=0,1: KHÔNG ĐỔI GÌ** — hoàn toàn trung tính trên câu dài, khác
+hẳn tín hiệu dương ổn định đo được trên câu ngắn ở A30 (n=125). **w=0,3: 🟡
+YẾU nhưng theo chiều ÂM.** n=32 đủ lớn hơn hẳn để đọc xu hướng: **RRF(1,3)
+không giúp gì trên câu dài kiểu đề thật, và có xu hướng hơi lỗ khi trọng số
+tăng** — khác hẳn hiệu ứng dương đo được trên câu ngắn.
+
+**Cơ chế hợp lý giải thích khác biệt:** khi câu bị tách thành 2-5 mệnh đề,
+kênh 3 (BM25 trên từng mệnh đề rồi lấy max) trở nên nhiễu hơn — mỗi mệnh đề
+ngắn hơn cả câu gốc, ít từ hiếm/đặc trưng để BM25 bám vào, nên ứng viên kênh 3
+kém tin cậy hơn hẳn so với khi được tính trên nguyên văn câu ngắn dev. RRF vẫn
+cộng nó vào bằng trọng số cố định, không biết chất lượng kênh 3 đã tụt.
+
+> **✅ KẾT LUẬN ĐỦ TIN CẬY: không dùng `--hop-nhat` (RRF kênh 1+3) trong bài
+> nộp thật cho tới khi có bằng chứng khác** — dev nay đã đủ nhạy (n=32, câu
+> đúng độ dài đề thật) để nói nó không lãi, đúng hướng với việc điểm thật tụt
+> ở A34. Bản AN TOÀN đã nộp lại (không có RRF) là lựa chọn đúng.
+
+**Nghi phạm thứ hai, chưa đo được:** xếp lại bằng ẢNH (A33) chỉ gửi **tối đa
+20/50 ảnh** cho Gemini xem. Nếu RRF(1,3) xếp một ứng viên đúng từ hạng 5 (nằm
+trong 20 ảnh được xem) xuống hạng 25 (ngoài 20 ảnh), xếp-lại-bằng-ảnh **không
+còn cơ hội thấy nó để đẩy lên** — trong khi A33 đo riêng lẻ chỉ dùng bể
+SigLIP2 THUẦN, không hề có bước xáo trộn RRF trước đó. Tổ hợp ba tầng
+(RRF → chọn 20 ảnh đầu → xếp lại) **chưa từng được đo trên dev**, đúng như đã
+tự cảnh báo lúc đề xuất (cuối mục A33).
+
+**Bài học rút ra, khác các bài học "kỹ thuật bị bác" trước đó:** đây không
+phải một kỹ thuật sai — cả A30 lẫn A33 đều là số đo thật, không bịa. Vấn đề
+là **quy trình kiểm chứng thiếu một bước**: trước khi ráp nhiều kỹ thuật đã
+đo RIÊNG LẺ thành một pipeline rồi nộp thật, phải đo đúng TỔ HỢP đó, và đo
+trên **đúng độ dài câu** của đề thật — không phải suy luận "cả hai đều dương
+thì cộng lại chắc cũng dương".
+
+> **Quy tắc mới cho mọi lần nộp thật kể từ đây:** không ráp nhiều kỹ thuật
+> mới đo riêng lẻ trong CÙNG một lượt nộp. Đổi một thứ, nộp, đối chiếu — đúng
+> kỷ luật "chỉ đổi một thứ mỗi lần" mà PHẦN A đã nói từ đầu, nhưng lần này áp
+> dụng cho chính **lượt nộp thật**, không chỉ cho phép đo trên dev.
+
+**Việc còn thiếu, đã bị chỉ ra từ A20 nhưng chưa ai làm — ĐÃ LÀM MỘT PHẦN
+(xem A35):** tập dev cần thêm câu DÀI như đề thật. Đã soạn thêm 20 câu, nâng
+từ 12/60 lên 32/80 câu KIS ≥ 40 từ.
+
+---
+
+### A35 — Sửa `run.py`: RRF chỉ bật cho câu NGẮN, tự tắt cho câu DÀI (`--hop-nhat-chi-cau-ngan`)
+
+Theo đúng đề xuất của người dùng sau sự cố A34: thay vì bật/tắt RRF đồng loạt,
+để `run.py` **tự quyết theo từng câu** — câu không bị `tach_truy_van()` cắt
+thì bật RRF(1,3,w=0,1) như A30 đã đo có lãi; câu bị cắt (dài, kiểu đề thật)
+thì giữ nguyên kênh 1 một mình, đúng như A34 đo được là an toàn hơn.
+
+Đo trên **toàn bộ 80 câu KIS dev** (48 ngắn + 32 dài), gọi thẳng
+`quet_anh`/`quet_van_ban` của chính `run.py` — không viết lại logic:
+
+| Cấu hình | ±2s | ±15s |
+| --- | ---: | ---: |
+| SigLIP2 một mình (mốc nền) | 0,3925 | 0,5225 |
+| RRF(1,3,w=0,1) LUÔN LUÔN | 0,4025 (🟡 yếu) | 0,5300 |
+| **RRF(1,3,w=0,1) THÍCH NGHI (`--hop-nhat-chi-cau-ngan`)** | 0,4000 (🟡 yếu) | 0,5275 |
+
+Hai cấu hình RRF gần như không khác nhau trên mẫu này — hợp lý, vì ở đúng
+w=0,1 (không phải 0,3), hiệu ứng trên câu dài đã đo ở A34 là ⚪ trung tính,
+không âm rõ, nên "thích nghi" và "luôn luôn" hội tụ gần nhau ở trọng số này.
+
+**Khuyến nghị dùng bản THÍCH NGHI dù số đo chưa phân biệt được rõ hai bản**:
+nó **an toàn hơn về cấu trúc**, không phải vì số đo hôm nay cao hơn. Đề thi
+thật có thể dài/nhiều mệnh đề hơn 32 câu dev hiện có, và nếu sau này ai đó
+tăng `--trong-so-phu` (đã đo 0,3 là âm ở A34), bản thích nghi tự động không
+đụng câu dài nên không thể lỗ theo hướng đó — bản "luôn luôn" thì có thể.
+
+    python src/run.py --de <đề> --hop-nhat --bo-metadata --trong-so-phu 0.1 \
+        --hop-nhat-chi-cau-ngan ...
+
+**Chưa nộp thật cấu hình này** — theo đúng quy tắc mới ở A34 (đổi một thứ,
+nộp, đối chiếu), đây sẽ là ứng viên cho MỘT lượt nộp riêng, không ráp chung
+với xếp lại bằng ảnh (A33) hay bất kỳ thứ gì khác trong cùng lượt.
+
+---
+
+### A36 — Bản AN TOÀN nộp thật: **6,2 — mốc cao nhất từ trước tới giờ**, +0,8 so với 5,4 cũ
+
+Nộp `submission_antoan_vadap.zip` (A34: đúng công thức A27/A28 — SigLIP2 +
+Gemini xếp lại CHỮ top-50 — cộng 3 đáp án Q&A đã xác minh bằng mắt: **Giang
+Ly**, câu đối Nguyễn Trung Trực, **Bánh ít trần**). Kết quả **6,2**, vượt mốc
+5,4 cũ.
+
+**Nguồn tăng điểm khớp đúng dự đoán:** 3 gói Q&A trước đây nộp đáp án đoán bừa
+`5`, `2`, `10` — chắc chắn 0 điểm dù khung có đúng hay không (PHẦN C mục 4:
+Q&A cần ĐÚNG CẢ khung lẫn `answer`). Vá đáp án đúng bằng mắt là cách tăng
+điểm **chắc chắn, không rủi ro** duy nhất đo được hôm nay — khác các kỹ thuật
+truy hồi khác vốn cần đo cẩn thận vì có thể phản tác dụng (A34).
+
+**Ghi chú sửa lại A26:** báo cáo cũ (13/08) từng kết luận *"sửa đáp án Q&A
+không đổi điểm public vì 3 gói đó không nằm trong 50% được chấm public"* —
+kết quả 6,2 hôm nay **mâu thuẫn với kết luận đó**. Có thể do: (a) tập 50%
+được chấm không cố định giữa các lượt, hoặc (b) khung được đẩy lên hạng 1 lần
+này khác/tốt hơn lần đo cũ. Chưa tách được phần tăng do Q&A khỏi phần tăng do
+biến động ngẫu nhiên của khung — nhưng dù nguyên nhân là gì, **kết quả cuối
+vẫn tốt hơn**, không cần rút lại.
+
+**Mốc nền mới cho mọi so sánh từ nay: 6,2**, không phải 5,4.
+
+---
+
+### A37 — Xếp lại bằng ẢNH một mình nộp thật: **4,2 — TỆ NHẤT trong ba cấu hình đã nộp hôm nay**, dù trên dev nó là tín hiệu SẠCH NHẤT
+
+Nộp `sub_anh_rieng_vadap.zip` — SigLIP2 một mình + Gemini xếp lại bằng ẢNH
+top-50 (không kèm RRF, cô lập đúng MỘT thay đổi so với mốc 6,2: đổi khâu xếp
+lại từ CHỮ sang ẢNH). Kết quả: **4,2**.
+
+**Ba điểm thật đã có trong ngày, xếp theo thứ tự:**
+
+| Cấu hình | Điểm thật | Điểm dev (so với mốc SigLIP2 riêng) |
+| --- | ---: | --- |
+| SigLIP2 + xếp lại CHỮ + QA đã vá (A36) | **6,2** | +0,01 🟡 YẾU (A31) |
+| RRF(1,3,w=0,1) + xếp lại ẢNH (A34) | ~5,0 | ảnh: +0,03 ✅; RRF+ảnh: chưa đo riêng |
+| SigLIP2 + xếp lại ẢNH một mình (A37) | **4,2** | **+0,03 ✅ ỔN ĐỊNH — tín hiệu SẠCH NHẤT hôm nay** |
+
+**Nghịch lý cần ghi nhận thẳng:** cấu hình có tín hiệu dev đẹp nhất (9 thắng–1
+thua–50 hoà, vượt nhiễu rõ) lại là cấu hình **tệ nhất trên leaderboard thật**.
+Đây là bằng chứng mạnh nhất từ trước tới giờ cho một mẫu hình đã lặp lại 4 lần
+trong ngày (A31 chữ yếu, A34 RRF hại câu dài, A32 phân rã LLM hại, nay A37):
+
+> **Tập dev đáng tin cho quyết định ở tầng BỂ ỨNG VIÊN (A17 SigLIP2, A30 RRF
+> câu ngắn) nhưng KHÔNG đáng tin cho quyết định ở tầng XẾP LẠI — bất kể tín
+> hiệu dev mạnh hay yếu, dương hay khiến tưởng chắc chắn.** Xếp lại bằng CHỮ
+> là kỹ thuật DUY NHẤT ở tầng này có track record thật trên leaderboard (ba
+> lần độc lập: A27, A28, A36) — không phải vì đo trên dev tốt nhất, mà vì đã
+> được XÁC MINH TRÊN CHÍNH SÂN THẬT nhiều lần.
+
+**Giả thuyết cơ chế (chưa kiểm chứng):** câu đề thật dài, văn phong tường
+thuật/phóng sự — Gemini phải khớp một mô tả nhiều câu với ảnh thumbnail
+512px, khác hẳn câu dev ngắn-gọn-trực-diện do chính người trong nhóm soạn ra
+dựa trên đúng khung đã xem. Khớp CHỮ (OCR/ASR) có thể ổn định hơn khớp Ý qua
+ảnh khi mô tả dài và trừu tượng hơn.
+
+> **Khuyến nghị: TẠM DỪNG đầu tư thêm vào xếp lại bằng ảnh** cho tới khi có
+> cách đo đáng tin hơn (ví dụ: đo trực tiếp bằng các lượt nộp thật nhỏ, có
+> kiểm soát, thay vì dựa vào dev). **Xếp lại bằng CHỮ (script 28, top-50)
+> vẫn là lựa chọn mặc định** cho mọi bài nộp từ nay — đã 3/3 lần đúng.
+
+---
+
 ## PHẦN B — QUYẾT ĐỊNH HẠ TẦNG
 
 ### B1. Không dùng Supabase / Postgres / Milvus / Elasticsearch — ĐÃ KIỂM CHỨNG
@@ -2728,7 +3145,7 @@ python src\tap_dev.py --kiem
 | # | Việc | Ai | Ghi chú |
 | --- | --- | --- | --- |
 | 11 | ~~Gửi BTC câu 0.a~~ — **ĐÃ TRẢ LỜI (A9)**. Còn lại: **xin GT các mùa trước** (BTC nói có), và hỏi **0.e — Chung kết có thi tương tác không** | Khánh | |
-| 12 | 🔴 **Chốt phương án quota VLM: trả phí hay chạy local** | TV5 | **Nay chặn hẳn kênh 5** (A13). Bộ sinh đã xong và đo được chi phí; chỉ thiếu quyết định. Local: Qwen2.5-VL-3B 4-bit ≈ 2,5 GB, vừa card 2060 Super — nhưng card đang bận encode SigLIP2 |
+| 12 | ✅ **ĐÃ CHỐT (21/08): dùng FREE, không bật billing.** Trái với khuyến nghị trả phí ở báo cáo bench 13/08 (§11.3 của `Test VLM AIC/BAO_CAO_BENCH_VLM_2026-08-13.md`) — nhóm chấp nhận rủi ro rate-limit của free tier thay vì trả phí. Model chính vẫn `gemini-3.1-flash-lite` **free tier**; phương án offline khi hết quota là **`qwen2.5vl:7b` qua Ollama** (không phải bản 3B như ghi trước đây — đã đo lại 13/08: 3B lỗi lặp token 83% trên GPU, 7B mới là bản dùng được, 52-58% đúng, vừa đủ RTX 2060S 8GB) | TV5 | |
 | 12b | 🔴 **Xoá khóa Gemini đã dán vào chat**, tạo khóa mới | — | repo công khai; khóa đã lộ thì coi như của chung |
 | 13 | Chốt một bảng tên thành viên duy nhất | cả nhóm | |
 | 14 | Máy giữ L23+L26+L27 tải lại gói `Keyframes_L21` (thiếu 8 file ảnh) | — | |
