@@ -509,9 +509,23 @@ def lam_day_bang_trich_day(vid: str, video_path: str, cac_su_kien_text: list,
                 ung_vien.append((k.frame_idx, float(sc)))
 
 
+def _don_cuc(khung: list, cach: str) -> bool:
+    """Chuỗi khung này có bị DỒN CỤC không, theo chính sách `cach`.
+
+    `"cap"` — có BẤT KỲ cặp liền kề nào cách nhau dưới `DON_NHAU`.
+    `"tong"` — chỉ xét tổng độ trải (bản đầu; bỏ sót dồn cục một phần).
+    `"khong"` — không bao giờ coi là dồn cục, tức tắt hẳn việc rải đều.
+    """
+    if cach == "khong":
+        return False
+    if cach == "tong":
+        return khung[-1] - khung[0] < DON_NHAU
+    return any(b - a < DON_NHAU for a, b in zip(khung, khung[1:]))
+
+
 def dung_trake(cac_su_kien: list, master, so_dong: int = TOI_DA_DONG,
                su_kien_text: list | None = None, kenh1=None,
-               so_video_trich_day: int = 5) -> list:
+               so_video_trich_day: int = 5, don_cuc: str = "tong") -> list:
     """Từ N danh sách ứng viên (mỗi sự kiện một danh sách) -> các dòng TRAKE.
 
     Chọn video bằng điểm MỀM (`thoi_gian.xep_video_theo_chuoi` — Bước 2b),
@@ -606,12 +620,24 @@ def dung_trake(cac_su_kien: list, master, so_dong: int = TOI_DA_DONG,
         # Khung nội suy ở bước 2 nằm giữa hai neo DP nên vẫn tăng dần tự nhiên.
         khung = [int(x) for x in tot]
 
-        # N sự kiện KHÔNG THỂ nằm gọn trong vài phần trăm giây. Nếu cả N khung
+        # N sự kiện KHÔNG THỂ nằm gọn trong vài phần trăm giây. Nếu các khung
         # dồn vào một chỗ thì truy hồi đã không phân biệt được các sự kiện —
         # giữ nguyên là dồn hết cơ hội vào một điểm. Rải đều trên khoảng frame
         # của video cho mỗi sự kiện một cửa độc lập; với cửa sổ BTC rộng tới
         # vài phút (A9) thì rải đều có xác suất trúng thật.
-        if n > 1 and khung[-1] - khung[0] < DON_NHAU and hi > lo:
+        #
+        # ⚠️ `don_cuc="tong"` (bản đầu) xét TỔNG ĐỘ TRẢI `khung[-1]-khung[0]`,
+        # nên **không bắt được dồn cục MỘT PHẦN**: ba sự kiện đầu rơi trùng một
+        # khung còn sự kiện cuối ở xa thì tổng độ trải vẫn lớn, chốt không nổ,
+        # và bước ép tăng dần bên dưới đẻ ra `0,1,2,2298` — ba sự kiện cách nhau
+        # 0,03 giây. Đo trên bài nộp thật: **47/100 dòng** ở `query-p1-18-trake`
+        # và 33/100 ở `query-p1-4-trake` có cặp liền kề dưới 100 frame.
+        # `don_cuc="cap"` xét TỪNG CẶP liền kề, và xoá sạch 17/17 dòng dồn cục
+        # trong phép đo. NHƯNG **mặc định vẫn là `"tong"`**: đo trên 13 câu
+        # TRAKE với ứng viên kênh 3 thì cả ba chính sách đều **0,0000** — không
+        # có bằng chứng nào để rời khỏi hành vi đã sinh ra bài nộp 3,8 điểm.
+        # Đo lại khi có ứng viên kênh 1 (SigLIP2), nơi TRAKE mới có điểm để so.
+        if n > 1 and hi > lo and _don_cuc(khung, don_cuc):
             buoc = (hi - lo) / (n + 1)
             khung = [lo + round(buoc * (i + 1)) for i in range(n)]
 
