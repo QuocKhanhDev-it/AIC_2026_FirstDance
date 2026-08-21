@@ -4,15 +4,27 @@ test_pipeline.py — Unit tests cho pipeline_OCR_ASR
 
 import pandas as pd
 import pytest
+from pathlib import Path
 from pipeline_OCR_ASR.gop_ocr_asr import gop_ocr_va_asr
 from pipeline_OCR_ASR.loc_cung_token_hiem import phat_hien_token_hiem, LocCungTokenHiem
+from pipeline_OCR_ASR.ocr_processor import KeyframeOCRProcessor
 
 
-def test_phat_hien_token_hiem():
-    query = "biển số 79A-12345 tại chợ Bến Thành"
+def test_phat_hien_token_hiem_dung():
+    # 1. Các token hiếm hợp lệ
+    query = "biển số 79A-12345 tại HTV và chợ Bến Thành"
     tokens = phat_hien_token_hiem(query)
-    assert any("79A-12345" in t for t in tokens) or "79A12345" in tokens or "79A-12345" in tokens
-    assert any("Bến" in t or "Thành" in t or "Bến Thành" in t or "Chợ" in t for t in tokens)
+    assert any("79A-12345" in t for t in tokens)
+    assert any("HTV" in t for t in tokens)
+    assert any("Bến" in t for t in tokens)
+
+
+def test_khong_nham_tu_thuong_tieng_viet():
+    # 2. Đảm bảo từ tiếng Việt thông thường (dù dài >= 6 ký tự) KHÔNG bị coi là token hiếm
+    query = "nghiên cứu truyền thống trường học phương tiện giao thông"
+    tokens = phat_hien_token_hiem(query)
+    # Không có số, không có viết hoa, không có gạch nối -> trả về rỗng
+    assert len(tokens) == 0
 
 
 def test_gop_ocr_va_asr(tmp_path):
@@ -53,3 +65,4 @@ def test_loc_cung_token_hiem():
     assert len(cands) == 1
     assert cands[0].row_id == 0
     assert cands[0].score >= 100.0
+
