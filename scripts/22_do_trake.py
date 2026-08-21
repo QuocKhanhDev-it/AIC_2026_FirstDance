@@ -28,7 +28,7 @@ sys.path.insert(0, str(GOC / "src"))
 
 import tap_dev                                        # noqa: E402
 from cham_diem import diem_trake_bai_nop, no_cua_so, MOC_DUNG_SAI  # noqa: E402
-from dense import KenhAnh                             # noqa: E402
+from dense import KenhAnh, KenhAnhCache               # noqa: E402
 from rrf import hop_nhat                              # noqa: E402
 import run as R                                       # noqa: E402
 from run import tach_su_kien                          # noqa: E402
@@ -53,6 +53,15 @@ def hang_thanh_row_id(dong_trake, master, video_idx: dict) -> list:
 
 
 def main():
+    import argparse
+    ap = argparse.ArgumentParser(description="do TRAKE")
+    ap.add_argument("--cache", type=Path, default=None,
+                    help="file .npz vector truy vấn đã mã hoá sẵn "
+                         "(scripts/25_ma_hoa_truy_van.py). Có nó thì KHÔNG "
+                         "phải nạp model — chạy được trên máy thiếu RAM")
+    ap.add_argument("--matrix", default="clip_siglip2.npy")
+    a = ap.parse_args()
+
     index = GOC / "index"
     master = pd.read_parquet(index / "master.parquet")
     video_idx = {(r.video_id, int(r.frame_idx)): int(r.row_id)
@@ -62,8 +71,19 @@ def main():
     print(f"{len(cau)} câu TRAKE — n QUÁ NHỎ để kết luận ổn định, "
           f"chỉ dùng để kiểm không tệ đi\n")
 
-    print("Nạp kênh 1 (SigLIP2) và kênh 4 (objects)...")
-    k1 = KenhAnh(str(index), matrix="clip_siglip2.npy")
+    if a.cache:
+        print(f"Kênh 1 từ cache {a.cache} — KHÔNG nạp model")
+        k1 = KenhAnhCache(str(index), a.cache, matrix=a.matrix)
+        thieu = k1.co_du([c.cau_hoi for c in cau])
+        if thieu:
+            raise SystemExit(
+                f"{len(thieu)} câu chưa có trong cache, ví dụ:\n"
+                f"  {thieu[0][:100]!r}\n"
+                f"Mã hoá thêm: python scripts/25_ma_hoa_truy_van.py "
+                f"--tap-dev --gop")
+    else:
+        print("Nạp kênh 1 (SigLIP2) và kênh 4 (objects)...")
+        k1 = KenhAnh(str(index), matrix=a.matrix)
     k4 = KenhObjects(index, master)
 
     cau_hinh = {

@@ -1546,6 +1546,133 @@ tên theo lượt (`nop_dot1_luot3.zip`). Windows không phân biệt hoa/thư�
 
 ---
 
+### A25 — Kênh 3 mạnh gấp 2,8 lần, đảo vai với objects; và leaderboard public **mù** với thay đổi cục bộ
+
+#### Dữ liệu OCR/ASR đầy đủ (21/08): kênh 3 đổi hạng
+
+TV4 nạp `ocr.parquet` + `asr.parquet` + `ocr_asr.parquet` mới vào `index/`:
+
+| | Trước | Sau |
+| --- | ---: | ---: |
+| OCR có chữ | 47.064 (26,5%) | **165.259 (93,2%)** |
+| ASR có chữ | **0** | **137.322 (77,4%)**, 847/873 video |
+| `text` hợp nhất | 47.064 | **176.009 (99,3%)** |
+
+Đo trên 115 câu tập dev (`scripts/23_do_trong_so_rrf.py`):
+
+| Cấu hình | ±2s | ±15s |
+| --- | ---: | ---: |
+| **kênh 3 (OCR+ASR mới) một mình** | **0,1183** | 0,1530 |
+| RRF(objects, OCR) 1:1 | 0,1131 | 0,1547 |
+| kênh 4 objects | 0,0417 | 0,0696 |
+| *kênh 3 OCR cũ, để so* | *0,0420* | *0,0720* |
+
+**Kênh 3 nhảy 2,8 lần và vượt cả cấu hình hợp nhất.** Cộng objects vào nay không
+còn lãi (đảo dấu, 16-8-91) — đúng quy luật A14.2, nhưng **vai đã đổi**: objects
+giờ là kênh yếu bị dìm, không phải kênh được cứu.
+
+> **Cấu hình model-free tốt nhất không còn là RRF(objects, OCR) mà là kênh 3
+> đứng một mình.** A23 vừa đổi mặc định `--trong-so-phu` về 1,0 cho cảnh hai kênh
+> ngang nhau; nay cảnh đó không còn tồn tại. Ai chạy máy yếu thì dùng kênh 3.
+
+Và nó đưa RRF(SigLIP2, OCR) vào tầm: khoảng cách hai kênh thu từ **8 lần xuống
+2,8 lần** — đúng vùng A14.2 nói hợp nhất bắt đầu có lãi. Đây là ứng viên mạnh
+nhất chưa ai thử.
+
+#### Leaderboard public không phản hồi thay đổi ở 3/24 gói
+
+A24 tìm ra ba gói Q&A ăn 0 vì đáp án sai. Đã tìm đáp án bằng OCR/ASR mới rồi
+**mở ảnh xác minh tận mắt**, vá vào bài nộp 3,8 (`scripts/24_va_dap_an_qa.py`),
+giữ nguyên từng byte 21 gói KIS/TRAKE:
+
+| Gói | Hỏi gì | Đáp án đã xác minh |
+| --- | --- | --- |
+| `15-qa` | tên xã ở Khánh Hoà nơi CLB FANA trao quà | **Giang Ly** — băng rôn `L30_V072` kf34 |
+| `19-qa` | hai câu thơ ca ngợi Nguyễn Trung Trực | **Hỏa hồng Nhật Tảo oanh thiên địa / Kiếm bạt Kiên Giang khấp quỷ thần** — câu đối vàng hai bên tượng, `L27_V010` kf146 |
+| `22-qa` | tên món ăn có 200g thịt nạc xay | 🟡 **Bánh ít trần** — chỉ suy từ OCR, máy không có ảnh L26 |
+
+Khung chứa đáp án được đặt **hạng 1**. Kết quả: **3,8 → 3,8. Không đổi.**
+
+Ghép với lượt #3 (đáp án `5`, `2`, `10` — chắc chắn sai) cũng 3,8, ta có một phép
+so sạch: **đáp án sai và đáp án đúng cho cùng một điểm public.** Ba khả năng,
+xếp theo độ tin:
+
+1. **3 gói Q&A không nằm trong 50% được chấm public** (C7). Chỉ 3/24 gói là Q&A.
+2. Chuỗi đáp án không khớp cách BTC ghi — tài liệu tự mâu thuẫn "ngữ nghĩa" vs
+   "chuỗi chính xác" (C7), và hai câu thơ có nhiều cách viết.
+3. Khung sai — ít khả năng nhất, đã xem ảnh.
+
+> **Hệ quả cho cách tiêu 3 lượt nộp của vòng thật: đừng tiêu một lượt để thử một
+> thay đổi cục bộ.** Bảng public là thước đo THÔ — nó đọc được việc đổi cả kênh
+> truy hồi (2,6 → 3,8) nhưng mù với việc sửa 3/24 gói. Muốn biết một thay đổi
+> nhỏ có lợi không thì phải hỏi tập dev, không phải hỏi leaderboard.
+>
+> Việc vá đáp án **vẫn giữ**: Private Leaderboard chấm 100% đáp án, nên nếu ba
+> gói đó nằm ở nửa private thì `Giang Ly` và câu đối vẫn ăn điểm ở đó. Đáp án đã
+> xác minh không thể tệ hơn `5`, `2`, `10`.
+
+#### Ba câu Q&A của đề thật đều là câu ĐỌC CHỮ, không phải câu đếm
+
+Tên xã chạy dưới bản tin, câu thơ khắc trong đình, tiêu đề trên tờ công thức.
+Không câu nào hỏi số lượng hay màu sắc.
+
+Nhưng `tra_loi.NHAC` đang dạy model: *"câu hỏi đếm → trả lời bằng chữ số"*,
+*"màu sắc → tên màu"*, *"tối đa 4 từ"*. Lời nhắc đó **lệch hẳn phân bố câu hỏi
+thật**, và ép 4 từ thì không bao giờ trả lời nổi một câu đối 14 chữ.
+
+→ Việc cho Bước 4: viết lại lời nhắc theo phân bố thật, và **thử đường không cần
+VLM trước** — `ocr_asr.parquet` đã chứa sẵn chữ của đúng khung được truy hồi, mà
+đó chính là đáp án. Rẻ hơn VLM, chạy được trên máy yếu.
+
+#### Dải cosine 0,72–0,92 của `19_tim_cau_trake.py`: dùng để TÌM thì được, dùng để NGHIỆM THU thì sai
+
+10 câu TRAKE mới (L24, L30) đã soát: cấu trúc hợp lệ 10/10, và ba câu lấy mẫu
+khớp mô tả đến từng chi tiết khi mở ảnh. Nhưng chấm bằng chính dải cosine của ta:
+
+| | cosine giữa các sự kiện | Kết luận của ngưỡng |
+| --- | --- | --- |
+| `trake-L30-004` | 0,714 · **0,582** | 🟡 ngoài dải — *nhưng đã xác minh là câu TỐT* |
+| `trake-L24-002` | **0,664** · 0,735 | 🟡 ngoài dải — *cũng đã xác minh là tốt* |
+| Tổng | **7/10 câu bị gắn cờ** | |
+
+Ngưỡng loại nhầm 7/10 câu tốt. Nguyên nhân: nó giả định chuỗi sự kiện = cảnh
+biến đổi từ từ, nhưng **phóng sự truyền hình đổi CÚ MÁY giữa các sự kiện** —
+toàn cảnh → cận cảnh → góc khác — nên cosine tụt sâu trong khi vẫn là một hành
+động liên tục.
+
+> Giữ dải này làm **bộ lọc tìm kiếm** (nó thu hẹp hàng nghìn cửa sổ xuống vài
+> chục, đó là việc của nó). **Không dùng làm tiêu chí nghiệm thu.** Và cảnh báo
+> rộng hơn: mọi kỹ thuật xếp hạng lại theo thời gian giả định "cảnh trôi từ từ"
+> đều đang đứng trên một giả định mà dữ liệu thật không thoả.
+
+#### `dense.KenhAnhCache` — gỡ chốt RAM mà không đổi gì khác
+
+Máy 7,7 GB không nạp nổi SigLIP2 nên mọi phép đo dính kênh 1 đều tắc. Nhưng
+model chỉ làm **một việc**: biến câu chữ thành vector. Ma trận ảnh đã nằm sẵn
+trên đĩa, và tập truy vấn thì **hữu hạn, biết trước** — 24 câu đề + 115 câu dev,
+tổng **296 chuỗi** sau khi tính cả các mệnh đề do `tach_truy_van` cắt ra.
+
+    máy khoẻ/Colab, một lần:  python scripts/25_ma_hoa_truy_van.py --de <đề> --tap-dev
+    máy yếu, từ đó về sau:    python scripts/22_do_trake.py --cache index/truy_van.npz
+                              python src/run.py --de <đề> --cache index/truy_van.npz
+
+File cache vài trăm KB, chép qua chat cũng được.
+
+**`KenhAnhCache.tim` là hàm THỪA KẾ, không phải bản chép** — chỉ `encode_text`
+đổi từ "chạy model" thành "tra bảng". Có test chốt đúng điều đó
+(`test_cache_dung_lai_tim_cua_kenh_that`), vì hai nhánh lệch nhau âm thầm thì
+số đo trên máy yếu không còn so được với số đo trên máy khoẻ.
+
+Truy vấn thiếu trong cache thì **ném lỗi**, không trả vector 0 — vector 0 sẽ cho
+ra 100 ứng viên ngẫu nhiên trông hoàn toàn hợp lệ.
+
+⚠️ `25_ma_hoa_truy_van.py` gọi thẳng `open_clip`, **không đi qua `dense.kiem_ram`**,
+nên nó tự mang chốt riêng, ngưỡng tra theo số chiều ma trận (SigLIP2 fp16 ~2,9 GB;
+CLIP B/32 fp16 ~0,9 GB). Không có chốt đó thì chính công cụ sinh ra để né việc
+nạp model lại là thứ treo máy.
+
+---
+
 ## PHẦN B — QUYẾT ĐỊNH HẠ TẦNG
 
 ### B1. Không dùng Supabase / Postgres / Milvus / Elasticsearch — ĐÃ KIỂM CHỨNG
