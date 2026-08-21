@@ -9,6 +9,7 @@ pyarrow==25.0.0
 numpy==2.5.1
 duckdb==1.5.5
 pillow==12.3.0
+pytest==9.1.1
 
 # Ngoài pip còn cần ffmpeg trong PATH (cho 02_verify.py và 03_verify_CLIP.py):
 #   winget install Gyan.FFmpeg

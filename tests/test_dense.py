@@ -99,6 +99,28 @@ def test_loc_theo_video(kenh):
     assert kq and all(c.video_id == vid for c in kq)
 
 
+def test_encode_image_khop_lai_vector_trong_ma_tran(kenh):
+    """`encode_image()` phải ra CÙNG không gian với ma trận có sẵn.
+
+    Mã hóa lại chính ảnh keyframe của một dòng, so cosine với vector đã có
+    trong `.npy` — phải cao (>0,9): cùng ảnh, cùng model thì phải gần trùng.
+    Đây là bẫy trực tiếp của A6/A10.3-style: sai `force_image_size` hay sai
+    tiền xử lý sẽ làm cosine tụt hẳn mà không có lỗi nào ném ra.
+    """
+    import numpy as np
+    from PIL import Image
+    co_anh = kenh.master[kenh.master.kf_path.notna()]
+    if co_anh.empty:
+        import pytest
+        pytest.skip("không có keyframe ảnh thật trên máy này")
+    r = co_anh.iloc[0]
+    anh = Image.open(r.kf_path).convert("RGB")
+    v = kenh.encode_image([anh])[0]
+    v_goc = np.asarray(kenh.mat[int(r.row_id)], dtype=np.float32)
+    cos = float(v @ v_goc)
+    assert cos > 0.9, f"encode_image lệch không gian vector với ma trận (cos={cos:.3f})"
+
+
 def test_khoa_be_ung_vien(kenh):
     """`be=` phải chặn thật, không được chỉ là tham số trang trí.
 

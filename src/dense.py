@@ -140,8 +140,26 @@ class KenhAnh:
 
         import torch, open_clip
         self._torch = torch
-        self.model, _, _ = open_clip.create_model_and_transforms(
-            self.model_tag, pretrained=self.pretrained)
+
+        # `pretrained` là ĐƯỜNG DẪN FILE CỤC BỘ (không phải tag như "webli")
+        # khi ma trận được encode bằng scripts/08_encode.py -> open_clip
+        # KHÔNG tự lấy được cấu hình tiền xử lý ảnh (kích cỡ) đi kèm tag đó,
+        # ảnh sẽ bị resize sai (mặc định 224) — đúng bẫy đã ghi ở
+        # docs/08_nhat_ky_encode_GPU.md §4. Tên tag SigLIP2 của open_clip có
+        # quy ước kết thúc bằng kích cỡ ảnh thật (`...SigLIP2-378` = 378px,
+        # xem A10.3/A17) — khác CLIP thường (`ViT-B-32` thì 32 là patch size,
+        # không phải kích cỡ ảnh). Chỉ ép khi tải từ file cục bộ VÀ đúng quy
+        # ước SigLIP2, để không áp nhầm cho CLIP.
+        import re
+        ep_kich_co = None
+        m = re.search(r"SigLIP2-(\d+)$", self.model_tag)
+        if m and not str(self.pretrained).lower().startswith(
+                ("webli", "openai", "laion", "datacomp", "dfn")):
+            ep_kich_co = int(m.group(1))
+
+        self.model, _, self._preprocess = open_clip.create_model_and_transforms(
+            self.model_tag, pretrained=self.pretrained,
+            force_image_size=ep_kich_co)
         self.model.eval()
         self.tok = open_clip.get_tokenizer(self.model_tag)
 
@@ -160,6 +178,23 @@ class KenhAnh:
         with self._torch.no_grad():
             v = self.model.encode_text(self.tok([cau]))[0].numpy().astype(np.float32)
         return v / (np.linalg.norm(v) + 1e-9)
+
+    def encode_image(self, anh: list) -> np.ndarray:
+        """Vector cho một loạt ảnh PIL, đã chuẩn hóa L2 — CÙNG không gian với
+        `encode_text()` nên so cosine trực tiếp được (`v @ q`).
+
+        Dùng cho khung trích dày (`trich_day.KhungDay.anh`) — những khung này
+        KHÔNG có sẵn trong ma trận `.npy` (không có `row_id` thật, xem
+        docstring đầu `trich_day.py`), nên phải tự encode mới đưa vào so sánh
+        được. `self._preprocess` là transform ĐÚNG kích cỡ của model này —
+        khớp `force_image_size` đã ép ở `__init__` nếu có.
+        """
+        if not anh:
+            return np.zeros((0, self.chieu), dtype=np.float32)
+        with self._torch.no_grad():
+            lo = self._torch.stack([self._preprocess(a) for a in anh])
+            v = self.model.encode_image(lo).numpy().astype(np.float32)
+        return v / (np.linalg.norm(v, axis=1, keepdims=True) + 1e-9)
 
     # Nhân theo lô 20.000 dòng. Số này giữ bộ đệm tạm dưới ~100 MB ở mọi số
     # chiều đang dùng, mà vẫn đủ lớn để BLAS chạy hết tốc.
