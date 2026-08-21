@@ -60,7 +60,7 @@ def khong_dau_hoa(s: str) -> str:
 def main():
     ap = argparse.ArgumentParser(description="do do dung cua tra loi Q&A tu OCR")
     ap.add_argument("--index", default=GOC / "index", type=Path)
-    ap.add_argument("--backend", default="gemini", choices=("gemini", "ollama"))
+    ap.add_argument("--backend", default="gemini", choices=("gemini", "qwen", "ollama"))
     ap.add_argument("--model", default=None)
     ap.add_argument("--so-khung", type=int, default=5)
     ap.add_argument("--so-cau", type=int, default=0, help="0 = tất cả")
