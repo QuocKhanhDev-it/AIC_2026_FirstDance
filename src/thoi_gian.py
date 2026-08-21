@@ -77,6 +77,12 @@ def video_du_chuoi(cac_danh_sach: list[list[Candidate]]) -> list[str]:
     Trả về rỗng nghĩa là không video nào chứa đủ chuỗi: hoặc bóc tách truy vấn
     sai, hoặc phải nới `k` của từng truy vấn con. ĐỪNG coi đó là "không có đáp
     án" — PHẦN C mục 3: TRAKE chấm từng phần, vẫn phải nộp đủ N vị trí.
+
+    ⚠️ Giao CỨNG: một sự kiện không tìm ra đúng video (rất có thể xảy ra — bóc
+    tách/truy hồi một truy vấn con bị lệch) loại LUÔN video đó khỏi kết quả,
+    dù N-1 sự kiện còn lại đúng. `xep_video_theo_chuoi()` bên dưới là bản MỀM,
+    không đòi giao cứng — dùng bản đó làm nguồn xếp hạng chính (Bước 2b), giữ
+    hàm này lại vì vẫn hữu ích khi cần một danh sách "chắc chắn đủ chuỗi".
     """
     if not cac_danh_sach:
         return []
@@ -86,4 +92,32 @@ def video_du_chuoi(cac_danh_sach: list[list[Candidate]]) -> list[str]:
         for v, d in diem_tot_nhat_moi_video(ds).items():
             if v in chung:
                 tong[v] += d
+    return [v for v, _ in sorted(tong.items(), key=lambda x: -x[1])]
+
+
+def xep_video_theo_chuoi(cac_danh_sach: list[list[Candidate]]) -> list[str]:
+    """Xếp hạng MỀM mọi video ứng viên của chuỗi TRAKE — Bước 2b (A8.7 #3).
+
+    Với mỗi sự kiện thứ `i`, thưởng điểm bằng `xep_lai()` nếu video đó cũng có
+    mặt ở sự kiện liền trước (`i-1`) và/hoặc liền sau (`i+1`) — video chứa
+    TRỌN chuỗi lân cận đáng tin hơn video chỉ khớp một cảnh rời rạc. Sau đó
+    CỘNG DỒN điểm đã thưởng của MỌI sự kiện cho từng video.
+
+    Khác `video_du_chuoi()`: không đòi một video phải xuất hiện ở ĐỦ N sự
+    kiện — video chỉ khớp 2/3, 3/4 sự kiện (rất thường gặp khi một truy vấn
+    con bị bóc tách hoặc truy hồi hơi lệch) vẫn được xếp hạng theo điểm thật
+    thay vì rớt xuống một khối không thứ tự. Trả về MỌI video xuất hiện ở BẤT
+    KỲ sự kiện nào — không cần bước "nới ra" riêng như khi dùng
+    `video_du_chuoi()`.
+    """
+    n = len(cac_danh_sach)
+    if n == 0:
+        return []
+    tong: dict[str, float] = defaultdict(float)
+    for i, hien_tai in enumerate(cac_danh_sach):
+        truoc = cac_danh_sach[i - 1] if i > 0 else None
+        sau = cac_danh_sach[i + 1] if i < n - 1 else None
+        thuong = xep_lai(hien_tai, truoc, sau)
+        for v, d in diem_tot_nhat_moi_video(thuong).items():
+            tong[v] += d
     return [v for v, _ in sorted(tong.items(), key=lambda x: -x[1])]

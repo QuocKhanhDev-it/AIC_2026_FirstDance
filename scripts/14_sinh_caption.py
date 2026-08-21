@@ -58,6 +58,7 @@ import base64
 import json
 import os
 import queue
+import re
 import sys
 import threading
 import time
@@ -89,7 +90,9 @@ Nêu cụ thể, theo thứ tự: người (số lượng, giới tính, trang p
 và chữ xuất hiện trên hình nếu đọc được.
 
 Yêu cầu:
-- 2 đến 3 câu, tiếng Việt có dấu.
+- CHỈ dùng tiếng Việt. Tuyệt đối không chèn từ, cụm từ hay câu bằng tiếng Anh,
+  tiếng Tây Ban Nha hay bất kỳ ngôn ngữ nào khác.
+- 2 đến 3 câu, tiếng Việt có dấu. Không lặp lại cùng một câu hay cùng một ý.
 - Dùng danh từ và động từ cụ thể. KHÔNG viết "bức ảnh cho thấy", "trong hình có".
 - Không suy đoán điều không nhìn thấy. Không bình luận.
 - Trả lời thẳng nội dung mô tả, không thêm gì khác."""
@@ -209,16 +212,21 @@ def goi_gemini(model, key, anh: bytes, loi_nhac: str, timeout=90, thu_lai=4):
     raise RuntimeError("hết lượt thử lại")
 
 
-def goi_ollama(model, anh: bytes, loi_nhac: str, timeout=120, thu_lai=3):
+def goi_ollama(model, anh: bytes, loi_nhac: str, timeout=120, thu_lai=3, nhiet_do=0.0):
     """Gọi Ollama local (`ollama serve`), lùi thời gian khi server bận/chưa lên.
 
     Không có khái niệm 429 ở đây — lỗi thường gặp là server chưa chạy hoặc
     model chưa `ollama pull`, nên thông báo lỗi phải nói rõ cách sửa, không chỉ
     ném traceback.
     """
+    # temperature=0.0 không có trần token thì thỉnh thoảng rơi vào lặp vô hạn
+    # (đo được: 1 caption 9.872 ký tự, lặp cùng một câu hàng trăm lần — BM25
+    # phạt tài liệu dài nên lỗi này tự hại kênh 5). num_predict chặn trần,
+    # repeat_penalty giảm khả năng rơi vào vòng lặp từ đầu.
     body = {"model": model, "prompt": loi_nhac, "stream": False,
              "images": [base64.b64encode(anh).decode()],
-             "options": {"temperature": 0.0}}
+             "options": {"temperature": nhiet_do, "num_predict": 220,
+                        "repeat_penalty": 1.3}}
     data = json.dumps(body).encode()
     cho = 3
     for lan in range(thu_lai):
@@ -239,10 +247,37 @@ def goi_ollama(model, anh: bytes, loi_nhac: str, timeout=120, thu_lai=3):
     raise RuntimeError("hết lượt thử lại")
 
 
+CHU_HAN = re.compile(r"[一-鿿぀-ヿ가-힯]")
+
+
+def goi_ollama_sach(model, anh: bytes, loi_nhac: str, timeout=120, thu_lai=3):
+    """`goi_ollama`, tự gọi lại nếu kết quả lẫn chữ Hán/Nhật/Hàn.
+
+    Đo được trên 200 ảnh (19/08): qwen2.5vl:7b lẫn chữ Hán vào ~12% caption —
+    KHÔNG ngẫu nhiên, tập trung ở một loại cảnh (bàn dẫn chương trình tin tức)
+    lặp lại y hệt qua nhiều khung liên tiếp. Sửa câu nhắc (thêm "chỉ tiếng
+    Việt") KHÔNG giảm được tỷ lệ này — vì `temperature=0.0` là argmax, cùng
+    ảnh cùng prompt luôn đi lại đúng một đường sinh. Phải đổi temperature mới
+    có cơ hội thoát đường đó, không phải đổi chữ trong prompt.
+    """
+    cap = goi_ollama(model, anh, loi_nhac, timeout=timeout, thu_lai=thu_lai, nhiet_do=0.0)
+    for nhiet in (0.5, 0.9):
+        if not CHU_HAN.search(cap):
+            return cap
+        cap = goi_ollama(model, anh, loi_nhac, timeout=timeout, thu_lai=thu_lai, nhiet_do=nhiet)
+    if CHU_HAN.search(cap):
+        # Vài cảnh (bàn dẫn chương trình) kéo model về tiếng Trung rất mạnh,
+        # 2 lần thử lại không thoát được. Lưới an toàn cuối: xóa ký tự Hán
+        # còn sót — mất một phần nội dung ở đúng chỗ đó, nhưng còn hơn để
+        # ký tự vô nghĩa với BM25 tiếng Việt lọt vào caption.
+        cap = " ".join(CHU_HAN.sub("", cap).split())
+    return cap
+
+
 def goi(backend, model, key, anh: bytes, loi_nhac: str, timeout=90, thu_lai=4):
     """Điều phối theo backend. `key` bị bỏ qua khi `backend == "ollama"`."""
     if backend == "ollama":
-        return goi_ollama(model, anh, loi_nhac, timeout=max(timeout, 120), thu_lai=thu_lai)
+        return goi_ollama_sach(model, anh, loi_nhac, timeout=max(timeout, 120), thu_lai=thu_lai)
     return goi_gemini(model, key, anh, loi_nhac, timeout=timeout, thu_lai=thu_lai)
 
 

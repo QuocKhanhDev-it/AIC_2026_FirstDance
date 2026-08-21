@@ -15,3 +15,4 @@
 torch==2.13.0
 torchvision==0.28.0
 open_clip_torch==3.3.0
+transformers   # open_clip cần để nạp tokenizer SigLIP2 (HFTokenizer) khi encode CÂU TRUY VẤN — không cần nếu chỉ encode ảnh (08_encode.py)

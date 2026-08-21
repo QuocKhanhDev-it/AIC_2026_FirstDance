@@ -58,3 +58,8 @@ desktop.ini
 # doi ten thu muc (xem muc Benchmark_OCR_ASR o tren).
 submission*/
 *.zip
+
+# ---- de thi BTC ----
+# Repo cong khai. De thi la tai lieu thi, khong phai ma nguon -> khong duoc
+# lo len GitHub cong khai.
+de_thi/
