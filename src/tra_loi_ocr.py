@@ -38,6 +38,7 @@ nguyên vẹn: cùng một ràng buộc 100 ký tự, cùng một cách cắt ch
 import json
 import re
 import sys
+import time
 import urllib.error
 import urllib.request
 from pathlib import Path
@@ -164,8 +165,24 @@ def _goi_gemini(loi_nhac: str, model: str = MODEL_GEMINI, key: str = "",
     req = urllib.request.Request(
         API_GEMINI.format(model=model), data=json.dumps(body).encode(),
         headers={"Content-Type": "application/json", "x-goog-api-key": key})
-    with urllib.request.urlopen(req, timeout=timeout) as r:
-        d = json.loads(r.read())
+
+    # ⚠️ Free tier chặn theo lượt/phút. Chạy 24 gói liên tiếp là **chắc chắn**
+    # gặp HTTP 429 giữa chừng — đã gặp thật ở gói thứ 21. Không lùi thời gian
+    # thì cả vòng chạy chết và ta mất luôn phần đã làm.
+    cho = 8
+    for lan in range(4):
+        try:
+            with urllib.request.urlopen(req, timeout=timeout) as r:
+                d = json.loads(r.read())
+            break
+        except urllib.error.HTTPError as e:
+            if e.code in (429, 500, 503) and lan < 3:
+                time.sleep(cho)
+                cho *= 2
+                continue
+            raise
+    else:
+        return ""
     try:
         return d["candidates"][0]["content"]["parts"][0]["text"].strip()
     except (KeyError, IndexError):
