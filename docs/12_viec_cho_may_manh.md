@@ -6,9 +6,10 @@
 
 ## Bối cảnh 30 giây
 
-Điểm leaderboard: **5,4**, đội cao nhất 12,2. Đã tăng được từ 0,8 qua ba bước —
-đổi sang kênh ảnh SigLIP2 (3,8), rồi cho Gemini xếp lại top-20 (4,8) và top-50
-(5,4). **Sau đó chững hẳn**: bốn lượt nộp liên tiếp không tăng, một lượt còn tụt.
+Điểm leaderboard: **6,2** (cập nhật 21/08 tối, xem A36), đội cao nhất 12,2. Đã
+tăng được từ 0,8 qua ba bước — đổi sang kênh ảnh SigLIP2 (3,8), rồi cho Gemini
+xếp lại top-20 (4,8) và top-50 (5,4), **chững lại 4 lượt**, rồi vá 3 đáp án
+Q&A đã xác minh bằng mắt đưa lên **6,2** (A36).
 
 Nguyên nhân đã khoanh được: trần 5,4 **không phá được bằng cách cải thiện khâu
 xếp lại** — phần còn thiếu nằm ở **bể ứng viên**, tức ở kênh 1 (SigLIP2). Nếu
@@ -19,6 +20,26 @@ Mà mọi việc động tới kênh 1 đều **tắc ở máy 7,7 GB**: không 
 
 **Vì thế cần máy của bạn.** Việc 1 dưới đây mở khoá cả năm việc còn lại và chỉ
 mất ~10 phút.
+
+> 🔴 **CẬP NHẬT 21/08 tối — cả 6 việc dưới đây đã xong trong ngày, xem A29-A34
+> trong `Ke_hoach_AIC2026_v4.md`.** Đã thử nộp thật tổ hợp RRF(A30)+xếp lại
+> ảnh(A33) — kết quả **~5,0, TỆ HƠN 5,4**, dù cả hai đều đo dương trên dev.
+> Nguyên nhân: RRF được đo bằng câu KHÔNG tách, nhưng đề thật bị `run.py` tách
+> câu (đề thật dài 63 từ, dev chỉ 12/60 câu đủ dài để lộ ra khác biệt này —
+> đúng lỗi mù đã cảnh báo ở A19/A20, lần thứ ba). Đã nộp lại bản AN TOÀN (đúng
+> công thức A27/A28) để phục hồi mốc. Đã soạn thêm 20 câu dev DÀI và đo lại
+> với n=32: **RRF trung tính trên câu dài (⚪ không đổi gì)** — xác nhận
+> **không nên bật `--hop-nhat` cho bài nộp thật**. **Bài học: không ráp nhiều
+> kỹ thuật mới đo riêng lẻ vào MỘT lượt nộp thật — đổi một thứ, nộp, đối
+> chiếu.** Xem A34. **Bản an toàn đã nộp lại đạt 6,2 — CAO HƠN mốc 5,4 cũ**
+> (A36), nhờ vá 3 đáp án Q&A đã xác minh bằng mắt. Mốc nền từ nay là 6,2.
+> Đã thêm cờ `--hop-nhat-chi-cau-ngan` vào `run.py` (RRF tự tắt cho câu dài,
+> A35) — chưa nộp thật, để dành cho lượt nộp riêng tiếp theo.
+>
+> **Cập nhật thêm: xếp lại bằng ẢNH một mình nộp thật chỉ được 4,2 — TỆ NHẤT
+> trong 3 cấu hình đã thử, dù trên dev nó là tín hiệu đẹp nhất (A37).** Kết
+> luận: **xếp lại bằng CHỮ vẫn là lựa chọn mặc định duy nhất đáng tin** (3/3
+> lần đúng trên leaderboard thật). Tạm dừng đầu tư thêm vào xếp lại bằng ảnh.
 
 ---
 
@@ -53,69 +74,63 @@ Máy yếu dùng nó như sau, không nạp model gì:
 
 ---
 
-## VIỆC 2 — Đo TRAKE *(3/24 gói, chưa từng đo được lần nào)*
+## VIỆC 2 — Đo TRAKE — ✅ **XONG (21/08)**
 
-Tập dev vừa có **13 câu TRAKE** (L24, L27, L30 — đã soát bằng mắt, mô tả khớp
-ảnh). Trước đó chỉ có 3 câu nên `run.dung_trake()` — thứ quyết định điểm của cả
-một dạng truy vấn — chưa bao giờ được đo.
+Tập dev nay có **23 câu TRAKE** (L24, L26, L27, L30). Đo cả hai script bằng
+`index/truy_van.npz` (không cần nạp model):
 
 ```powershell
-.venv\Scripts\python.exe scripts\22_do_trake.py
-.venv\Scripts\python.exe scripts\26_do_don_cuc_trake.py
+.venv\Scripts\python.exe scripts\22_do_trake.py --cache index\truy_van.npz
+.venv\Scripts\python.exe scripts\26_do_don_cuc_trake.py --cache index\truy_van.npz
 ```
 
-Script thứ hai so **ba chính sách chống dồn cục**. Đã chạy trên máy yếu với ứng
-viên kênh 3 và ra **0,0000 cả ba** — kênh 3 không tìm được sự kiện TRAKE nào, nên
-phép đo không kết luận được gì. Với ứng viên kênh 1 thì mới có điểm để so.
+(script 26 vừa được thêm cờ `--cache` — bản cũ chỉ đo được trên kênh 3 và ra
+0,0000 cả ba biến thể, không kết luận được gì).
 
-**Vì sao đáng làm:** bài nộp hiện tại có **47/100 dòng** ở `query-p1-18-trake` và
-33/100 ở `query-p1-4-trake` chứa cặp sự kiện cách nhau **dưới 100 frame** — ví dụ
-thật `L23_V013,0,1,2,2298`, tức ba sự kiện cách nhau 0,03 giây. Chắc chắn vô
-nghĩa, nhưng chưa có bằng chứng nào để đổi mặc định.
+**Kết quả — xem A29 trong `Ke_hoach_AIC2026_v4.md`:**
 
-Báo về: bảng điểm ba chính sách ở hai mức dung sai.
+* `run.dung_trake()` thật (D_THAT) **thắng cả ba biến thể giả lập** — không
+  cần sửa gì ở khâu lắp ráp.
+* RRF kênh1+4 vào TRAKE **lỗ**, đúng quy luật đã biết ở A28 — không trộn kênh
+  4 vào TRAKE.
+* Chốt chống dồn cục "xét từng cặp" (đề xuất ở đây trước đó) bắt sạch 100%
+  dồn cục nhưng **làm điểm tệ đi** (−0,058 ở ±2s, −0,116 ở ±15s) — **không
+  thêm vào `run.py`**. Nghi ngờ ban đầu ("47/100 dòng dồn cục chắc chắn vô
+  nghĩa") **bị chính phép đo bác**: ép rải đều mất nhiều hơn được.
+
+**Không còn việc gì cần làm ở đây** — giữ nguyên `run.dung_trake()` hiện tại.
 
 ---
 
-## VIỆC 3 — Đo lọc xếp tầng SigLIP2 + OCR **trên tập dev**
+## VIỆC 3 — Đo lọc xếp tầng SigLIP2 + OCR trên tập dev — ✅ **XONG (21/08), kết quả GÂY LO NGẠI — xem A31**
 
-Đây là kỹ thuật đã đưa điểm 3,8 → 5,4 **nhưng chưa bao giờ đo được trên tập
-dev** — nó được dò thẳng bằng leaderboard, khác mọi cấu hình khác trong dự án.
+Kết quả: kỹ thuật ăn +1,6 điểm trên leaderboard chỉ được **+0,01 (🟡 YẾU,
+không vượt nhiễu)** trên 60 câu KIS dev — **lần mù thứ ba của tập dev** (sau
+A19, A20), lần này chênh lệch tới 160x. Xem phân tích đầy đủ ở A31
+`Ke_hoach_AIC2026_v4.md`: không đủ bằng chứng để kết luận kỹ thuật này ảo,
+cũng không đủ để tin dev đang đo đúng khâu xếp lại — **khuyến nghị: giữ
+nguyên bài nộp, nhưng đừng tinh chỉnh tiếp khâu xếp lại dựa trên dev.**
 
-Quy luật đã đo được cả hai phía, cần kiểm chứng lại trên dev:
-
-```
-XẾP LẠI trong bể kênh 1 đã chọn   →  +1,6 điểm   (3,8 → 5,4)
-THAY THẾ bằng ứng viên mới        →  −0,4 điểm   (5,4 → 5,0)
-```
-
-Cách đo: lấy top-100 của SigLIP2 cho từng câu dev, cho kênh 3 (OCR+ASR) xếp lại
-top-50, chấm bằng `cham_diem.bao_cao_do_nhay`. Nếu dev **không** tái lập được
-mức tăng này thì tập dev đang mù thêm một lần nữa (đã mù hai lần: A19, A20) — và
-đó cũng là thông tin quan trọng.
+Đã đo thêm: `RRF(1,3,w=0,1)` (A30) làm bể ứng viên rồi mới xếp lại =
+0,4367/0,5833, nhỉnh hơn xếp lại một mình (0,4267/0,5833) nhưng vẫn 🟡 YẾU.
+Hai kỹ thuật **không triệt tiêu nhau** — có thể dùng cùng lúc cho lượt nộp
+sau, xem A31.
 
 ---
 
-## VIỆC 4 — Phân rã truy vấn bằng LLM *(đòn bẩy lớn nhất còn lại)*
+## VIỆC 4 — Phân rã truy vấn bằng LLM — ✅ **ĐO XONG (21/08), BỊ BÁC trên câu ngắn — xem A32**
 
-Đề thi dài **63 từ / 2,4 mệnh đề**, trong khi text encoder SigLIP2 chỉ nhận
-**64 token**. Hiện đang cắt theo dấu câu rồi lấy điểm cao nhất — thô.
+`scripts/32_do_phan_ra_llm.py --cache index/truy_van.npz --lam 0.15 --fp16`.
+Kết quả trên 60 câu KIS dev: **−0,0533/−0,0733, ✅ ỔN ĐỊNH theo chiều xấu đi**
+— phân rã làm tệ hơn, không tốt hơn.
 
-Thử: dùng LLM (Gemini, khoá đã có trong `.env`) viết lại mỗi truy vấn thành
-**3 mệnh đề thị giác ngắn ≤ 20 từ**, mỗi mệnh đề một góc nhìn:
-
-1. cảnh tổng thể / không gian
-2. hành động của nhân vật
-3. vật thể đặc trưng cận cảnh
-
-Rồi mã hoá cả ba (Việc 1 đã có sẵn công cụ: `--them "..."`) và gộp điểm:
-
-```
-Score(i) = max_j cos(v_i, q_j) + λ · Σ_j cos(v_i, q_j)      với λ ≈ 0,1–0,2
-```
-
-**Đo trên tập dev trước khi nộp.** Mốc nền là `tach_truy_van` hiện tại, không
-phải "không cắt gì".
+**Nhưng ĐỪNG đóng hẳn hướng này.** Câu dev (~15-20 từ) ngắn hơn đề thật (63
+từ) tới 3 lần — `tach_truy_van` trên dev gần như không cắt gì, nên phép đo
+này chỉ trả lời được "phân rã có hại cho câu ngắn không" (có), không trả lời
+được câu đang cần: "phân rã có giúp câu DÀI (đúng vấn đề ban đầu) không".
+Việc còn lại nếu muốn theo tiếp: đo trên **24 câu đề mẫu** (`dev/THUNGHIEM-bo-de-thi`,
+dài đúng kiểu đề thật) thay vì tập dev — script đã viết sẵn, chỉ cần trỏ
+nguồn câu hỏi khác.
 
 ---
 
@@ -143,33 +158,16 @@ Bước 4 chuẩn hoá **trong phạm vi 100 ứng viên** chính là cách né 
 
 ---
 
-## VIỆC 6 — Xếp lại bằng ảnh, **với đủ keyframe**
+## VIỆC 6 — Xếp lại bằng ảnh, với đủ keyframe — ✅ **XONG (21/08), KẾT QUẢ TỐT NHẤT — xem A33**
 
-Đã thử trên máy yếu: **5,4 → 5,2, tệ đi**. Nhưng nguyên nhân nhiều khả năng là
-**hiện vật của máy, không phải của kỹ thuật**:
+Máy này có đủ 100% keyframe (177.321/177.321). Đo trên 60 câu KIS dev:
+**+0,0300/+0,0267, ✅ ỔN ĐỊNH, 9 thắng–1 thua–50 hoà** — cấu hình xếp lại
+**tốt nhất** đo được trên dev hôm nay (hơn cả xếp lại bằng chữ +0,01 và
+RRF+chữ +0,02). **Xác nhận: máy cũ thiếu ảnh (21%) mới là nguyên nhân làm
+điểm tệ đi 5,4→5,2, không phải bản thân kỹ thuật.**
 
-| | |
-| --- | --- |
-| Máy yếu chỉ có ảnh của L21/L22/L24/L27/L30 | **21% toàn kho** |
-| Trong top-50 của 18 gói KIS | 537/900 khung có ảnh (60%), lệch mạnh: có gói 50/50, có gói 2/50 |
-| Sau khi xếp lại bằng ảnh, hạng 1 là khung **có ảnh** | **13/18** (trước đó 10/18) |
-
-Bộ xếp lại **chỉ đẩy lên được thứ nó nhìn thấy**, nên nó đẩy 21% kho lên trên
-79% còn lại — thiên vị theo *"máy nào đã tải nhóm nào"*, không theo chất lượng.
-
-**Nếu máy bạn có đủ keyframe toàn kho**, chạy lại và so:
-
-```powershell
-.venv\Scripts\python.exe scripts\30_xep_lai_thi_giac.py `
-    --nguon firstdance6.zip --de dev\THUNGHIEM-bo-de-thi `
-    --ra submission_thigiac --nen thigiac_du_anh.zip
-```
-
-Nếu vẫn tệ đi khi đã đủ ảnh thì kết luận mới chắc: xếp lại bằng thị giác không
-giúp, và ta khép hướng đó lại.
-
-**Trước khi chạy, cho nhóm biết máy bạn đang có ảnh của những nhóm L nào** —
-con số đó quyết định đọc kết quả thế nào.
+**Khuyến nghị: đưa `scripts/30_xep_lai_thi_giac.py` vào bài nộp chính**, chạy
+trên máy đủ ảnh toàn kho. Đây là ứng viên mạnh nhất cho lượt nộp tiếp theo.
 
 ---
 

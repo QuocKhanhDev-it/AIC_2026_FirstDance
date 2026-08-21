@@ -1,0 +1,4 @@
+# Lệnh đã sinh ra các file .csv trong thư mục này.
+# Không nằm trong zip nộp BTC (dong_goi chỉ nén *.csv).
+
+python src/run.py --de dev/THUNGHIEM-bo-de-thi --ra sub_rrf_thichnghi_buoc1 --matrix clip_siglip2.npy --cache index/truy_van.npz --hop-nhat --bo-metadata --trong-so-phu 0.1 --hop-nhat-chi-cau-ngan --tra-loi "không rõ" --nen sub_rrf_thichnghi_buoc1.zip
