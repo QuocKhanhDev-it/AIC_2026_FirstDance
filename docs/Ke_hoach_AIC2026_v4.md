@@ -1826,6 +1826,83 @@ mọi cấu hình khác trong tài liệu này — ghi rõ để người sau kh
 
 ---
 
+### A28 — Đường liều của xếp lại: **bão hoà ở top-50**, và lọc cứng OCR **làm tệ đi**
+
+Bốn lượt nộp liên tiếp, mỗi lượt đổi **đúng một thứ** trên cùng một nền
+(bài nộp 3,8 của SigLIP2):
+
+| Lượt | Cấu hình | Điểm | So với trước |
+| --- | --- | ---: | --- |
+| #3,5,6,7 | không xếp lại | 3,8 | mốc |
+| #8 | xếp lại **top-20** | **4,8** | **+1,0** |
+| #9 | xếp lại **top-50** | **5,4** | **+0,6** |
+| #10 | xếp lại **top-100** | 5,4 | ⚪ **+0,0 — bão hoà** |
+| #11 | top-50 **+ lọc cứng OCR toàn kho** | 5,0 | ❌ **−0,4** |
+
+#### Bão hoà ở 50, và vì sao con số đó hợp lý
+
+Mức tăng giảm dần rồi tắt: **+1,0 → +0,6 → +0,0**. Lời nhắc buộc Gemini chỉ đẩy
+lên khi có **bằng chứng RÕ** trong văn bản, mà những ứng viên như thế nằm tập
+trung ở đầu danh sách của SigLIP2 — quét sâu tới 100 chỉ thêm những khung không
+có bằng chứng gì, và Gemini bỏ qua chúng đúng như được dặn.
+
+→ **Chốt `--top 50`.** Quét sâu hơn chỉ tốn thêm lượt gọi API.
+
+#### Lọc cứng OCR toàn kho: kỹ thuật thứ **sáu** từ bài báo AIC'25 bị bác
+
+`scripts/29_loc_cung_gemini.py` quét cả 165.259 khung có OCR và chèn khung
+SigLIP2 **chưa từng trả về** lên đầu. Đây là A8.5 — cú pháp `/filter all
+ocr{hidro}` thắng **3/5 ví dụ thực chiến** của đội AIC'25. Đo được: **−0,4**.
+
+Và nó thua đúng theo cơ chế đã ghi sẵn trong docstring của chính nó:
+
+> *28 chỉ xáo thứ tự nên xấu nhất là hoà; 29 **đẩy khung mới lên hạng 1**, tức
+> đánh đổi hạng 1 của SigLIP2 lấy một phỏng đoán dựa trên chữ.*
+
+Ranh giới nay đã rõ và **đo được cả hai phía**:
+
+    XẾP LẠI trong bể kênh 1 đã chọn   -> +1,6 điểm  (3,8 -> 5,4)
+    THAY THẾ bằng ứng viên mới         -> -0,4 điểm  (5,4 -> 5,0)
+
+Cùng một kênh OCR, cùng một model Gemini, cùng một truy vấn. Khác nhau **duy
+nhất ở chỗ kênh yếu được phép làm gì**.
+
+> **Đây là phát biểu chính xác nhất tới giờ của bài học đắt nhất trong repo,**
+> sau khi A27 đã sửa nó một lần:
+>
+> * ~~"kênh yếu làm tệ đi"~~ — sai, A27 bác
+> * ~~"kênh yếu không được bỏ phiếu ngang hàng"~~ — đúng nhưng chưa đủ
+> * **"kênh yếu chỉ được XẾP LẠI những gì kênh mạnh đã chọn, không được THÊM
+>   hay THAY"** — khớp cả sáu phép đo
+
+Chẩn đoán của chính script cũng nói trước điều này: trong 21 gói KIS/QA, Gemini
+nêu được cụm chữ đặc trưng cho 4 gói, và với `query-p1-24-kis` nó nhận `'Team'`
+làm token hiếm — một từ tiếng Anh thông thường lọt qua ngưỡng tần suất chỉ vì kho
+OCR tiếng Việt ít gặp nó. Đúng kiểu lỗi `run.loc_cung` đã mắc với `Một`, `Trong`,
+`Sau`, chỉ là ở tầng khác.
+
+#### Còn dư địa ở đâu
+
+Bão hoà nằm ở **lượng ứng viên được xem**, không nhất thiết ở **lượng bằng chứng
+về mỗi ứng viên**. Hiện Gemini chỉ thấy 240 ký tự OCR + 240 ký tự ASR của đúng
+một khung. Hướng tiếp: thêm **tiêu đề video** vào bằng chứng
+(`28_xep_lai_bang_gemini.py --metadata`).
+
+Vì sao đáng thử dù A12 đo kênh 2 chỉ được 0,0000: tiêu đề mô tả **cả video**, nên
+nó vô dụng khi chọn giữa các khung TRONG một video — nhưng ở đây Gemini đang chọn
+giữa các khung của **nhiều video khác nhau**, và *"video này nói về cái gì"* đúng
+là thứ tiêu đề trả lời được.
+
+**ĐÃ ĐO — KHÔNG ĐỔI GÌ (lượt #12: 5,4).** Thêm tiêu đề video đổi thứ tự ở 7/18
+gói KIS mà điểm đứng yên. Nên giả thuyết *"cùng một dữ liệu, đổi vai trò thì đổi
+giá trị"* — đúng với kênh OCR — **không mở rộng được sang kênh 2**.
+
+> Ba lần liên tiếp không đổi điểm (top-100, metadata) trong khi hai lần đầu tăng
+> mạnh: trần 5,4 **không phá được bằng cách cho Gemini nhiều bằng chứng hơn về
+> cùng những ứng viên đó**. Phần còn thiếu nằm ở BỂ ỨNG VIÊN — tức ở kênh 1.
+
+---
+
 ## PHẦN B — QUYẾT ĐỊNH HẠ TẦNG
 
 ### B1. Không dùng Supabase / Postgres / Milvus / Elasticsearch — ĐÃ KIỂM CHỨNG

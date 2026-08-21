@@ -54,8 +54,8 @@ NHAC = """Bạn đang giúp xếp hạng lại kết quả tìm kiếm video.
 TRUY VẤN:
 {truy_van}
 
-Dưới đây là {n} khung hình ứng viên. Với mỗi khung, bạn CHỈ thấy chữ đọc được
-(OCR) và lời nói (ASR) quanh khung đó — bạn KHÔNG nhìn thấy hình.
+Dưới đây là {n} khung hình ứng viên. Với mỗi khung, bạn CHỈ thấy tiêu đề video,
+chữ đọc được (OCR) và lời nói (ASR) quanh khung đó — bạn KHÔNG nhìn thấy hình.
 
 {ung_vien}
 
@@ -81,8 +81,16 @@ def doc_zip(z: Path) -> dict:
 
 
 def van_ban_cua(bang, master, video_id: str, frame_idx: int,
-                toi_da: int = 240) -> str:
-    """Chữ OCR+ASR của khung `(video_id, frame_idx)`, cắt ngắn cho vừa lời nhắc."""
+                toi_da: int = 240, metadata: bool = False) -> str:
+    """Bằng chứng văn bản về khung `(video_id, frame_idx)`, cắt cho vừa lời nhắc.
+
+    `metadata=True` thêm TIÊU ĐỀ video vào trước. Vì sao đáng thêm dù A12 đo
+    được kênh 2 chỉ 0,0000 ở mức khung: tiêu đề mô tả **cả video**, nên nó vô
+    dụng khi phải chọn giữa các khung TRONG một video — nhưng ở đây Gemini đang
+    chọn giữa các khung của **nhiều video khác nhau**, và câu hỏi "video này nói
+    về cái gì" là đúng thứ tiêu đề trả lời được. Cùng một dữ liệu, đổi vai trò
+    thì đổi giá trị.
+    """
     g = master[(master.video_id == video_id)
                & (master.frame_idx.astype(int) == int(frame_idx))]
     if g.empty:
@@ -91,16 +99,25 @@ def van_ban_cua(bang, master, video_id: str, frame_idx: int,
     x = bang.iloc[rid]
     o = " ".join(str(x.get("ocr_text", "") or "").split())
     a = " ".join(str(x.get("asr_text", "") or "").split())
-    return (f"OCR: {o[:toi_da]}" + (f" | ASR: {a[:toi_da]}" if a else "")).strip()
+    phan = []
+    if metadata:
+        tieu_de = " ".join(str(g.title.iloc[0] or "").split())
+        if tieu_de:
+            phan.append(f"VIDEO: {tieu_de[:toi_da]}")
+    if o:
+        phan.append(f"OCR: {o[:toi_da]}")
+    if a:
+        phan.append(f"ASR: {a[:toi_da]}")
+    return " | ".join(phan)
 
 
 def xep_lai(dong: list, truy_van: str, bang, master, top: int,
-            model: str) -> tuple[list, list]:
+            model: str, metadata: bool = False) -> tuple[list, list]:
     """Trả `(thứ tự mới, các vị trí được đẩy lên)`. Không bỏ dòng nào."""
     dau = dong[:top]
     mo_ta = []
     for i, r in enumerate(dau, 1):
-        vb = van_ban_cua(bang, master, r[0], r[1])
+        vb = van_ban_cua(bang, master, r[0], r[1], metadata=metadata)
         mo_ta.append(f"[{i}] {r[0]} frame {r[1]} — {vb or '(không có chữ)'}")
 
     tho = _goi_gemini(NHAC.format(truy_van=truy_van, n=len(dau),
@@ -130,6 +147,8 @@ def main():
     ap.add_argument("--top", type=int, default=20,
                     help="chỉ xếp lại ngần này ứng viên đầu")
     ap.add_argument("--model", default=MODEL_GEMINI)
+    ap.add_argument("--metadata", action="store_true",
+                    help="thêm TIÊU ĐỀ video vào bằng chứng cho mỗi ứng viên")
     ap.add_argument("--nen", metavar="FILE.zip")
     a = ap.parse_args()
 
@@ -151,7 +170,8 @@ def main():
                         for r in dong]
             continue
 
-        moi, chon = xep_lai(dong, de.get(ten, ""), bang, master, a.top, a.model)
+        moi, chon = xep_lai(dong, de.get(ten, ""), bang, master, a.top,
+                            a.model, a.metadata)
         goi[ten] = [AnswerKIS(r[0], int(r[1])) for r in moi]
         print(f"  {ten:<20} đẩy lên {len(chon):>2} ứng viên"
               f"{'  -> ' + str(chon[:5]) if chon else '  (văn bản không giúp gì)'}")
