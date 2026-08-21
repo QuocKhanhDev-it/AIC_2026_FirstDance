@@ -1673,6 +1673,104 @@ nạp model lại là thứ treo máy.
 
 ---
 
+### A26 — Q&A trả lời từ OCR/ASR: **31% khớp chuỗi chính xác** ở khung đúng
+
+#### Trước hết: `.env` suýt lọt lên GitHub
+
+Khoá Gemini được đặt vào `c:\Code\aic2026\.env`, mà `.gitignore` **không có luật
+nào cho `.env`**. Git chưa kịp theo dõi nó nên chưa lọt, nhưng chỉ cần một lần
+`git add -A` là xong — đúng kiểu lỗ hổng đã làm lọt 15 ảnh keyframe. Đã vá:
+`.env`, `.env.*`, chừa `!.env.mau`.
+
+Hai chi tiết kỹ thuật đáng ghi vì cả hai đều làm mất thời gian:
+
+* Tên biến trong file thật ghi `GEMINI_API_KEY =...` — **có dấu cách trước `=`**.
+  Không cắt khoảng trắng quanh TÊN thì tra cứu trượt, mà triệu chứng lại là
+  "không tìm thấy khoá" → rất dễ đổ nhầm cho việc chưa đặt khoá. `tra_loi.nap_khoa()`
+  cắt cả hai phía.
+* Khoá của nhóm dạng **`AQ.A...` 53 ký tự**, không phải `AIza...` 39 ký tự mà
+  `14_sinh_caption.py` viết cho, và nó đi qua **header `x-goog-api-key`** chứ
+  không phải `?key=` trên URL. Đã thử và xác nhận: hỏi `/v1beta/models` trả về
+  50 model, có `gemini-3.1-flash-lite`.
+
+#### Đường OCR → LLM, không cần VLM
+
+Ba câu Q&A của đề mẫu đều hỏi **chữ hiện trên hình** (A25), tức cần **đọc** chứ
+không cần **nhìn**. Chữ đó đã nằm trong `ocr_asr.parquet`. Nên `src/tra_loi_ocr.py`
+đi đường này, và nó **không cần VLM, không cần ảnh trên đĩa, không đụng chốt RAM**.
+
+Thử trên đúng ba câu đề mẫu, ở khung đã xác minh bằng mắt:
+
+| Gói | Gemini 3.1 flash-lite trả về | Đáp án đã xác minh |
+| --- | --- | --- |
+| `15-qa` | `Giang Ly` | ✅ đúng |
+| `19-qa` | `Hỏa hồng Nhật Tảo oanh thiên địa, kiếm **bạc** Kiên Giang khấp quỷ thần` | 🟡 sai một chữ (`bạt`) |
+| `22-qa` | `Bánh ít trần` | ✅ đúng |
+
+Câu thứ ba đáng nói: đó là câu **tôi không xác minh được bằng mắt** vì máy không
+có ảnh L26, chỉ suy từ OCR. Gemini độc lập rút ra cùng đáp án — một phép kiểm
+chéo, không phải bằng chứng, nhưng làm tăng độ tin.
+
+#### Đo trên 42 câu Q&A của tập dev, tại KHUNG ĐÁP ÁN
+
+`scripts/27_do_tra_loi_qa.py`. Chấm ở khung đúng chứ không phải khung do truy hồi
+trả về — đây là **trần trên**, vì điểm Q&A thi thật là tích của hai thứ.
+
+| Mức khớp | Đúng | Tỷ lệ |
+| --- | ---: | ---: |
+| **chuỗi chính xác** | 13/42 | **31,0%** |
+| không phân biệt hoa/dấu câu | 15/42 | 35,7% |
+| chứa nhau (một bên nằm trong bên kia) | 24/42 | **57,1%** |
+
+Báo cả ba vì **BTC tự mâu thuẫn** giữa *"ngữ nghĩa"* (tr.2) và *"chuỗi chính
+xác"* (tr.8) — C7. Con số thật nằm giữa 31% và 57%, và **khoảng cách đó chính là
+giá của việc chưa hỏi BTC**.
+
+Con số này khớp đúng dự đoán của D0.3: *"trần độ đúng ~30–50% ở MỌI model"*.
+
+#### Câu nào trượt — và nó chia làm hai loại rất rạch ròi
+
+    "Có bao nhiêu con mèo được chàng trai cho ăn?"      -> không rõ
+    "Những chùm nho có màu gì?"                         -> không rõ
+    "Có bao nhiêu gói Blendy xếp chồng trên đĩa?"       -> không rõ
+
+Toàn bộ câu **đếm** và câu **màu sắc** đều trượt, và trượt đúng cách nên trượt:
+OCR không chứa thông tin đó. Đây là ranh giới của đường này, và nó **đúng bằng
+chỗ VLM phải vào**. Hai đường bổ sung nhau, không thay nhau:
+
+    câu hỏi CHỮ trên hình  -> OCR + LLM văn bản   (rẻ, chạy máy yếu, phủ toàn kho)
+    câu hỏi ĐẾM / MÀU      -> VLM nhìn ảnh        (cần model vision + ảnh trên đĩa)
+
+Loại trượt thứ hai tinh vi hơn — đọc được nhưng đọc sai:
+
+    qa-L28-003   đáp án "Cừ Đứt"   -> "Cù lao Cù Dút"   (OCR mất dấu, đoán nhầm)
+    qa-L29-006   đáp án "Tân Hôn"  -> "Đôi Mắt"          (đọc nhầm chữ khác trong khung)
+
+#### `qwen2.5:3b` không đủ, và luật thì đủ cho một loại câu
+
+Model 3B local đọc đúng chuỗi OCR `XaGiang Ly.huyen Khanh Vinh.tinh Khanh Hod`
+mà vẫn trả *"không rõ"* — nó không gỡ nổi chữ dính mất dấu. Nên `doan_dia_danh()`
+rút bằng **luật**: `\s*` chứ không phải `\s+`, vì OCR dính chữ. Chạy đúng trên
+dữ liệu thật: `xã → Giang Ly`, `huyện → Khanh Vinh`.
+
+Luật gỡ được vì nó **không cần hiểu**. Giữ nó làm đường lui khi không có mạng
+hoặc hết quota.
+
+#### Một lỗi đã đo và đã sửa: ASR chôn mất OCR
+
+Bản đầu dùng thẳng cột `text` (đã gộp `ocr + " . " + asr`). ASR dài trung bình
+**463 ký tự và lặp y hệt trên nhiều khung liền nhau**, OCR chỉ ~90 — gộp phẳng
+thì phần chữ trên màn hình bị chôn giữa một biển lời thoại. Ba câu ra ba lỗi:
+
+    "xã này tên gì"  -> "không rõ"       (OCR chứa đáp án, bị chôn)
+    "hai câu thơ"    -> chỉ ra vế đầu
+    "tên món ăn"     -> "Bánh ít trơn"   (nghe theo ASR; OCR ghi TRAN)
+
+Sửa: tách OCR khỏi ASR, **OCR lên trước**, bỏ trùng theo mặt chữ. Sau khi sửa,
+Gemini trả đúng cả ba.
+
+---
+
 ## PHẦN B — QUYẾT ĐỊNH HẠ TẦNG
 
 ### B1. Không dùng Supabase / Postgres / Milvus / Elasticsearch — ĐÃ KIỂM CHỨNG

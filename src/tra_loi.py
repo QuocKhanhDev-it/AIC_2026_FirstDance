@@ -78,6 +78,40 @@ _MO_DAU = re.compile(
 _CAU_DAY = re.compile(r"^(có|là|gồm|khoảng)\s+", re.I)
 
 
+def nap_khoa(ten=("GEMINI_API_KEY", "GOOGLE_API_KEY"), f=None) -> str:
+    """Đọc khoá API từ `.env` ở gốc repo, trả về khoá đầu tiên tìm thấy.
+
+    Vì sao tự viết thay vì dùng `python-dotenv`: thêm một phụ thuộc chỉ để đọc
+    một file `KEY=VALUE` là không đáng, và `requirements.txt` càng mỏng thì máy
+    thành viên càng ít cớ dựng hỏng.
+
+    ⚠️ **Cắt khoảng trắng quanh TÊN biến, không chỉ quanh giá trị.** File thật
+    trên máy ghi `GEMINI_API_KEY =...` — có dấu cách trước `=`. Không cắt thì
+    tên biến thành `"GEMINI_API_KEY "` và tra cứu trượt, mà triệu chứng lại là
+    "không tìm thấy khoá" — rất dễ đổ nhầm cho việc chưa đặt khoá.
+
+    ⚠️ **KHÔNG BAO GIỜ in khoá ra màn hình hay log.** Repo công khai, và log
+    hay bị dán vào chat/issue. Hàm này trả chuỗi; chỗ gọi tự giữ kín.
+    """
+    import os
+    for t in ten:                       # biến môi trường thật thắng file
+        if os.environ.get(t):
+            return os.environ[t]
+    f = Path(f) if f else Path(__file__).resolve().parent.parent / ".env"
+    if not f.exists():
+        return ""
+    for dong in f.read_text("utf-8").splitlines():
+        dong = dong.strip()
+        if not dong or dong.startswith("#") or "=" not in dong:
+            continue
+        k, v = dong.split("=", 1)
+        k, v = k.strip(), v.strip().strip("'\"")
+        if k in ten and v:
+            os.environ.setdefault(k, v)
+            return v
+    return ""
+
+
 def don_dap_an(text: str, toi_da: int = TOI_DA) -> str:
     """Ép câu trả lời của VLM về dạng ngắn, chuẩn tắc.
 

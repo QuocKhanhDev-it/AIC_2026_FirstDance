@@ -47,13 +47,21 @@ import pandas as pd
 GOC = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(GOC / "src"))
 
-from tra_loi import TOI_DA, don_dap_an                # noqa: E402
+from tra_loi import TOI_DA, don_dap_an, nap_khoa      # noqa: E402
 
 API_OLLAMA = "http://localhost:11434/api/generate"
 
 # Model THUẦN VĂN BẢN là đủ — đầu vào đã là chữ. Đây chính là chỗ khác biệt lớn
 # so với `tra_loi.py`, nơi model bắt buộc phải nhìn được ảnh.
 MODEL_MAC_DINH = "qwen2.5:3b"
+
+# Gemini: nhanh, mạnh hơn hẳn model 3B local trên việc gỡ OCR dính chữ mất dấu.
+# ⚠️ Khoá đi qua HEADER `x-goog-api-key`, không phải `?key=` trên URL — đã thử
+# và xác nhận trên khoá thật của nhóm (dạng `AQ.A...`, 53 ký tự, khác dạng
+# `AIza...` 39 ký tự mà `14_sinh_caption.py` viết cho).
+API_GEMINI = ("https://generativelanguage.googleapis.com/v1beta/models/"
+              "{model}:generateContent")
+MODEL_GEMINI = "gemini-3.1-flash-lite"
 
 NHAC = """Dưới đây là chữ đọc được (OCR) và lời nói (ASR) trong một đoạn video.
 
@@ -143,16 +151,45 @@ def _goi_ollama(loi_nhac: str, model: str, timeout: int = 120) -> str:
             f"   Chạy `ollama serve` và `ollama pull {model}` trước.")
 
 
-def tra_loi_tu_ocr(cau_hoi: str, van_ban: str, goi=None,
-                   model: str = MODEL_MAC_DINH, toi_da: int = TOI_DA) -> str:
+def _goi_gemini(loi_nhac: str, model: str = MODEL_GEMINI, key: str = "",
+                timeout: int = 60) -> str:
+    """Gọi Gemini ở chế độ VĂN BẢN. Khoá lấy từ `.env` nếu không truyền vào."""
+    key = key or nap_khoa()
+    if not key:
+        raise RuntimeError(
+            "Chưa có khoá Gemini. Đặt GEMINI_API_KEY trong .env ở gốc repo "
+            "(file đó đã được .gitignore bỏ qua) hoặc trong biến môi trường.")
+    body = {"contents": [{"parts": [{"text": loi_nhac}]}],
+            "generationConfig": {"temperature": 0.0}}   # D0.3: temp=0 bắt buộc
+    req = urllib.request.Request(
+        API_GEMINI.format(model=model), data=json.dumps(body).encode(),
+        headers={"Content-Type": "application/json", "x-goog-api-key": key})
+    with urllib.request.urlopen(req, timeout=timeout) as r:
+        d = json.loads(r.read())
+    try:
+        return d["candidates"][0]["content"]["parts"][0]["text"].strip()
+    except (KeyError, IndexError):
+        # Bị chặn bởi bộ lọc an toàn, hoặc hết quota -> trả rỗng, ĐỪNG ném lỗi
+        # giữa một vòng chấm 42 câu.
+        return ""
+
+
+def tra_loi_tu_ocr(cau_hoi: str, van_ban: str, goi=None, backend: str = "ollama",
+                   model: str | None = None, toi_da: int = TOI_DA) -> str:
     """Đáp án ngắn rút từ `van_ban`. Rỗng nếu không rút được gì.
 
-    `goi(loi_nhac) -> str` cho phép test bơm hàm giả, hoặc thay bằng Gemini.
+    `goi(loi_nhac) -> str` cho phép test bơm hàm giả.
+    `backend`: `"ollama"` (local, miễn phí) hoặc `"gemini"` (mạnh hơn hẳn trên
+    OCR dính chữ — xem `doan_dia_danh`).
     """
     van_ban = (van_ban or "").strip()
     if not van_ban:
         return ""
-    goi = goi or (lambda ln: _goi_ollama(ln, model))
+    if goi is None:
+        if backend == "gemini":
+            goi = (lambda ln: _goi_gemini(ln, model or MODEL_GEMINI))
+        else:
+            goi = (lambda ln: _goi_ollama(ln, model or MODEL_MAC_DINH))
     tho = goi(NHAC.format(van_ban=van_ban[:4000], cau_hoi=cau_hoi))
     return don_dap_an(tho, toi_da)
 
