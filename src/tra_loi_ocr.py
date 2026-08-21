@@ -66,6 +66,10 @@ API_GEMINI = ("https://generativelanguage.googleapis.com/v1beta/models/"
               "{model}:generateContent")
 MODEL_GEMINI = "gemini-3.1-flash-lite"
 
+# TokenRouter — API tương thích OpenAI, khoá `GWEN_API_KEY` trong `.env`.
+API_QWEN = "https://api.tokenrouter.com/v1/chat/completions"
+MODEL_QWEN = "qwen/qwen3.8-max-free"
+
 NHAC = """Dưới đây là chữ đọc được (OCR) và lời nói (ASR) trong một đoạn video.
 
 --- VĂN BẢN ---
@@ -207,10 +211,55 @@ def tra_loi_tu_ocr(cau_hoi: str, van_ban: str, goi=None, backend: str = "ollama"
     if goi is None:
         if backend == "gemini":
             goi = (lambda ln: _goi_gemini(ln, model or MODEL_GEMINI))
+        elif backend in ("qwen", "tokenrouter"):
+            goi = (lambda ln: _goi_qwen(ln, model or MODEL_QWEN))
         else:
             goi = (lambda ln: _goi_ollama(ln, model or MODEL_MAC_DINH))
     tho = goi(NHAC.format(van_ban=van_ban[:4000], cau_hoi=cau_hoi))
     return don_dap_an(tho, toi_da)
+
+
+def _goi_qwen(loi_nhac: str, model: str = MODEL_QWEN, key: str = "",
+              timeout: int = 90, toi_da_token: int = 512) -> str:
+    """Gọi Qwen qua TokenRouter (API tương thích OpenAI).
+
+    ⚠️ **`max_tokens` phải RỘNG TAY, và đây là bẫy có thật.** Qwen3.8 là model
+    có chế độ suy luận: nó tiêu token vào `reasoning_content` TRƯỚC, rồi mới
+    viết `content`. Đặt `max_tokens=30` cho một câu trả lời một từ thì suy luận
+    ăn hết ngân sách và `content` trả về **rỗng** — không lỗi, không cảnh báo,
+    chỉ là đáp án trống. Đã gặp ngay ở lần gọi thử đầu tiên.
+
+    Trả `content` đã cắt khoảng trắng; `reasoning_content` bỏ đi, ta không cần
+    nó và nhét vào đáp án là hỏng định dạng.
+    """
+    key = key or nap_khoa(("GWEN_API_KEY", "QWEN_API_KEY"))
+    if not key:
+        raise RuntimeError(
+            "Chưa có khoá Qwen. Đặt GWEN_API_KEY trong .env ở gốc repo.")
+    body = {"model": model, "temperature": 0.0, "max_tokens": toi_da_token,
+            "messages": [{"role": "user", "content": loi_nhac}]}
+    req = urllib.request.Request(
+        API_QWEN, data=json.dumps(body).encode(),
+        headers={"Content-Type": "application/json",
+                 "Authorization": f"Bearer {key}"})
+    cho = 8
+    for lan in range(4):
+        try:
+            with urllib.request.urlopen(req, timeout=timeout) as r:
+                d = json.loads(r.read())
+            break
+        except urllib.error.HTTPError as e:
+            if e.code in (429, 500, 502, 503) and lan < 3:
+                time.sleep(cho)
+                cho *= 2
+                continue
+            raise
+    else:
+        return ""
+    try:
+        return (d["choices"][0]["message"].get("content") or "").strip()
+    except (KeyError, IndexError):
+        return ""
 
 
 def _goi_gemini_anh(loi_nhac: str, anh: list, model: str = MODEL_GEMINI,
