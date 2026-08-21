@@ -274,6 +274,83 @@ class KenhAnh:
         return ra[:k]
 
 
+class KenhAnhCache(KenhAnh):
+    """Kênh 1 chạy KHÔNG NẠP MODEL, bằng vector truy vấn đã mã hoá sẵn.
+
+    GỠ CHỐT RAM MÀ KHÔNG ĐỔI GÌ KHÁC
+    =================================
+
+    Máy 7,7 GB không nạp nổi `ViT-SO400M-14-SigLIP2-378` (~3,5 GB) nên mọi phép
+    đo dính kênh 1 đều tắc — kể cả phép đo TRAKE và RRF(SigLIP2, OCR), hai thứ
+    đáng giá nhất còn lại. Nhưng để ý kỹ: **model chỉ được dùng đúng một việc —
+    biến câu truy vấn thành vector 1152 chiều.** Ma trận ảnh 177.321 × 1152 thì
+    đã nằm sẵn trên đĩa.
+
+    Mà số truy vấn là **hữu hạn và biết trước**: 24 câu của bộ đề, 115 câu tập
+    dev. Mã hoá chúng MỘT LẦN trên máy khoẻ (hoặc Colab/Kaggle) ra một file vài
+    trăm KB, rồi máy yếu làm toàn bộ truy hồi bằng numpy thuần.
+
+        # máy khoẻ, chạy một lần
+        python scripts/25_ma_hoa_truy_van.py --de de_thi --ra index/truy_van.npz
+
+        # máy yếu, từ đó về sau
+        kenh = KenhAnhCache('./index', 'index/truy_van.npz')
+        kq = kenh.tim("người phụ nữ thái cà chua", k=100)
+
+    ⚠️ **`tim()` KHÔNG được viết lại ở đây — nó thừa kế nguyên vẹn.** Đó là chủ
+    ý: chỉ `encode_text` đổi từ "chạy model" thành "tra bảng". Viết lại `tim()`
+    là mở đường cho hai nhánh code lệch nhau âm thầm, mà lệch ở tầng này thì
+    mọi con số đo được trên máy yếu sẽ không so được với số đo trên máy khoẻ.
+
+    ⚠️ Truy vấn KHÔNG có trong cache thì **ném lỗi, không đoán bừa**. Trả về
+    vector 0 sẽ cho ra 100 ứng viên ngẫu nhiên trông hoàn toàn hợp lệ — đúng
+    loại hỏng im lặng mà cả repo này dựng để chặn.
+    """
+
+    def __init__(self, index_dir="./index", cache="index/truy_van.npz",
+                 matrix=None, mmap=True):
+        import json as _json
+        d = Path(index_dir)
+        z = np.load(cache, allow_pickle=False)
+        ghi_chu = _json.loads(str(z["ghi_chu"]))
+
+        self.model_tag = ghi_chu.get("model", MODEL_MAC_DINH)
+        self.pretrained = ghi_chu.get("pretrained", PRETRAINED_MAC_DINH)
+        matrix = matrix or ghi_chu.get("matrix", "clip.npy")
+
+        self.master = pd.read_parquet(d / "master.parquet")
+        self.mat = np.load(d / matrix, mmap_mode="r" if mmap else None)
+        self.chieu = self.mat.shape[1]
+
+        if len(self.master) != self.mat.shape[0]:
+            raise SystemExit(
+                f"master.parquet ({len(self.master)} dòng) và {matrix} "
+                f"({self.mat.shape[0]} dòng) LỆCH NHAU.")
+
+        vec = np.asarray(z["vec"], dtype=np.float32)
+        if vec.shape[1] != self.chieu:
+            raise SystemExit(
+                f"Cache có vector {vec.shape[1]} chiều nhưng {matrix} có "
+                f"{self.chieu} chiều. Sai cặp cache/ma trận — cache này mã hoá "
+                f"bằng {self.model_tag}.")
+        self._cache = {str(c): vec[i] for i, c in enumerate(z["cau"])}
+        self.nguon_cache = str(cache)
+
+    def encode_text(self, cau: str) -> np.ndarray:
+        v = self._cache.get(cau)
+        if v is None:
+            raise KeyError(
+                f"Truy vấn chưa có trong cache {self.nguon_cache}:\n"
+                f"  {cau[:120]!r}\n"
+                f"Cache có {len(self._cache)} câu. Mã hoá thêm bằng:\n"
+                f"  python scripts/25_ma_hoa_truy_van.py --them \"...\"")
+        return v
+
+    def co_du(self, cac_cau) -> list[str]:
+        """Các câu CHƯA có trong cache. Gọi trước khi chạy để hỏng sớm."""
+        return [c for c in cac_cau if c not in self._cache]
+
+
 def be_chung(*kenh: "KenhAnh") -> np.ndarray:
     """Bể ứng viên chung: chỉ những dòng CẢ HAI ma trận đều đã encode thật.
 
