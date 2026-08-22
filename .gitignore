@@ -57,6 +57,7 @@ desktop.ini
 # nen `submission_v2/` lot qua. Cung kieu loi da lam lot 15 anh keyframe khi
 # doi ten thu muc (xem muc Benchmark_OCR_ASR o tren).
 submission*/
+sub_*/
 *.zip
 
 # ---- de thi BTC ----
