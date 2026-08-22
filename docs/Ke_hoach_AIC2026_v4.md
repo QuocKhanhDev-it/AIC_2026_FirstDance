@@ -2342,6 +2342,88 @@ dựa trên đúng khung đã xem. Khớp CHỮ (OCR/ASR) có thể ổn định
 
 ---
 
+### A38 — Ghi chép suy nghĩ của người soát: **đề được viết từ VIDEO, hệ thống lại tìm trên KEYFRAME**
+
+Nhóm soát tay 25 gói đề sơ tuyển đợt 1 trên máy mạnh (SigLIP2) rồi kể lại từng
+ca. Đọc hết thì thấy **cùng một nguyên nhân gốc** ở gần như mọi câu, và nó không
+phải lỗi của model.
+
+#### Bằng chứng — bảy ca, cùng một dạng
+
+| Gói | Hệ thống trả về | Người phải làm gì thêm |
+| --- | --- | --- |
+| **p1-4-kis** | kf183: *"đàn sư tử… bảng London Zoo"* — **chỉ mệnh đề 1** | Mệnh đề 2 (*"hai nhân viên áo xanh cân thú"*) nằm ở kf186/187. Mà **mỗi kf chỉ có MỘT nhân viên**; cộng hai kf lại mới đủ "hai người" |
+| **p1-6-kis** | kf có mỏ đá quý | Nội dung **có thật trong video nhưng KHÔNG nằm trong keyframe nào**. Lấy dải kf lân cận thì vẫn trúng |
+| **p1-21-kis** | 3 kf mới đủ ngữ nghĩa | Ba ổ bánh mì chỉ thoáng hiện ở **một khung chuyển cảnh** |
+| **p1-9-qa** | kf có xe lội nước, đúng màu | **Đáp án nằm ở kf SAU đó** — chỉ lúc ấy mới thấy cây cầu và hai biển hiệu |
+| **p1-2-kis** | bám *"công trình thuỷ lợi"* + *"bản đồ"* | Chốt đúng là **"con đập"** — có đập thì hiển nhiên có thuỷ điện. Và *"trời mưa"* gần như vô vọng: video chất lượng thấp, mưa nhỏ không thấy hạt |
+| **p1-12-kis** | OCR bắt *"mazut"* (từ hiếm) | Nhưng khung **mơ hồ**: có xe ôm công nghệ, mà đông hơn 4 người, và **không ai rẽ trái vào khung** như đề tả |
+| **p1-15-qa** | đúng khung cần tìm | **Không đếm nổi** số tâm chấn cấp 4 — Gemini bản web cũng không chốt được con số |
+
+#### Quy luật rút ra
+
+> **Đề thi được viết bằng cách XEM VIDEO, còn hệ thống thì tìm trên KEYFRAME.**
+> Người viết đề mô tả một **quãng thời gian**; ta lại đi khớp từng **ảnh tĩnh
+> rời rạc**. Một truy vấn 63 từ / 2,4 mệnh đề gần như **không bao giờ** có đủ
+> ngữ nghĩa trong một keyframe duy nhất.
+
+Ba hệ quả, và cả ba đều đo được:
+
+**1. Nộp một DẢI luôn tốt hơn nộp một khung.** BTC chấm theo cửa sổ 4 giây–5
+phút (A9), nên khung lân cận vẫn được tính đúng. Ca `p1-6-kis` là bằng chứng
+sắc nhất: nội dung **không nằm trong keyframe nào cả**, nhưng lấy dải quanh đó
+vẫn trúng. Việc này đã làm ở `33_trai_dai_khung.py` và **hai bản nộp đều 11
+điểm** — bản trải dài không thua bản gốc.
+
+**2. Nên xếp hạng CỬA SỔ, không xếp hạng khung.** Đây là thứ chưa làm. Hiện
+`dense.tim` lấy **điểm cao nhất trên từng keyframe** qua các mệnh đề — tức nó
+thưởng cho khung khớp MỘT mệnh đề thật mạnh. Nhưng ca `p1-4` cho thấy đáp án
+đúng là khung mà **cả cụm quanh nó** phủ được nhiều mệnh đề:
+
+    điểm(cửa sổ W) = Σ_j  max_{khung f ∈ W}  cos(f, mệnh_đề_j)
+
+Cộng theo mệnh đề, lấy max trong cửa sổ. Khung nào phủ được nhiều mệnh đề khác
+nhau **trong vùng lân cận của nó** thì thắng. Đúng cách người soát đã làm bằng
+tay: *"cộng hai kf lại thì đúng bằng hai người"*.
+
+**3. Q&A phải ĐI BỘ TIẾP sau khi tìm ra cảnh.** `p1-9-qa` nói thẳng quy trình:
+tìm khung có *xe lội nước đúng màu* → rồi **duyệt các khung sau** để tìm *cây
+cầu và biển hiệu* — thứ thật sự chứa đáp án. Cảnh và đáp án **không cùng một
+khung**.
+
+> ⚠️ Đây KHÔNG mâu thuẫn với A18 (chèn khung lân cận vào danh sách nộp làm tệ
+> đi). A18 chèn lân cận **thay chỗ** ứng viên khác trong 100 dòng; ở đây lân cận
+> được dùng để **chấm điểm** và **truy tìm đáp án**, không tiêu chỗ nộp nào.
+> Cùng một dữ liệu, đổi vai trò thì đổi giá trị — như kênh OCR ở A27/A28.
+
+#### Hai ca KHÔNG thuộc quy luật trên, và cũng đáng ghi
+
+**`p1-2-kis` — hệ thống bám sai danh từ.** Đề nói *"công trình thuỷ lợi"*, người
+soát chốt bằng **"con đập"**: có đập thì hiển nhiên có thuỷ điện, việc còn lại
+chỉ là tìm bản đồ. Đây là **suy luận bắc cầu bằng tri thức thế giới**, thứ mà
+truy hồi vector không làm được nhưng LLM làm được — và là chỗ duy nhất trong cả
+25 ca mà "phân rã truy vấn bằng LLM" (A32, đang bị bác) có thể cứu được: không
+phải cắt câu, mà **thay danh từ trừu tượng bằng vật thể nhìn thấy được**.
+
+**`p1-15-qa` — trần của việc ĐẾM.** Hệ thống tìm đúng khung, nhưng không đếm nổi
+số tâm chấn cấp 4; Gemini bản web cũng không. Ghi lại để đừng đầu tư tiếp: đây
+là giới hạn của model hiện tại, không phải lỗi truy hồi. Trùng với A26 (câu đếm
+và câu màu sắc trượt 100% qua OCR).
+
+#### Một ghi nhận về chính luồng làm việc
+
+Với `p1-17-qa` (tên đèo), nhóm nhận xét luồng đã chạy là đúng: bám **từ hiếm**
+(*"sạt lở" + "đèo"*) → khoanh còn 10 video → đọc lời bình → xác minh bằng ảnh.
+Bài học nhóm rút: **chuỗi suy luận NGẮN thì ít lệch**; suy nghĩ dài dòng dễ trôi
+khỏi đáp án rồi phải quay lui.
+
+Điều đó nói ngược lại một phần với đề xuất "cho model suy luận nhiều bước hơn":
+với truy vấn có **mỏ neo văn bản** (tên riêng, địa danh, từ hiếm), đường ngắn
+nhất là bám thẳng mỏ neo đó. Suy luận nhiều bước chỉ đáng dùng khi **không có mỏ
+neo nào** — đúng nhóm câu thuần thị giác mà A26 đã khoanh.
+
+---
+
 ## PHẦN B — QUYẾT ĐỊNH HẠ TẦNG
 
 ### B1. Không dùng Supabase / Postgres / Milvus / Elasticsearch — ĐÃ KIỂM CHỨNG
