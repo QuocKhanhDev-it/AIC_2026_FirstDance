@@ -191,3 +191,9 @@ trên máy đủ ảnh toàn kho. Đây là ứng viên mạnh nhất cho lượ
    "có vẻ tốt hơn".
 3. Nếu một việc chạy không được: dán **nguyên văn thông báo lỗi**. Đừng sửa
    quanh nó — mấy chốt đó dựng ra để chặn đúng những lỗi im lặng đã cắn thật.
+
+---
+
+> ➡️ **Đợt 2 đã soạn xong: [13_lenh_cho_may_manh_dot2.md](13_lenh_cho_may_manh_dot2.md).**
+> Hai phép đo (cửa sổ A38, prior khoảng cách TRAKE A39), lần đầu có **23 câu đề
+> thật do BTC viết** trong tập dev để làm thước.

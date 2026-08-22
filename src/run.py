@@ -525,7 +525,9 @@ def _don_cuc(khung: list, cach: str) -> bool:
 
 def dung_trake(cac_su_kien: list, master, so_dong: int = TOI_DA_DONG,
                su_kien_text: list | None = None, kenh1=None,
-               so_video_trich_day: int = 5, don_cuc: str = "tong") -> list:
+               so_video_trich_day: int = 5, don_cuc: str = "tong",
+               dong_hang: str = "cu", he_so_phat: float = 0.0,
+               trai_toi_da: float | None = None, rai_hep: bool = False) -> list:
     """Từ N danh sách ứng viên (mỗi sự kiện một danh sách) -> các dòng TRAKE.
 
     Chọn video bằng điểm MỀM (`thoi_gian.xep_video_theo_chuoi` — Bước 2b),
@@ -542,11 +544,25 @@ def dung_trake(cac_su_kien: list, master, so_dong: int = TOI_DA_DONG,
     tiên: cần văn bản gốc của từng sự kiện (để encode) và kênh 1 đang nạp
     (để encode ảnh CÙNG model). Để trống thì bỏ qua Bước 4, giữ đúng hành vi
     cũ — máy chưa có `.mp4` vẫn chạy được bình thường.
+
+    BỐN THAM SỐ A39 (`dong_hang`, `he_so_phat`, `trai_toi_da`, `rai_hep`) —
+    xem `chuoi_trake.py`. **Mặc định cả bốn giữ nguyên hành vi cũ từng đẻ ra
+    bài nộp 3,8 điểm**, cố ý: kỷ luật đo của dự án là chưa thắng trên tập dev
+    thì chưa được bật. Đo bằng `scripts/35_do_chuoi_trake.py`.
     """
     from thoi_gian import xep_video_theo_chuoi
     n = len(cac_su_kien)
     if n == 0:
         return []
+
+    # Nhập vô điều kiện: `rai_hep` bật được ĐỘC LẬP với `dong_hang` — đó là
+    # cả điểm của việc đo (chỉ đổi MỘT thứ mỗi lần).
+    from chuoi_trake import (TRAI_TOI_DA_GIAY, dong_hang_theo_thoi_gian,
+                             rai_deu_hep)
+    han_trai = TRAI_TOI_DA_GIAY if trai_toi_da is None else trai_toi_da
+    # `row_id` trùng vị trí dòng trong bảng cái (kiểm ở A39) -> tra O(1), khỏi dict.
+    pts_theo_row = master.pts_time.values
+    fps_theo_video = master.groupby("video_id").fps.first()
 
     # xep_video_theo_chuoi() đã trả về MỌI video xuất hiện ở bất kỳ sự kiện
     # nào, xếp theo điểm mềm (thưởng video có sự kiện lân cận cũng khớp) —
@@ -569,12 +585,14 @@ def dung_trake(cac_su_kien: list, master, so_dong: int = TOI_DA_DONG,
         # Bước 1 + 5: DP chọn khung cho từng sự kiện trong video này, GIỮ ĐÚNG
         # chỉ số sự kiện và đã ép tăng dần ngay trong DP (xem dong_hang_dp).
         cac_ung_vien_trong_video = []
+        thoi_diem: dict = {}          # frame_idx -> pts_time, cho prior A39
         for ds in cac_su_kien:
             trong: dict = {}
             for c in ds:
                 if c.video_id == vid and (c.frame_idx not in trong
                                           or c.score > trong[c.frame_idx]):
                     trong[c.frame_idx] = c.score
+                    thoi_diem[c.frame_idx] = float(pts_theo_row[c.row_id])
             top = sorted(trong.items(), key=lambda x: -x[1])[:K_UNG_VIEN_MOI_SU_KIEN]
             cac_ung_vien_trong_video.append(top)
 
@@ -585,7 +603,19 @@ def dung_trake(cac_su_kien: list, master, so_dong: int = TOI_DA_DONG,
                                    cac_ung_vien_trong_video, kenh1, master)
             so_da_trich_day += 1
 
-        tot = dong_hang_dp(cac_ung_vien_trong_video)
+        fps_v = float(fps_theo_video.get(vid, 25.0))
+        if dong_hang == "thoi_gian":
+            # Khung do Bước 4 trích thêm KHÔNG có trong bảng cái nên không có
+            # `pts_time` -> suy từ `frame_idx / fps`. Được phép ở ĐÂY vì con số
+            # này chỉ vào prior khoảng cách, KHÔNG BAO GIỜ được nộp; cái cấm
+            # suy lại (CLAUDE.md) là `frame_idx` — chiều ngược lại.
+            bo_ba = [[(f, thoi_diem.get(f, f / fps_v), s) for f, s in ds]
+                     for ds in cac_ung_vien_trong_video]
+            tot = dong_hang_theo_thoi_gian(
+                bo_ba, he_so_phat=he_so_phat, trai_toi_da=han_trai,
+                k_moi_su_kien=K_UNG_VIEN_MOI_SU_KIEN)
+        else:
+            tot = dong_hang_dp(cac_ung_vien_trong_video)
 
         if all(x is None for x in tot):
             continue
@@ -637,9 +667,20 @@ def dung_trake(cac_su_kien: list, master, so_dong: int = TOI_DA_DONG,
         # TRAKE với ứng viên kênh 3 thì cả ba chính sách đều **0,0000** — không
         # có bằng chứng nào để rời khỏi hành vi đã sinh ra bài nộp 3,8 điểm.
         # Đo lại khi có ứng viên kênh 1 (SigLIP2), nơi TRAKE mới có điểm để so.
+        #
+        # ⚠️ A39 — RẢI KHẮP VIDEO LÀ SAI, và đo được sai bao nhiêu. Độ trải
+        # thật của một chuỗi TRAKE chiếm trung vị **10%** (max 20%) độ dài
+        # video, nên rải đều trên `[lo, hi]` đẩy các sự kiện ra xa gấp 5–10
+        # lần. `rai_hep=True` rải trong cửa sổ 56,6 s (trung vị đo được) quanh
+        # neo mà DP thật sự chọn được. Mặc định vẫn False cho tới khi thắng
+        # trên tập dev.
         if n > 1 and hi > lo and _don_cuc(khung, don_cuc):
-            buoc = (hi - lo) / (n + 1)
-            khung = [lo + round(buoc * (i + 1)) for i in range(n)]
+            if rai_hep and co:
+                neo_vt, neo_f = co[0]
+                khung = rai_deu_hep(neo_f, neo_vt, n, fps_v, lo, hi)
+            else:
+                buoc = (hi - lo) / (n + 1)
+                khung = [lo + round(buoc * (i + 1)) for i in range(n)]
 
         for i in range(1, n):                    # phải TĂNG THẬT, không bằng nhau
             if khung[i] <= khung[i - 1]:

@@ -2422,6 +2422,119 @@ với truy vấn có **mỏ neo văn bản** (tên riêng, địa danh, từ hi�
 nhất là bám thẳng mỏ neo đó. Suy luận nhiều bước chỉ đáng dùng khi **không có mỏ
 neo nào** — đúng nhóm câu thuần thị giác mà A26 đã khoanh.
 
+### A39 — TRAKE: thuật toán biết THỨ TỰ nhưng không biết KHOẢNG CÁCH, mà khoảng cách thì đo được
+
+Nhóm báo *"câu TRAKE thì hệ thống bên máy mạnh không làm được"*. Đây là chỗ
+đáng đổ công sức "mô phỏng luồng suy nghĩ con người" nhất — và cũng là chỗ
+**duy nhất** trong hệ thống mà ý tưởng đó không trùng với thứ đã bị đo bác.
+
+Lý do đơn giản: bốn trong năm nhóm kỹ thuật được đề xuất (CoT, ToT, region,
+self-correction) đều nằm ở **khâu xếp lại**, tức chọn tốt hơn trong danh sách
+đã có. Khâu đó đã đo khá kỹ: xếp lại bằng chữ **+1,6 điểm**, còn mọi nỗ lực làm
+nó tinh vi hơn (top-100 A28, tiêu đề video, xếp lại bằng ảnh A33/A37) đều
+**0 hoặc âm**. Trần không nằm ở chỗ suy luận sâu hơn về cùng những ứng viên đó.
+
+Còn TRAKE thì **bản chất là bài toán nhiều bước có thứ tự**, và đó đúng dạng
+bài mà suy luận từng bước hơn hẳn một phép truy hồi một phát.
+
+#### Quy ý tưởng đó ra số thì nó là cái này
+
+Người soát **không** tìm sự kiện 2 trên cả kho. Họ tìm sự kiện 1, rồi **đi tiếp
+về phía trước từ đó một quãng hợp lý**. Bản đang chạy (`run.dong_hang_dp`) chỉ
+ràng buộc `khung(i) < khung(i+1)`: nó biết **THỨ TỰ**, nhưng **không biết
+KHOẢNG CÁCH**.
+
+Mà khoảng cách đo được, và phân bố rất chặt — đo trên 42 câu TRAKE của tập dev
+(106 cặp sự kiện liền kề):
+
+| | trung vị | p25 | p75 | min | max |
+| --- | --- | --- | --- | --- | --- |
+| độ trải cả chuỗi | 56,6 s | 52,5 | 59,3 | 12,9 | **101,0** |
+| khoảng cách 2 sự kiện liền kề | 18,7 s | 12,4 | 28,9 | **5,1** | 55,7 |
+| **độ trải / độ dài video** | **0,1** | 0,1 | 0,2 | 0,0 | **0,2** |
+
+Keyframe cách nhau trung vị 2,16 s, nên 18,7 s ≈ **9 keyframe** và 101 s ≈ 47.
+
+#### Ba chỗ sai trong bản đang chạy, cả ba suy thẳng ra từ bảng trên
+
+**1. Chốt chống dồn cục rải N sự kiện đều khắp TOÀN BỘ video.** Mà độ trải thật
+chiếm trung vị **10%**, và **không bao giờ quá 20%** độ dài video. Tức khi chốt
+nổ, nó đẩy các sự kiện ra xa gấp **5–10 lần** sự thật. Chốt này nổ trên
+**47/100 dòng** của `query-p1-18-trake` và 33/100 của `query-p1-4-trake` trong
+chính bài nộp thật.
+
+**2. `DON_NHAU = 100` khung nằm DƯỚI mức sàn đo được.** 100 khung là 3,3 s
+(30 fps) đến 4,0 s (25 fps), còn khoảng cách nhỏ nhất từng quan sát là
+**5,1 s**. Một ngưỡng đặt thấp hơn cả sàn thì gần như không bắt được gì —
+giải thích vì sao A14.1 đo ba chính sách dồn cục đều ra 0,0000.
+
+**3. Đếm bằng KHUNG là dính đúng bẫy fps của PHẦN A.** Kho có 4 giá trị fps
+(25 / 26,44 / 29,97 / 30) nên `DON_NHAU = 100` mang ý nghĩa khác nhau ở từng
+video. `src/chuoi_trake.py` làm việc hoàn toàn trên `pts_time`.
+
+#### Đã cài gì
+
+`src/chuoi_trake.py` — ba thứ, bật/tắt **độc lập** để đo từng cái một:
+
+* `phat_khoang(dt)` — phạt 0 trong vùng đã quan sát `[5,1 s; 55,7 s]`, phạt
+  tuyến tính khi ra ngoài, `inf` khi `dt <= 0`. **Phạt mềm chứ không chặn
+  cứng**: bóc tách truy vấn có thể sai, chặn cứng thì xoá luôn đáp án đúng
+  (cùng nguyên tắc của `objects.py` và `thoi_gian.py`).
+* `dong_hang_theo_thoi_gian()` — quy hoạch động có prior + trần độ trải. Cách
+  cài phản chiếu đúng luồng suy nghĩ nó mô phỏng: vòng ngoài chọn một **NEO**
+  cho sự kiện đầu, vòng trong **đi tiếp về phía trước** trong
+  `[t_neo, t_neo + trần]`.
+* `rai_deu_hep()` — rải trong cửa sổ 56,6 s quanh neo, thay cho rải khắp video.
+
+Ràng buộc quan trọng nhất, và có test chốt (`test_mac_dinh_giong_het_ban_cu`):
+đặt `he_so_phat=0` + `trai_toi_da=inf` phải cho **kết quả trùng khít
+`run.dong_hang_dp`**. Đây là bản MỞ RỘNG, không phải bản thay thế — không có
+tính chất đó thì mọi phép đo sau không so được với gì.
+
+Bốn tham số mới của `run.dung_trake` (`dong_hang`, `he_so_phat`, `trai_toi_da`,
+`rai_hep`) **mặc định giữ nguyên hành vi cũ**. Đo bằng
+`scripts/35_do_chuoi_trake.py`.
+
+#### Một chỗ prior này khôn hơn cái test đầu tiên tôi viết cho nó
+
+Test đầu chờ prior sẽ **vứt** khung điểm cao đang dồn cục và chọn bộ ba giãn
+đều. DP thật lại trả `[0, 700, 1150]`: nó **giữ** neo điểm cao ở khung 0 mà vẫn
+đi ra chuỗi giãn hợp lý. Đúng hơn cái test chờ — prior này phạt **dồn cục**, nó
+không có nhiệm vụ vứt bỏ một khung điểm cao. Test đã sửa để chốt theo *tính
+chất* (không còn cặp nào dưới sàn 5,1 s) thay vì theo một bộ số cụ thể.
+
+#### Số đo hiện có, và vì sao chưa kết luận được
+
+Chạy với **kênh 3 (OCR+ASR)** trên máy 7,7 GB — kênh duy nhất chạy được không
+cần model:
+
+| biến thể | ±2 s | ±15 s | thắng–thua–hoà (±15 s) |
+| --- | --- | --- | --- |
+| mốc nền (DP ép tăng dần) | 0,0117 | 0,0270 | — |
+| + trần độ trải 180 s | 0,0356 | 0,0508 | 1–0–41 |
+| + prior khoảng cách | 0,0117 | 0,0349 | 1–0–41 |
+| + rải hẹp 56,6 s | 0,0117 | 0,0270 | 0–0–42 |
+
+Không âm ở đâu, nhưng **chỉ 1–2 câu trong 42 nhúc nhích**. Đúng như dự đoán:
+A14.1 đã đo kênh 3 một mình cho **0,0000** trên TRAKE, không có gì để lắp ráp
+thì khâu lắp ráp không lộ ra được. **Phép đo thật phải chạy với ứng viên kênh 1
+(SigLIP2)** — xem `docs/13_lenh_cho_may_manh_dot2.md`.
+
+⚠️ **Cảnh báo về chính tập dev này.** 41/42 câu TRAKE là câu **tự soạn**, chỉ
+`trake-DE1-16` do BTC viết — và câu đó ăn 0,0000 ở mọi biến thể. Tập dev tự
+soạn đã mù 5 lần (A19/A20/A31/A34/A37). Nhưng phân bố *thời gian đáp án* ở bảng
+đầu thì đỡ hơn phân bố *câu hỏi*: nó là tính chất của **video và của cách người
+ta chọn một chuỗi sự kiện**, không phải của cách viết câu. Và câu đề thật duy
+nhất có độ trải **101,0 s** — mép trên, vẫn trong khoảng. Vì n=1 nên trần trong
+code đặt **rộng gấp 1,8 lần** con số đó chứ không bám sát nó.
+
+#### Đã sửa một lỗi trong chính công cụ đo
+
+Hàm in kết luận của `35_do_chuoi_trake.py` bản đầu xét `d[0] > 0 and d[1] > 0`,
+nên gán nhãn **`🟡 TỆ HƠN`** cho kết quả `±2s +0,0000 | ±15s +0,0079` — một kết
+quả **dương**. Một mức bằng 0 nghĩa là *"ở mức đó không đổi gì"*, không phải
+*"xấu đi"*. Cùng họ với lỗi `MOC` bị đè ở PHẦN A: **thước đo sai thì không có
+gì báo**, và ở đây suýt kéo theo một kết luận ngược hẳn.
 ---
 
 ## PHẦN B — QUYẾT ĐỊNH HẠ TẦNG
@@ -3166,18 +3279,26 @@ Giai đoạn 1.*
 
 ### H1. Đường găng — ✅ **ĐÃ THÔNG**
 
-**117 câu, đủ cả 10 nhóm L**, đã tách tập test giữ kín:
+**206 câu, đủ cả 10 nhóm L**, đã tách tập test giữ kín:
 
 | | KIS | QA | TRAKE | Tổng |
 | --- | ---: | ---: | ---: | ---: |
-| `dev/tap_dev.jsonl` | 55 | 42 | 0 | **97** |
+| `dev/tap_dev.jsonl` | 99 | 45 | 42 | **186** |
 | `dev/tap_test.jsonl` 🔒 | 10 | 10 | 0 | **20** |
 
-Phân bố dev theo nhóm: L21 7 · L22 11 · L23 7 · L24 5 · L25 10 · L26 19 ·
-L27 9 · L28 10 · L29 10 · L30 9.
+> **23 câu trong tập dev là ĐỀ THẬT do BTC viết** (đề sơ tuyển đợt 1, nạp bằng
+> `scripts/34_de_thanh_tap_dev.py`, đáp án nhóm soát tay). Đây là thứ tập dev
+> thiếu suốt từ đầu và là nguyên nhân của cả 5 lần dev mù
+> (A19/A20/A31/A34/A37): câu tự soạn ~15-22 từ / 1,1 mệnh đề, đề thật **63 từ /
+> 2,4 mệnh đề**. **Mọi phép đo từ nay nên báo RIÊNG cột 23 câu đề thật** —
+> `scripts/36_do_cua_so.py` làm sẵn việc đó.
+>
+> Ngược lại, **câu TRAKE thì 41/42 vẫn là tự soạn** (chỉ `trake-DE1-16` là đề
+> thật), nên phân bố *câu hỏi* TRAKE vẫn chưa đáng tin — xem cảnh báo ở A39.
 
-**Còn thiếu: câu TRAKE (0 câu) và câu đếm.** `scripts/11_tim_cau_dem.py` lọc
-sẵn ứng viên khung nhiều vật đếm được.
+**Còn thiếu: câu đếm.** `scripts/11_tim_cau_dem.py` lọc sẵn ứng viên khung
+nhiều vật đếm được. Riêng câu đếm thì A26 và ca `p1-15-qa` cho thấy đó là
+**trần của model**, không phải lỗi truy hồi — đừng đầu tư thêm.
 
 Thêm câu mới thì cứ `--gop` bình thường — **câu mới vào tập dev, tập test giữ
 nguyên**, `gop()` tự loại. **Không chạy lại `--tach-test`** (nó cũng tự từ
