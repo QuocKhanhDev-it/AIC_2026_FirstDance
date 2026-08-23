@@ -49,13 +49,37 @@ chạy mới phát hiện.
 ### 1. Lấy mã nguồn
 
 ```python
-!git clone --depth 1 https://github.com/QuocKhanhDev-it/AIC_2026_FirstDance.git /kaggle/working/repo
+!git clone --depth 1 -b giai-doan-0 https://github.com/QuocKhanhDev-it/AIC_2026_FirstDance.git /kaggle/working/repo
 %cd /kaggle/working/repo
 !git log --oneline -1
+
+# Chốt: thiếu thứ nào thì dừng NGAY, đừng để tới bước 4 mới biết
+import sys, pathlib
+for f in ["scripts/25_ma_hoa_truy_van.py", "src/run.py", "dev/SOTUYEN1-bo-de-thi"]:
+    assert pathlib.Path(f).exists(), f"THIẾU {f} — clone nhầm nhánh?"
+sys.path.insert(0, "src")
+import run
+n = len(run.tach_su_kien(open("dev/SOTUYEN1-bo-de-thi/query-p1-16-trake.txt", encoding="utf-8").read()))
+assert n == 3, f"tach_su_kien ra {n} sự kiện, phải là 3 — nhánh chưa có bản vá A40"
+print("✅ nhánh đúng, có bản vá A40")
 ```
 
 Repo công khai nên clone thẳng được. `dev/` (bộ đề + tập dev) nằm trong git,
 nên **không phải upload gì cả**.
+
+⚠️ **`-b giai-doan-0` là bắt buộc.** Nhánh mặc định của repo là `main`, và
+`main` **không có** `scripts/25_ma_hoa_truy_van.py` — clone trần thì tới bước 4
+mới báo `No such file or directory`.
+
+Tệ hơn: `dev` **có** script nhưng **chưa có bản vá A40**, nên nó chạy trót lọt
+mà **sinh ra cache sai** cho câu TRAKE (4 mệnh đề thay vì 3) — hỏng âm thầm,
+đúng loại tệ nhất. Vì vậy ô trên kiểm cả hai thứ, không chỉ kiểm file tồn tại.
+
+| nhánh | `scripts/25_…` | bản vá A40 | dùng được? |
+| --- | :---: | :---: | --- |
+| `main` (mặc định) | ❌ | ❌ | không |
+| `dev` | ✅ | ❌ | **không — hỏng âm thầm** |
+| `giai-doan-0` | ✅ | ✅ | ✅ |
 
 ### 2. Cài open_clip
 
