@@ -27,7 +27,8 @@ trước.
 git pull
 $env:PYTHONIOENCODING = "utf-8"
 
-.venv\Scripts\python.exe scripts\25_ma_hoa_truy_van.py --tap-dev --gop
+.venv\Scripts\python.exe scripts\25_ma_hoa_truy_van.py `
+    --de dev\SOTUYEN1-bo-de-thi --tap-dev --gop --fp16
 ```
 
 ⚠️ **`--gop`** chứ không phải chạy trần: chạy trần **dựng lại** file từ đầu và
@@ -40,8 +41,13 @@ cho mọi câu TRAKE viết theo kiểu đề thật (`E1` không dấu hai ch�
 `python -c "import sys;sys.path.insert(0,'src');import run;print(len(run.tach_su_kien(open('dev/SOTUYEN1-bo-de-thi/query-p1-16-trake.txt',encoding='utf-8').read())))"`
 phải in **3**.
 
-Xong thì `index/truy_van.npz` cần **gửi ngược về cho cả nhóm** — nó vài trăm
-KB, và nó là thứ mở khoá kênh 1 cho mọi máy yếu.
+> 💡 **Không có máy ≥ 16 GB cũng làm được việc này.** Nó chạy hoàn toàn trên
+> CPU và không cần ma trận 390 MB — xem
+> [14_kaggle_sinh_truy_van_npz.md](14_kaggle_sinh_truy_van_npz.md), ~10 phút
+> trên Kaggle notebook miễn phí.
+
+Xong thì `index/truy_van.npz` cần **gửi ngược về cho cả nhóm** — nó ~2,5 MB,
+và nó là thứ mở khoá kênh 1 cho mọi máy yếu.
 
 Kiểm nhanh cache đã đủ chưa:
 
