@@ -139,8 +139,21 @@ def main():
     de_that = [c for c in cau if "-DE1-" in c.id]
     tu_soan = [c for c in cau if "-DE1-" not in c.id]
 
+    # ⚠️ KHỐI QUAN TRỌNG NHẤT ĐỂ KẾT LUẬN VỀ A38, và bản đầu của script này
+    # thiếu nó. Câu MỘT mệnh đề thì "cộng qua mệnh đề" ≡ "max qua mệnh đề",
+    # nên ở đó thuật toán rút gọn thành *làm nhoè điểm ra ±k khung* — chỉ mất
+    # độ sắc, không thể thắng. Trộn chúng vào mẫu là làm loãng đúng thứ cần đo.
+    #
+    # A38 tuyên bố về câu NHIỀU mệnh đề (`p1-4`: mệnh đề 1 ở kf183, mệnh đề 2 ở
+    # kf186/187). Chỉ khối này mới trả lời được tuyên bố đó.
+    nhieu_md = [c for c in cau if len(sim_cua[c.id]) >= 2]
+    that_nhieu = [c for c in nhieu_md if "-DE1-" in c.id]
+
     for ten, bo in (("TOÀN BỘ", cau),
                     (f"chỉ {len(de_that)} câu ĐỀ THẬT (do BTC viết)", de_that),
+                    (f"⭐ chỉ {len(nhieu_md)} câu ≥2 MỆNH ĐỀ — nơi A38 tuyên bố",
+                     nhieu_md),
+                    (f"⭐ chỉ {len(that_nhieu)} câu ĐỀ THẬT ≥2 MỆNH ĐỀ", that_nhieu),
                     (f"chỉ {len(tu_soan)} câu TỰ SOẠN", tu_soan)):
         if not bo:
             continue

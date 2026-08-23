@@ -2731,6 +2731,129 @@ hai đều **không sống nổi phép đo đầu tiên có ứng viên thật**
 
 Thứ **thật sự** thay đổi hôm nay không phải thuật toán nào — mà là `truy_van.npz`
 về tới máy, biến mọi phép đo dính kênh 1 từ "không chạy được" thành "chạy 10 phút".
+### A42 — Đo bốn đề xuất "phá lối mòn": ba cái đã chết sẵn, cái thứ tư chết theo cách dạy ta một cơ chế
+
+Bốn hướng do Gemini đề xuất sau khi đọc tới A40. Đối chiếu trước khi bỏ công:
+
+| Gemini đề xuất | thật ra là | |
+| --- | --- | --- |
+| 1. Sliding Window Pooling | **chính là A38** — công thức trùng khít `cua_so.diem_cua_so` | đã bác (A41) |
+| 2. Anchor & Expand | **chưa ai đo** | ⬅ đo ở đây |
+| 3. Reverse Caption Alignment | **chính là A32** (`max + λ·tổng`, khác mỗi lời prompt) | đã bác |
+| 4. DTW / beam search TRAKE | **chính là A39** `dong_hang_theo_thoi_gian` + trần độ trải | đã đo, 🟡 |
+
+Chỉ hướng 2 đáng dựng. Nhưng trước đó, đóng nốt một cửa còn hé của A38.
+
+---
+
+#### A38 chết cả trên SÂN NHÀ — và điều đó sửa lại lời giải thích ở A41
+
+A41 quy nguyên nhân cho **95/144 câu chỉ có MỘT mệnh đề** (ở đó "cộng qua mệnh
+đề" ≡ "max qua mệnh đề", nên thuật toán rút gọn thành làm nhoè). Nếu đúng vậy
+thì trên câu NHIỀU mệnh đề nó phải thắng. Thêm hai khối vào
+`36_do_cua_so.py` để hỏi thẳng:
+
+| khối | ±1 | ±2 | ±3 |
+| --- | --- | --- | --- |
+| 49 câu **≥2 mệnh đề** | −0,0082/−0,0653 🟡 | −0,0327/−0,0980 ✅ **âm** | −0,0612/−0,1061 ✅ **âm** |
+| 17 câu **đề thật ≥2 mệnh đề** | +0,0353/−0,0235 ❌ đảo | −0,0118/−0,0824 🟡 | −0,0353/−0,1059 ✅ **âm** |
+
+Âm ngay trên tập câu mà A38 sinh ra để phục vụ. **Lời giải thích ở A41 SAI** —
+không phải tại câu một mệnh đề. Nguyên nhân thật đơn giản hơn và đúng y như
+A32: **phép cộng qua mệnh đề TỰ NÓ pha loãng**, bất kể có mấy mệnh đề.
+
+Ghi lại chỗ này vì nó là bài học về cách sửa sai: lần đầu tôi giải thích thất
+bại bằng một giả thuyết *nghe hợp lý*; hỏi thẳng dữ liệu thì giả thuyết đó cũng
+sai nốt.
+
+---
+
+#### Hướng 2 — Anchor & Expand: ba biến thể, và một cơ chế đáng giá hơn cả ba
+
+`scripts/37_do_neo_mo_rong.py`. Mỏ neo định nghĩa **đo được**, không phải danh
+sách soạn tay: token của truy vấn có mặt trong kho OCR với `1 <= df <= 60`
+(có nên tra được, hiếm nên tra ra sắc). Rồi "đi bộ thời gian" `[-15s, +30s]`
+quanh mỗi lần khớp, dùng `pts_time` chứ không dùng số khung.
+
+Cơ chế tìm neo hoạt động đúng như người soát tay đã làm bằng tay:
+
+    p1-12-kis  ->  'mazut'   ->  68 khung      (đúng từ nhóm bám khi soát tay)
+    p1-17-qa   ->  'nghẽn'   ->  38 khung
+    p1-1-kis   ->  không có  ->  rơi về SigLIP2
+
+**38/144 câu có mỏ neo.** Trên chính 38 câu đó:
+
+| biến thể | ±2s | ±15s | thắng–thua–hoà |
+| --- | ---: | ---: | --- |
+| `chen` — chèn lên đầu (vi phạm A27/A28) | **−0,1474** | **−0,2316** | 5–16–17 ✅ ổn định |
+| `xep_lai` — đảo thứ tự trong bể (tuân A27/A28) | −0,0053 | −0,0053 | 0–1–37 |
+| `duoi` — chỉ chiếm hạng 81–100 | **+0,0053** | **+0,0105** | **1–0–37 / 2–0–36** |
+
+Trên 10 câu đề thật có mỏ neo, `duoi` cũng **0 thua**: 0–0–10 và 1–0–9.
+
+##### Cơ chế: mỏ neo và SigLIP2 tìm ra những chỗ KHÁC NHAU
+
+Đo trực tiếp phần giao giữa tập khung neo và top-100 của SigLIP2:
+
+> **25/38 câu giao = 0 khung.** Trung vị giao **0**, trung bình 1,8, max 20 —
+> trên tập neo trung vị **72 khung**.
+
+Hai tập gần như rời nhau. Từ đó cả ba kết quả trên đều suy ra được:
+
+* `xep_lai` **là no-op** — không có gì để đảo, vì neo không nằm trong bể.
+* `chen` **thảm hoạ** — nhét 72 khung rời vào đầu đẩy ứng viên tốt của SigLIP2
+  từ hạng 1–100 xuống 73–172, tức **rơi hẳn khỏi bài nộp**. Đây là con số âm
+  lớn nhất từng đo trong repo.
+* `duoi` **an toàn** — hạng 81–100 chỉ vào `R@100`, mỗi dòng đáng nhiều nhất
+  `0,2/5 = 0,04`. Mặt trái bị chặn cứng, mặt phải là từ 0 lên 0,2.
+
+##### Vì sao NGƯỜI làm được mà MÁY không
+
+Người soát tay ở `p1-12` không trộn hai danh sách. Họ **đổi hẳn chiến lược
+tìm** (bỏ SigLIP2, quét OCR), rồi **dùng mắt làm bộ xếp lại**. Mắt là bộ xếp
+lại hoàn hảo — nó nhìn 68 khung và chọn đúng cái.
+
+Máy không có bộ xếp lại hoàn hảo. Nên khi bắt chước bước một mà thiếu bước hai,
+nó chỉ còn cách trộn vào danh sách xếp hạng — và trộn hai tập rời nhau trong
+một danh sách **có kích thước cố định** thì bên này lên đúng bằng bên kia xuống.
+
+> **Đây là lời giải thích CƠ CHẾ cho A27/A28**, thứ hai điều luật đó chưa có.
+> Không phải "kênh yếu thì có hại". Mà là: **thêm ứng viên rời vào một danh
+> sách 100 chỗ là một phép ĐỔI CHỖ, không phải phép BỔ SUNG.** Xếp lại thì
+> không đổi chỗ ai — nên nó lãi. Chèn thì đổi chỗ — nên nó lỗ. Xác nhận độc
+> lập lần thứ ba, và lần này biết vì sao.
+
+##### Suy ra một thiết kế, và nó là thứ duy nhất dương cả phiên
+
+`duoi` không sinh ra từ trực giác mà **suy ra từ cơ chế**: nếu vấn đề là đổi
+chỗ, thì hãy tiêu vào những chỗ rẻ nhất. Hạng 81–100 vốn là vé số ngẫu nhiên
+(PHẦN C: không phạt dòng sai), đổi lấy vé số có mỏ neo là phép đổi không mất gì.
+
+Kết quả đúng như dự đoán: **không thua câu nào**, ở cả hai mức dung sai, trên
+cả hai khối. Nhưng vẫn 🟡 **YẾU** — chưa vượt nhiễu ở đâu.
+
+> **Khuyến nghị: CHƯA BẬT.** Kỷ luật đo của dự án không cho bật thứ chưa vượt
+> nhiễu, và A34/A37 là hai lần trả giá gần nhất cho việc bật sớm. Nhưng đây là
+> ứng viên đáng đo lại đầu tiên khi tập dev có thêm câu đề thật — nó là kỹ
+> thuật duy nhất trong ngày có **mặt trái bị chặn về mặt toán học**, không phải
+> chặn bằng hy vọng.
+
+---
+
+#### Tổng kết: bốn đề xuất, không cái nào phá được trần
+
+Ba cái trùng với thứ đã đo. Cái thứ tư đo mới, và cả ba biến thể của nó đều
+không đủ điều kiện bật. Nhưng phiên này không phí:
+
+1. **A38 đóng cửa hẳn**, kể cả trên sân nhà — và lời giải thích ở A41 được sửa.
+2. **A27/A28 có cơ chế**, không còn là quy tắc kinh nghiệm.
+3. **Một thiết kế mới suy ra từ cơ chế đó** (`duoi`), dương và có mặt trái chặn cứng.
+
+Điều đáng nói nhất về chiến lược: cả bốn đề xuất đều nhắm vào **cách tổng hợp
+tín hiệu**, mà ba lần đo hôm nay đều chỉ về cùng một chỗ — trần không nằm ở
+cách tổng hợp. `xep_lai` no-op vì neo không nằm trong bể; `chen` lỗ vì bể chỉ
+có 100 chỗ. **Cả hai đều nói: bể ứng viên là thứ đang thiếu, không phải phép
+gộp.** Đó cũng là điều A27/A28 đã nói từ đầu, nay có thêm số liệu.
 ---
 
 ## PHẦN B — QUYẾT ĐỊNH HẠ TẦNG
