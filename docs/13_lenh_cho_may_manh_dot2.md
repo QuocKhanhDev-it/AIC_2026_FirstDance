@@ -33,6 +33,13 @@ $env:PYTHONIOENCODING = "utf-8"
 ⚠️ **`--gop`** chứ không phải chạy trần: chạy trần **dựng lại** file từ đầu và
 mất các chuỗi đã mã hoá trước đó. Cùng cái bẫy đã làm tập dev tụt 105 → 24 câu.
 
+🔴 **Nếu bạn đã sinh `truy_van.npz` TRƯỚC bản vá `_SU_KIEN` (A40) thì phải sinh
+lại.** Cache chứa đúng những chuỗi `tach_su_kien` sinh ra, mà bản cũ tách
+`query-p1-16-trake` thành **4 mệnh đề thay vì 3** — cache cũ mang mệnh đề sai
+cho mọi câu TRAKE viết theo kiểu đề thật (`E1` không dấu hai chấm). Kiểm nhanh:
+`python -c "import sys;sys.path.insert(0,'src');import run;print(len(run.tach_su_kien(open('dev/SOTUYEN1-bo-de-thi/query-p1-16-trake.txt',encoding='utf-8').read())))"`
+phải in **3**.
+
 Xong thì `index/truy_van.npz` cần **gửi ngược về cho cả nhóm** — nó vài trăm
 KB, và nó là thứ mở khoá kênh 1 cho mọi máy yếu.
 

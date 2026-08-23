@@ -70,6 +70,35 @@ def test_tach_su_kien_mot_su_kien_van_ra_mot():
     assert R.tach_su_kien("một người đàn ông đi bộ") == ["một người đàn ông đi bộ"]
 
 
+def test_tach_su_kien_moc_E_khong_can_dau_hai_cham():
+    """Đề MẪU viết `E1:`, đề THẬT viết `E1 ` — cả hai phải ra cùng số sự kiện.
+
+    Regex bản đầu đòi `[:.]` bắt buộc nên không khớp dòng nào của đề thật, rơi
+    xuống nhánh mỗi-dòng-một-sự-kiện và biến LỜI MỞ ĐẦU thành sự kiện 1: nộp 4
+    Frame ID nơi BTC đòi 3. Sai số Frame ID là sai định dạng, mất trắng cả gói.
+    """
+    that = ("Đoạn video bắt đầu bằng ảnh cận đầu một con lân trắng.\n"
+            "E1 Khoảnh khắc đầu tiên xuất hiện hai con rồng vàng.\n"
+            "E2 Khoảnh khắc đầu tiên lân hoàn tất cú xoay người.\n"
+            "E3 Khoảnh khắc đầu tiên dùi chạm vào kẻng đồng.")
+    mau = that.replace("E1 ", "E1: ").replace("E2 ", "E2: ").replace("E3 ", "E3: ")
+    assert len(R.tach_su_kien(that)) == 3
+    assert len(R.tach_su_kien(mau)) == 3
+    # Lời mở đầu là BỐI CẢNH CHUNG, ghép vào mọi sự kiện, không phải sự kiện.
+    assert all("con lân trắng" in s for s in R.tach_su_kien(that))
+    assert "E1" not in R.tach_su_kien(that)[0]
+
+
+def test_tach_su_kien_khong_nhan_nham_E_lien_chu():
+    """Vẫn đòi một dấu tách sau số, để `E12abc` không thành sự kiện 12."""
+    assert R.tach_su_kien("E12abc một dòng") == ["E12abc một dòng"]
+
+
+def test_tach_su_kien_dem_theo_dong_khong_theo_so():
+    """Đề mẫu `query-p1-18-trake` đánh nhầm E1,E2,E2,E4 — bốn dòng là bốn sự kiện."""
+    assert len(R.tach_su_kien("E1: a\nE2: b\nE2: c\nE4: d")) == 4
+
+
 # ---- dựng dòng TRAKE ------------------------------------------------------
 
 def test_trake_tang_dan_theo_thoi_gian():

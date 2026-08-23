@@ -2535,6 +2535,79 @@ nên gán nhãn **`🟡 TỆ HƠN`** cho kết quả `±2s +0,0000 | ±15s +0,00
 quả **dương**. Một mức bằng 0 nghĩa là *"ở mức đó không đổi gì"*, không phải
 *"xấu đi"*. Cùng họ với lỗi `MOC` bị đè ở PHẦN A: **thước đo sai thì không có
 gì báo**, và ở đây suýt kéo theo một kết luận ngược hẳn.
+### A40 — `tach_su_kien` vá theo ĐỀ MẪU, đề THẬT đổi format: nộp 4 Frame ID nơi BTC đòi 3
+
+Dựng giao diện truy vấn (`web/`) và chạy thử câu TRAKE thật đầu tiên thì lộ ra:
+`query-p1-16-trake` của đề sơ tuyển đợt 1 bị tách thành **4 sự kiện**, trong khi
+đề đánh dấu **E1, E2, E3**.
+
+#### Nguyên nhân
+
+```python
+_SU_KIEN = re.compile(r"^\s*E\s*\d+\s*[:.]\s*", re.I)   # bản cũ
+```
+
+Dấu `[:.]` là **bắt buộc**. Nhưng hai bộ đề viết khác nhau:
+
+| | |
+| --- | --- |
+| đề MẪU `THUNGHIEM` | `E1: Lân quay vòng trên cột số 4…` |
+| đề THẬT `SOTUYEN1` | `E1 Khoảnh khắc đầu tiên xuất hiện…` |
+
+Regex vá theo đề mẫu. Đề thật bỏ dấu hai chấm → **không dòng nào khớp** →
+`tach_su_kien` rơi xuống nhánh *"nhiều dòng thì mỗi dòng là một sự kiện"* →
+**lời mở đầu (`Đoạn video bắt đầu bằng ảnh cận đầu một con lân trắng…`) thành
+sự kiện 1**.
+
+Hậu quả: nộp 4 Frame ID cho gói BTC đòi 3. **Sai số Frame ID là sai định dạng,
+mất trắng cả gói** — đúng thứ docstring của chính `tach_su_kien` cảnh báo.
+
+#### Vì sao bài nộp 11 điểm không dính
+
+Gói `query-p1-16-trake` được dựng bằng `32_dung_tu_dap_an_tay.py` từ bảng soát
+tay `("L24_V031", [1, 14, 25])` — 3 khung, đúng. Nhóm thoát **chỉ vì gói đó
+dựng bằng tay**, không phải vì code đúng. Bất kỳ bài nộp nào sinh bằng
+`run.py` cho câu này đều đã mất trắng.
+
+#### Bản vá
+
+```python
+_SU_KIEN = re.compile(r"^\s*E\s*\d+(?:\s*[:.]\s*|\s+)(?=\S)", re.I)
+```
+
+Dấu hai chấm thành tuỳ chọn, nhưng vẫn đòi **một** dấu tách (`:` / `.` /
+khoảng trắng) sau số, để `E12abc` không bị nhận nhầm thành sự kiện 12. Bốn test
+chốt lại: đề thật và đề mẫu ra cùng số sự kiện; lời mở đầu là bối cảnh chung
+ghép vào mọi sự kiện; `E1,E2,E2,E4` vẫn ra 4 (đếm theo DÒNG, không theo số).
+
+#### Một dự đoán của tôi đã SAI, ghi lại vì phần đó mới có giá trị
+
+Tôi cho rằng đây là lý do `trake-DE1-16` ăn **0,0000** ở mọi biến thể trong
+phép đo A39 — tách 4 sự kiện thì `diem_trake_bai_nop` so vị trí 1 (lời mở đầu)
+với sự kiện 1 thật, lệch hết. Chạy lại `35_do_chuoi_trake.py` sau bản vá:
+
+    trước vá:  đề thật 0,0000 ở mọi biến thể
+    sau vá:    đề thật 0,0000 ở mọi biến thể   ← KHÔNG ĐỔI
+
+Toàn bộ bảng 42 câu cũng không đổi một chữ số. Nguyên nhân thật đơn giản hơn:
+**kênh 3+4 không tìm ra video múa lân đó**, vì nó gần như không có chữ OCR để
+bám. Lỗi tách sự kiện là thật và phải sửa, nhưng nó không phải nguyên nhân tôi
+gán cho nó.
+
+#### Hệ quả cho `truy_van.npz`
+
+Cache vector truy vấn chứa **đúng những chuỗi `tach_su_kien` sinh ra**
+(`25_ma_hoa_truy_van.py`). Cache sinh trước bản vá mang mệnh đề sai cho mọi câu
+TRAKE viết theo kiểu đề thật → phải sinh lại. Đã ghi vào
+`docs/13_lenh_cho_may_manh_dot2.md` Việc 0.
+
+#### Bài học chung, và nó lặp lại
+
+Đây là lần thứ **sáu** một thứ được vá theo mẫu tự soạn rồi hụt trên đề thật —
+sau A19, A20, A31, A34, A37. Năm lần trước là tập dev mù; lần này là **regex mù**.
+Cùng một hình dạng: *cái ta tự tạo ra không phải cái BTC gửi tới.* Mọi chỗ
+đọc/tách đề nên được chạy thử trên `dev/SOTUYEN1-bo-de-thi` (đề thật) chứ không
+chỉ `dev/THUNGHIEM-bo-de-thi` (đề mẫu).
 ---
 
 ## PHẦN B — QUYẾT ĐỊNH HẠ TẦNG

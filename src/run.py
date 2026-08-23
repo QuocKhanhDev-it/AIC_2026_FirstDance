@@ -50,7 +50,15 @@ from schema import AnswerTRAKE                                # noqa: E402
 TEN_DE = re.compile(r"^(query-.+-(kis|qa|trake))$")
 
 # Sự kiện TRAKE trong đề mẫu đánh dấu bằng `E1:`, `E2:`...
-_SU_KIEN = re.compile(r"^\s*E\s*\d+\s*[:.]\s*", re.I)
+# ⚠️ DẤU HAI CHẤM LÀ TUỲ CHỌN. Bản đầu viết `[:.]` bắt buộc, vá theo ĐỀ MẪU
+# (`E1: Khoảnh khắc…`). ĐỀ THẬT bỏ dấu (`E1 Khoảnh khắc…`) nên không dòng nào
+# khớp, `tach_su_kien` rơi xuống nhánh "mỗi dòng một sự kiện", và **lời mở đầu
+# thành sự kiện 1** — nộp 4 Frame ID nơi BTC đòi 3. Sai số Frame ID là sai
+# định dạng, MẤT TRẮNG cả gói (`query-p1-16-trake` của đề sơ tuyển đợt 1).
+#
+# Vẫn đòi MỘT dấu tách (`:`/`.`/khoảng trắng) sau số, để `E12abc` không bị
+# nhận nhầm thành sự kiện 12.
+_SU_KIEN = re.compile(r"^\s*E\s*\d+(?:\s*[:.]\s*|\s+)(?=\S)", re.I)
 
 # Duoi nguong nay coi la N khung "don cuc" -> rai deu. ~100 frame la 3-4 giay
 # o moi muc fps trong kho (25 / 26,44 / 29,97 / 30).
