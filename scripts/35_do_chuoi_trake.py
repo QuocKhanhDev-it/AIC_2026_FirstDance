@@ -102,8 +102,30 @@ def cham_mot_cau(kho_cau, c, master, tra, dung_sai, k, **cau_hinh) -> float:
     return diem_trake_bai_nop(cac_dong, dung, k)
 
 
+def sai_so_cap(diem_moc: dict, diem: dict) -> tuple[float, float]:
+    """`(hiệu trung bình, 2·sai số chuẩn)` của hiệu THEO CẶP.
+
+    ⚠️ Dùng đúng công thức `cham_diem._hieu` — hai script phải hiểu "vượt
+    nhiễu" giống nhau, nếu không thì cùng một con số được gọi là ✅ ở đây và
+    🟡 ở kia.
+
+    Bản đầu của script này lấy ngưỡng là `1/(số sự kiện × số câu)` — đó là
+    **lượng tử nhỏ nhất** mà điểm có thể đổi, KHÔNG phải ngưỡng thống kê. Nó
+    trả lời "có đổi gì không", không trả lời "đổi có thật không". Và dòng kết
+    luận thì chỉ xét DẤU, nên `+0,0016` (kém xa nhiễu) vẫn được gắn ✅ — nói
+    quá về một thay đổi chỉ nhúc nhích 2 câu trong 42.
+    """
+    h = [diem[c] - diem_moc[c] for c in diem_moc]
+    n = len(h)
+    tb = sum(h) / n
+    if n < 2:
+        return tb, 0.0
+    var = sum((x - tb) ** 2 for x in h) / (n - 1)
+    return tb, 2 * (var / n) ** 0.5
+
+
 def in_so_sanh(ten, diem_moc: dict, diem: dict, nguong: float):
-    """Thắng–thua–hoà theo CẶP, kèm ngưỡng nhiễu — không in mỗi trung bình."""
+    """Thắng–thua–hoà theo CẶP, kèm 2·SE — không in mỗi trung bình."""
     t = h = b = 0
     for cid in diem_moc:
         d = diem[cid] - diem_moc[cid]
@@ -115,8 +137,10 @@ def in_so_sanh(ten, diem_moc: dict, diem: dict, nguong: float):
             b += 1
     tb_moc = sum(diem_moc.values()) / len(diem_moc)
     tb = sum(diem.values()) / len(diem)
+    hieu, se2 = sai_so_cap(diem_moc, diem)
+    vuot = " <= vượt nhiễu" if abs(hieu) > se2 > 0 else ""
     print(f"  {NHAN[ten]:38} {tb:.4f}  ({tb - tb_moc:+.4f})  "
-          f"thắng {t:2d} / thua {b:2d} / hoà {h:2d}")
+          f"thắng {t:2d} / thua {b:2d} / hoà {h:2d}   2·SE {se2:.4f}{vuot}")
 
 
 def main():
@@ -205,17 +229,21 @@ def main():
         # Bản đầu viết thế và gán nhãn `🟡 TỆ HƠN` cho `±2s +0,0000 |
         # ±15s +0,0079` — một kết quả DƯƠNG. Một mức bằng 0 nghĩa là "ở mức đó
         # không đổi gì", không phải "xấu đi".
+        # Cùng dấu là ĐIỀU KIỆN CẦN, chưa đủ. Phải vượt 2·SE ở ít nhất một
+        # mức thì mới được gọi là ✅ — giống hệt `cham_diem.bao_cao_do_nhay`.
+        manh = any(abs(h) > s > 0 for h, s in
+                   (sai_so_cap(ket[m]["cu"], ket[m][ten]) for m in (a1, a2)))
         khac_khong = [x for x in d if abs(x) > 1e-9]
         if not khac_khong:
             kl = "⚪ KHÔNG ĐỔI GÌ"
         elif min(khac_khong) < 0 < max(khac_khong):
             kl = "❌ ĐẢO DẤU — không kết luận được"
         elif khac_khong[0] > 0:
-            kl = ("✅ tốt hơn ở cả hai mức" if len(khac_khong) == 2
-                  else "🟡 tốt hơn ở MỘT mức, mức kia không đổi")
+            kl = ("✅ ON DINH — tốt hơn, vượt nhiễu" if manh
+                  else "🟡 YEU — cùng dấu dương nhưng CHƯA vượt nhiễu")
         else:
-            kl = ("🔻 tệ hơn ở cả hai mức" if len(khac_khong) == 2
-                  else "🟠 tệ hơn ở MỘT mức, mức kia không đổi")
+            kl = ("🔻 TỆ HƠN, vượt nhiễu" if manh
+                  else "🟠 tệ hơn nhưng chưa vượt nhiễu")
         print(f"  {NHAN[ten]:38} ±{a1}s {d[0]:+.4f} | ±{a2}s {d[1]:+.4f}  {kl}")
 
 

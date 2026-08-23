@@ -1,6 +1,23 @@
 """
 cua_so.py — Chấm điểm theo CỬA SỔ keyframe thay vì theo từng keyframe rời.
 
+🔻 **ĐÃ ĐO VÀ BỊ BÁC (A41). ĐỪNG BẬT.** Giữ file lại để người sau không nghĩ
+lại ra ý này lần nữa — phần dưới giải thích vì sao nó *nghe* hợp lý.
+
+    bán kính   toàn bộ 144 câu      22 câu ĐỀ THẬT
+    ±1         −0,0083 / −0,0625    ❌ đảo dấu
+    ±2         −0,0236 / −0,0958    −0,0182 / −0,0818   ✅ ổn định, ÂM
+    ±3         −0,0528 / −0,1056    −0,0364 / −0,1000   ✅ ổn định, ÂM
+    ±5         −0,0764 / −0,1264    −0,0364 / −0,1000   ✅ ổn định, ÂM
+
+Âm ở cả ba khối, càng nới bán kính càng tệ. Nguyên nhân: **95/144 câu chỉ có
+MỘT mệnh đề**, mà với một mệnh đề thì "cộng qua mệnh đề" ≡ "max qua mệnh đề",
+nên thuật toán rút gọn thành **làm nhoè điểm ra ±k khung** — chỉ mất độ sắc.
+Cùng cơ chế hại A32 đã ghi: *pha loãng tín hiệu sắc bằng phép cộng*.
+
+Quan sát gốc của A38 vẫn đúng (đề viết từ VIDEO, ta tìm trên KEYFRAME); cái sai
+là cách quy nó ra thuật toán. Hệ quả *nộp một DẢI thay vì một khung* vẫn đứng.
+
 VÌ SAO — A38, rút từ ghi chép soát tay của nhóm
 ================================================
 

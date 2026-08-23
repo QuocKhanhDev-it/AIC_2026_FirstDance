@@ -2608,6 +2608,129 @@ sau A19, A20, A31, A34, A37. Năm lần trước là tập dev mù; lần này l
 Cùng một hình dạng: *cái ta tự tạo ra không phải cái BTC gửi tới.* Mọi chỗ
 đọc/tách đề nên được chạy thử trên `dev/SOTUYEN1-bo-de-thi` (đề thật) chứ không
 chỉ `dev/THUNGHIEM-bo-de-thi` (đề mẫu).
+### A41 — Có cache kênh 1, đo được hai giả thuyết đang treo: **A38 bị bác, A39 không đủ điều kiện bật**
+
+`index/truy_van.npz` sinh trên Kaggle (593 chuỗi, 2,58 MB, xem
+`docs/14_kaggle_sinh_truy_van_npz.md`). Nghiệm thu trước khi tin:
+
+| kiểm | kết quả |
+| --- | --- |
+| cấu trúc | 593 chuỗi × 1152 chiều, chuẩn L2 = 1,00000 |
+| model / pretrained | `ViT-SO400M-14-SigLIP2-378` / `webli` ✅ |
+| độ phủ | **611/611** chuỗi sẽ được tra, không thiếu cái nào |
+| `query-p1-1-kis` → `L30_V046` | video hạng **1**, khung đúng hạng 8 |
+| `query-p1-4-kis` → `L22_V021` | video hạng **1**, khung đúng hạng 5 |
+| `query-p1-25-kis` → `L30_V003` | video hạng 3, khung đúng hạng 3 |
+| mốc nền tự dựng vs `kenh.tim()` | **TRÙNG** |
+
+Trúng video đúng ở hạng 1 trên 873 video hai lần — nếu sai `pretrained` thì đã
+là nhiễu. Cache đúng không gian vector.
+
+---
+
+#### A38 — chấm theo CỬA SỔ: **BỊ BÁC, ổn định và âm ở mọi bán kính**
+
+`scripts/36_do_cua_so.py --cache index/truy_van.npz --kiem-moc`, 144 câu KIS/QA.
+
+| bán kính | toàn bộ 144 (±2s / ±15s) | 22 câu ĐỀ THẬT | kết luận |
+| --- | --- | --- | --- |
+| ±1 | −0,0083 / −0,0625 | +0,0182 / −0,0273 | ❌ ĐẢO DẤU ở đề thật |
+| ±2 | −0,0236 / −0,0958 | −0,0182 / −0,0818 | ✅ ổn định, **ÂM** |
+| ±3 | −0,0528 / −0,1056 | −0,0364 / −0,1000 | ✅ ổn định, **ÂM** |
+| ±5 | −0,0764 / −0,1264 | −0,0364 / −0,1000 | ✅ ổn định, **ÂM** |
+
+Âm ở **cả ba khối** (toàn bộ / đề thật / tự soạn), vượt nhiễu ở hầu hết ô, và
+càng nới bán kính càng tệ. Không có góc nào để đọc đây là kết quả tốt.
+
+**Vì sao sai — và đáng ra phải thấy trước khi viết code.** Dòng thứ hai của log
+nói hết: **95/144 câu chỉ có MỘT mệnh đề**. Với một mệnh đề thì "cộng qua mệnh
+đề" và "max qua mệnh đề" là *cùng một phép tính*, nên phần còn lại của thuật
+toán chỉ là **làm nhoè điểm ra ±k khung**. Nhoè thì chỉ mất độ sắc. Hai phần ba
+câu rơi vào tình huống đó.
+
+Cơ chế hại **giống hệt A32** đã ghi: *"pha loãng tín hiệu sắc của câu gốc bằng
+phép cộng"*. A32 bác `max + λ·tổng`; A38 là **cùng một sai lầm về cấu trúc** —
+thêm một phép cộng qua mệnh đề. Sổ đo đã có sẵn câu trả lời từ hôm trước.
+
+Chi tiết xác nhận cơ chế: ở ±15s điểm âm **nặng hơn** ±2s. Vì `no_cua_so` đã nở
+đáp án ra ±15 giây — mốc nền vốn đã được tính công cho khung lân cận, nên cửa
+sổ chỉ còn đóng góp nhiễu.
+
+> **KHÔNG bác phần quan sát của A38.** Bảy ca soát tay vẫn đúng: `p1-4` cần
+> kf183 + kf186/187 mới đủ "hai nhân viên", `p1-6` có nội dung không nằm trong
+> keyframe nào. Đề vẫn được viết từ VIDEO còn ta vẫn tìm trên KEYFRAME. Cái sai
+> là **cách quy nó ra thuật toán**. Hệ quả thứ nhất của A38 vẫn đứng: *nộp một
+> DẢI tốt hơn nộp một khung* — `33_trai_dai_khung.py`, hai bản nộp cùng 11 điểm.
+
+`src/cua_so.py` giữ lại kèm cảnh báo bị bác, không xoá — để người sau không
+nghĩ lại ra nó lần nữa.
+
+---
+
+#### A39 — prior khoảng cách TRAKE: mốc nền nhảy **18 lần**, ba đề xuất đều không đủ điều kiện bật
+
+`scripts/35_do_chuoi_trake.py --cache index/truy_van.npz`, 42 câu TRAKE.
+
+**Điều đáng ghi nhất không phải ba biến thể, mà là MỐC NỀN:**
+
+| | kênh 3+4 | kênh 1 (SigLIP2) |
+| --- | ---: | ---: |
+| ±2s | 0,0117 | **0,2162** |
+| ±15s | 0,0270 | **0,3556** |
+
+Gấp ~18 lần. Xác nhận thẳng chẩn đoán ở A39: TRAKE chưa bao giờ tắc vì thuật
+toán lắp ráp hay vì RAM — nó tắc vì **thiếu ứng viên kênh 1**.
+
+Ba biến thể, sau khi sửa nhãn cho xét cả nhiễu:
+
+| biến thể | ±2s | ±15s | thắng–thua–hoà (±15s) | kết luận |
+| --- | ---: | ---: | --- | --- |
+| trần độ trải 180 s | +0,0016 | +0,0095 | 4–2–36 | 🟡 **YẾU** — chưa vượt nhiễu (2·SE 0,0351) |
+| prior khoảng cách | −0,0181 | −0,0032 | 6–4–32 | 🟠 tệ hơn |
+| rải hẹp 56,6 s | 0,0000 | 0,0000 | 0–0–42 | ⚪ **KHÔNG ĐỔI GÌ** |
+
+**Không cái nào được bật.** Cả ba giữ mặc định TẮT như đã đặt sẵn.
+
+**Một dự đoán đúng, và nó là kết quả hữu ích nhất trong ba.** Trước khi đo, tôi
+đã ghi: *"`rai_hep` mà vẫn ⚪ với kênh 1 thì nghĩa là chốt dồn cục hầu như
+không nổ nữa khi ứng viên đủ tốt, và cả nhánh đó nên bỏ chứ không phải sửa
+tiếp."* Kết quả: **0–0–42 ở cả hai mức dung sai** — chốt không nổ lần nào.
+
+Nghĩa là toàn bộ chẩn đoán "rải khắp video là sai" của A39 tuy **đúng về số
+liệu** (độ trải thật chiếm trung vị 10% độ dài video) nhưng **vô nghĩa về hậu
+quả**: nhánh đó chỉ chạy khi truy hồi thất bại, mà với kênh 1 nó gần như không
+thất bại. Sửa một nhánh chết không đem lại gì.
+
+`query-p1-16-trake` (câu đề thật duy nhất) vẫn **0,0000 kể cả với kênh 1** —
+n=1, không kết luận được, nhưng đủ để nói: bản vá A40 không phải nguyên nhân,
+và SigLIP2 cũng không tìm ra video múa lân đó.
+
+---
+
+#### Đã sửa một lỗi trong chính công cụ đo — lần thứ hai trong hai ngày
+
+`35_do_chuoi_trake.py` gắn nhãn kết luận **chỉ theo DẤU**, nên `+0,0016` (kém
+xa nhiễu, nhúc nhích 2/42 câu) được in là **✅ tốt hơn ở cả hai mức**. Nói quá.
+
+Ngưỡng nó in ra cũng không phải ngưỡng thống kê: `1/(số sự kiện × số câu)` là
+**lượng tử nhỏ nhất** điểm có thể đổi — trả lời "có đổi gì không", không trả
+lời "đổi có thật không".
+
+Đã đổi sang đúng công thức `cham_diem._hieu` (2·SE của hiệu theo cặp), để hai
+script hiểu "vượt nhiễu" giống nhau. Cùng họ với lỗi nhãn `🟡 TỆ HƠN` sửa hôm
+trước, và với `MOC` bị đè ở PHẦN A: **thước đo sai thì không có gì báo.**
+
+---
+
+#### Tổng kết phiên: giá trị nằm ở phần ÂM
+
+Hai giả thuyết do chính tôi đề xuất, viết code, viết test, ghi thành luật — cả
+hai đều **không sống nổi phép đo đầu tiên có ứng viên thật**. Ghi lại đầy đủ vì
+đó mới là phần đáng tiền: ba hướng nữa bị loại khỏi bàn, và mốc nền TRAKE lần
+đầu có con số thật để so.
+
+Thứ **thật sự** thay đổi hôm nay không phải thuật toán nào — mà là `truy_van.npz`
+về tới máy, biến mọi phép đo dính kênh 1 từ "không chạy được" thành "chạy 10 phút".
 ---
 
 ## PHẦN B — QUYẾT ĐỊNH HẠ TẦNG
