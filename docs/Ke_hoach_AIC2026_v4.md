@@ -2854,6 +2854,114 @@ tín hiệu**, mà ba lần đo hôm nay đều chỉ về cùng một chỗ —
 cách tổng hợp. `xep_lai` no-op vì neo không nằm trong bể; `chen` lỗ vì bể chỉ
 có 100 chỗ. **Cả hai đều nói: bể ứng viên là thứ đang thiếu, không phải phép
 gộp.** Đó cũng là điều A27/A28 đã nói từ đầu, nay có thêm số liệu.
+
+---
+
+### A43 — Đắp 35 câu dev soạn từ hình, và cái bẫy rò văn bản hiện ra ở dạng thứ hai
+
+Tập dev đã mù **sáu lần** (A19/A20/A31/A34/A37/A41) vì cùng một lý do: câu tự
+soạn **22 từ / 1,39 mệnh đề**, đề thật **60 từ / 2,33**. Đo trên câu ngắn rồi
+suy ra cho câu dài là chỗ hỏng lặp lại nhiều nhất trong repo. 23 câu đề thật
+nạp ở A34 vá được một phần, nhưng 23 câu thì mọi phép so theo cặp đều nằm dưới
+ngưỡng nhiễu.
+
+**Đắp thêm 35 câu**, soạn bằng mắt từ contact sheet, chỉ trong năm nhóm máy này
+có ảnh (L21/L22/L24/L27/L30 — 36.506 khung, 215 video, phủ 100% mỗi nhóm).
+Công cụ mới: `scripts/39_chon_dai_soan.py` chọn dải, `scripts/38_soat_cau_dev_moi.py`
+soát trước khi gộp.
+
+| | n | từ (trung vị) | mệnh đề | ≥2 mệnh đề |
+| --- | ---: | ---: | ---: | ---: |
+| đề thật (DE1) | 22 | 60 | 2,36 | 77% |
+| **mô phỏng (MP) — mới** | **37** | **71** | **2,65** | **100%** |
+| tự soạn khác | 122 | 22 | 1,39 | 26% |
+
+Tập dev **186 → 227**. TRAKE 42 → 46, trong đó 4 câu mới viết theo đúng khuôn
+`trake-DE1-16` (câu dẫn tả cảnh mở đầu + `E1`/`E2`/`E3` **không dấu hai chấm** —
+cố ý, để câu dev cũng đi qua đúng chỗ đã hỏng ở A40).
+
+#### Ba luật rút ra khi chọn dải, đều là thứ đã suýt hỏng
+
+* **Bỏ đầu và cuối video.** Gần như luôn là hình hiệu, MC trong trường quay,
+  hoặc chữ chạy — giống hệt nhau giữa hàng trăm bản tin, nên câu viết ra không
+  có đáp án duy nhất.
+* **Không trùng video đã dùng làm đáp án.** Soạn thêm trên video cũ thì tập dev
+  to ra mà độ phủ đứng yên.
+* **Tả DẢI, không tả khung lẻ.** Khoảng đúng dài 4 giây – 5 phút (A9); tả một
+  khung lẻ là quay lại đúng phân bố câu ngắn đã gây ra sáu lần mù.
+
+#### Rò văn bản có DẠNG THỨ HAI, và cờ cũ không phân biệt được
+
+`38_soat_cau_dev_moi.py` hỏi kênh OCR/ASR xếp đáp án ở hạng nào; hạng ≤ 10 là
+cờ. Nó bắt được ba ca, và ba ca đó **không cùng loại**:
+
+| ca | hạng | chẩn đoán | xử lý |
+| --- | ---: | --- | --- |
+| `kis-MP-02` (bản đầu) | 2 rồi 3 | tôi viết "khung giới hạn chiều cao" — đúng cụm trong bản tin chạy | **bỏ**, thay dải khác |
+| `kis-MP-11` (bản đầu) | 5 | mở bằng "một đợt dịch bệnh ở châu Phi" — lấy từ dòng tin chạy | **viết lại** |
+| `kis-MP-34` (bản đầu) | **1** | mở bằng "buổi dạy nhạc cụ tre nứa" — trùng gần nguyên cụm ASR | **viết lại** |
+
+Ca thứ ba mới là ca dạy được điều gì. Tôi **không** đọc `ocr_asr.parquet` khi
+soạn. Cụm đó không nằm trên khung hình. Vậy vì sao OCR xếp hạng 1?
+
+Vì câu mở đầu ấy là **diễn giải việc đang diễn ra**, không phải tả cái nhìn
+thấy. Mà diễn giải thì trùng lời thuyết minh là chuyện đương nhiên — ASR của
+đúng khung đáp án nói *"chế tác một số loại nhạc cụ bằng tre nứa"*.
+
+Đây là chỗ phải cẩn thận, vì có **hai thứ khác nhau** cùng làm hạng OCR cao:
+
+* **RÒ** — câu chứa cụm chỉ có trong CHỮ hiển thị trên khung hình. Người soạn
+  không nhìn thấy cụm đó, họ *đọc* nó. Câu hỏng, phải sửa hoặc bỏ.
+* **TRÙNG TỰ NHIÊN** — câu tả đúng cái nhìn thấy, lời thuyết minh tình cờ gọi
+  tên đúng thứ đó. **Đề thật cũng vậy**: người ra đề xem video, phát thanh viên
+  đang nói về đúng cảnh ấy. Cắt bỏ loại trùng này là **thiên vị ngược** — làm
+  tập dev bất công với kênh 3 và khiến mọi phép đo kênh 3 sau đó thấp giả.
+
+Cờ hạng-≤-10 **không phân biệt được hai thứ đó**, nên script nay in kèm **những
+từ trùng giữa câu hỏi và văn bản của chính khung đáp án, sắp theo IDF**:
+
+```
+kis-MP-34:
+    8.35  tre_nứa      <- IDF cao, cụm dài, khớp nguyên văn ASR
+    7.46  nhạc_cụ
+    6.95  làm_bằng
+    4.29  dạy
+```
+
+Quy tắc đọc: IDF cao + danh từ riêng/số/cụm dài → nghiêng về **rò**; IDF thấp +
+từ tả cảnh thông thường → nghiêng về **trùng**. Vẫn là **cờ để người soạn đọc
+lại**, không phải bằng chứng — nhưng nay người soạn có cái để nhìn.
+
+Cách xử lý an toàn cho ca lưng chừng: **bỏ phần diễn giải, giữ phần tả vật thể**
+rồi đo lại. `kis-MP-34` viết lại chỉ còn ống tre, rổ đan, vòng đội đầu kết hạt
+đỏ → hạng rơi từ **1** xuống **ngoài top-100**. Chuyện đó tự nó là bằng chứng:
+thứ kéo hạng lên là câu diễn giải, không phải vật thể.
+
+Sau ba lần sửa: **35/35 câu sạch cờ**.
+
+#### Hai giới hạn phải nói thẳng
+
+**Người soạn chỉ nhìn được KEYFRAME, không xem được video.** Đề thật do người
+*xem video* viết — đó chính là A38. Nên đây là **xấp xỉ** cách đề thật ra đời,
+không phải bản sao. Hệ quả cụ thể ở TRAKE: chữ "đầu tiên" trong câu MP chỉ có
+nghĩa "keyframe đầu tiên nhìn thấy được", mốc thật có thể sớm hơn vài giây. Mốc
+nào không chắc là lần đầu thì đã viết thành **một cấu hình hình ảnh chỉ xuất
+hiện một lần** thay vì dùng chữ "đầu tiên".
+
+**Đáp án phải DUY NHẤT, và L24 gần như cố tình phá luật đó.** Cả nhóm L24 là hội
+thi lân sư rồng — hàng chục video na ná nhau. Một đoạn múa lân trắng ban đêm ở
+`L24_V015` đã bị **bỏ** vì mô tả của nó đúng luôn cho `kis-MP-05` (`L24_V027`,
+cũng lân trắng ban đêm, cũng cờ đuôi nheo). Hai câu cùng đúng cho hai video khác
+nhau thì đáp án không còn duy nhất, và câu đó đo ra số vô nghĩa. Bốn câu lân sư
+rồng còn lại (`kis-MP-17..20`) cố ý đặt cạnh nhau và cố ý tả rõ **điểm phân
+biệt** — rồng hay lân, màu lông, ngày hay đêm, trong nhà hay ngoài trời. Với
+TRAKE thì **câu dẫn tả cảnh mở đầu** mới là thứ định danh video, không phải các
+mốc E.
+
+35 câu chưa đủ để lật kết luận nào — 35 so với 122 câu tự soạn cũ. Muốn dời cán
+cân cần cỡ 60–80. Nhưng quy trình nay chạy được đầu-cuối (chọn dải → dựng sheet
+→ soi → soát → gộp) nên cả nhóm chia nhau đắp tiếp được, với chính hai script này.
+
 ---
 
 ## PHẦN B — QUYẾT ĐỊNH HẠ TẦNG
@@ -3598,11 +3706,11 @@ Giai đoạn 1.*
 
 ### H1. Đường găng — ✅ **ĐÃ THÔNG**
 
-**206 câu, đủ cả 10 nhóm L**, đã tách tập test giữ kín:
+**247 câu, đủ cả 10 nhóm L**, đã tách tập test giữ kín:
 
 | | KIS | QA | TRAKE | Tổng |
 | --- | ---: | ---: | ---: | ---: |
-| `dev/tap_dev.jsonl` | 99 | 45 | 42 | **186** |
+| `dev/tap_dev.jsonl` | 136 | 45 | 46 | **227** |
 | `dev/tap_test.jsonl` 🔒 | 10 | 10 | 0 | **20** |
 
 > **23 câu trong tập dev là ĐỀ THẬT do BTC viết** (đề sơ tuyển đợt 1, nạp bằng
@@ -3612,8 +3720,17 @@ Giai đoạn 1.*
 > 2,4 mệnh đề**. **Mọi phép đo từ nay nên báo RIÊNG cột 23 câu đề thật** —
 > `scripts/36_do_cua_so.py` làm sẵn việc đó.
 >
-> Ngược lại, **câu TRAKE thì 41/42 vẫn là tự soạn** (chỉ `trake-DE1-16` là đề
-> thật), nên phân bố *câu hỏi* TRAKE vẫn chưa đáng tin — xem cảnh báo ở A39.
+> **Thêm 35 câu MÔ PHỎNG phân bố đề thật** (A43, tiền tố `MP`): 71 từ / 2,65
+> mệnh đề, 100% có ≥2 mệnh đề, soạn bằng mắt từ contact sheet trong
+> L21/L22/L24/L27/L30. Cộng lại **59/227 câu** nay đúng phân bố đang đi thi.
+>
+> Ngược lại, **câu TRAKE thì 41/46 vẫn là tự soạn** (1 đề thật `trake-DE1-16` +
+> 4 câu mô phỏng `trake-MP-01..04`), nên phân bố *câu hỏi* TRAKE vẫn là chỗ yếu
+> nhất — xem cảnh báo ở A39.
+>
+> **Soạn câu mới thì dùng `scripts/39_chon_dai_soan.py` để chọn dải và BẮT BUỘC
+> chạy `scripts/38_soat_cau_dev_moi.py` trước khi gộp** — nó bắt rò văn bản
+> (A21), lệch phân bố, và đáp án không tra được. Ba câu đã bị nó chặn (A43).
 
 **Còn thiếu: câu đếm.** `scripts/11_tim_cau_dem.py` lọc sẵn ứng viên khung
 nhiều vật đếm được. Riêng câu đếm thì A26 và ca `p1-15-qa` cho thấy đó là
@@ -3624,9 +3741,10 @@ nguyên**, `gop()` tự loại. **Không chạy lại `--tach-test`** (nó cũng
 chối). Quy trình đầy đủ: [07_lam_tap_dev.md](07_lam_tap_dev.md).
 
 ```powershell
-python scripts\10_contact_sheet.py --nhom <L của mình> --thua 10
-python scripts\10_contact_sheet.py --tra <row_id...> --mo
-# soạn vào dev/tap_dev_thanh_vien/tap_dev_<nhóm>.jsonl
+# chọn 30 dải chưa ai dùng, dựng sẵn contact sheet (bỏ đầu/cuối video)
+python scripts\39_chon_dai_soan.py --nhom <L của mình> --so 30
+# soạn vào dev/tap_dev_thanh_vien/tap_dev_<nhóm>.jsonl — TẢ CẢ DẢI, ~60 từ
+python scripts\38_soat_cau_dev_moi.py dev\tap_dev_thanh_vien\tap_dev_<nhóm>.jsonl
 python src\tap_dev.py --gop dev\tap_dev_thanh_vien
 python src\tap_dev.py --no-cum
 python src\tap_dev.py --kiem

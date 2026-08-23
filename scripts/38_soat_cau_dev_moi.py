@@ -17,6 +17,20 @@ Triệu chứng đo được: **kênh OCR xếp đáp án hạng rất cao**. M�
 thuần thì OCR gần như không tìm ra gì. Ngưỡng ở đây là **hạng ≤ 10** — không
 phải bằng chứng, mà là **cờ để người soạn đọc lại câu đó**.
 
+Cờ này KHÔNG phân biệt được hai chuyện rất khác nhau, nên nó in kèm những từ
+trùng nhau kèm IDF để người soạn tự phán:
+
+* **RÒ** — câu chứa cụm chỉ có trong CHỮ hiển thị trên khung hình (dòng tin
+  chạy, biển tên, nhãn hàng). Người soạn không nhìn thấy cụm đó, họ *đọc* nó.
+  Phải sửa hoặc bỏ câu.
+* **TRÙNG TỰ NHIÊN** — câu tả đúng cái nhìn thấy, và lời thuyết minh (ASR) tình
+  cờ gọi tên đúng thứ đó. Đề thật cũng vậy: người ra đề xem video, phát thanh
+  viên nói về đúng cảnh ấy. Cắt bỏ loại trùng này là **thiên vị ngược**, làm
+  tập dev bất công với kênh 3. Giữ câu, nhưng ghi lại bằng chứng vào `ghi_chu`.
+
+Từ IDF cao (hiếm trong kho) mà lại là danh từ riêng, con số, hay cụm dài thì
+nghiêng về RÒ; từ IDF thấp và là từ tả cảnh thông thường thì nghiêng về trùng.
+
 **2. PHÂN BỐ LỆCH — lý do tập dev đã mù SÁU lần** (A19/A20/A31/A34/A37/A41).
 Câu tự soạn cũ: trung vị **22 từ / 1,39 mệnh đề**. Đề thật: **60 từ / 2,33**.
 Đo trên câu ngắn rồi suy ra cho câu dài là chỗ hỏng đã lặp lại nhiều nhất.
@@ -37,7 +51,7 @@ GOC = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(GOC / "src"))
 
 import run as R                                        # noqa: E402
-from bm25 import KenhVanBan                            # noqa: E402
+from bm25 import KenhVanBan, bo_dau, tach              # noqa: E402
 
 # Đích đo được từ 24 gói KIS/QA của đề sơ tuyển đợt 1.
 DICH_TU, DICH_MD = 60, 2.33
@@ -97,6 +111,8 @@ def main():
     print("  (câu tả hình ảnh thuần thì OCR gần như không tìm ra: hạng '—')")
     ocr = KenhVanBan.tu_bang_khung(master, pd.read_parquet(p),
                                    cot="text", ten="ocr_asr")
+    bang = pd.read_parquet(p)
+    chu_theo_dong = dict(zip(bang.row_id.values, bang.text.values))
     nghi = []
     for c in cau:
         rs = {r[0] if isinstance(r, list) else r for r in c["row_id_dung"]}
@@ -105,15 +121,31 @@ def main():
         co = ""
         if h and h <= a.nguong_ocr:
             co = "  ⚠️ NGHI RÒ — đọc lại câu này"
-            nghi.append(c["id"])
+            nghi.append((c, rs))
         print(f"  {c['id']:14} {(str(h) if h else '—'):>5}{co}")
     print()
-    if nghi:
-        print(f"⚠️  {len(nghi)} câu nghi rò: {', '.join(nghi)}")
-        print("   Không phải bằng chứng — nhưng hãy mở lại contact sheet và hỏi:")
-        print("   cụm từ đó mình lấy từ HÌNH hay từ CHỮ CHẠY dưới màn hình?")
-    else:
+    if not nghi:
         print("✅ Không câu nào bị OCR tìm ra sớm — không thấy dấu hiệu rò.")
+        return
+
+    print(f"⚠️  {len(nghi)} câu nghi rò — TỪ TRÙNG giữa câu hỏi và văn bản của "
+          "chính khung đáp án")
+    print("   (IDF cao = từ hiếm trong kho; hiếm + danh từ riêng hoặc số thì")
+    print("    nghiêng về RÒ; thông thường và tả cảnh thì nghiêng về trùng)\n")
+    idf = ocr.co_dau.idf
+    for c, rs in nghi:
+        chu = " ".join(str(chu_theo_dong.get(r, "") or "") for r in sorted(rs))
+        tu_khung = set(tach(chu)) | set(tach(bo_dau(chu)))
+        chung = {t for t in tach(c["cau_hoi"]) if t in tu_khung}
+        xep = sorted(chung, key=lambda t: -idf.get(t, 0.0))[:12]
+        print(f"  {c['id']}:")
+        if not xep:
+            print("     (không có từ nào trùng — cờ có thể do khớp mờ bỏ dấu)")
+        for t in xep:
+            print(f"     {idf.get(t, 0.0):5.2f}  {t}")
+        print()
+    print("   Sửa hoặc bỏ nếu là RÒ. Nếu giữ vì trùng tự nhiên, GHI LẠI bằng")
+    print("   chứng vào `ghi_chu` để người sau lật lại được quyết định này.")
 
 
 if __name__ == "__main__":
