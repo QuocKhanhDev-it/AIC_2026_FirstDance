@@ -86,3 +86,7 @@ github_repo/
 # ---- benchmark VLM tam thoi ----
 # ~200 MB anh keyframe + ket qua chay thu, khong phai ma nguon on dinh.
 Test VLM AIC/
+
+# ---- goi VQA ----
+# Anh keyframe cua BTC, thu nho lai van la anh cua BTC. Repo public.
+vqa/
