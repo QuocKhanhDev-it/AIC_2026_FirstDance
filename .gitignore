@@ -62,6 +62,9 @@ desktop.ini
 submission*/
 sub_*/
 *.zip
+# Bai nop cua ky THI THU (20-21/08) da gom vao mot cho cho goc repo do bua.
+# Luat rieng vi ten thu muc nay khong khop hai luat tren.
+bai_nop_cu/
 
 # ---- de thi BTC ----
 # Repo cong khai. De thi la tai lieu thi, khong phai ma nguon -> khong duoc
