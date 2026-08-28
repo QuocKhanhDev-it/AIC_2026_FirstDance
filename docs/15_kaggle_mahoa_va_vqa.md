@@ -32,11 +32,40 @@ $env:PYTHONIOENCODING = "utf-8"
 .venv\Scripts\python.exe -c "import numpy as np,json,sys;sys.path.insert(0,'src');import run as R;z=np.load('index/truy_van.npz',allow_pickle=True);co=set(map(str,z['cau']));d=[json.loads(l) for l in open('dev/tap_dev.jsonl',encoding='utf-8')];f=lambda c:(R.tach_su_kien(c['cau_hoi']) if c['loai']=='TRAKE' else [c['cau_hoi']]);print('chua do duoc:',sum(1 for c in d if any(t not in co for x in f(c) for t in R.tach_truy_van(x))),'/',len(d))"
 ```
 
+### ⚠️ Đề thi KHÔNG còn đi theo repo nữa
+
+Từ 28/08, `.gitignore` chặn mọi thư mục đề (`*-bo-de-thi/`, `De_Thi*/`,
+`query-p*-*.txt`). Đó là chủ ý — repo công khai, đề đang thi thì không được lên
+GitHub. Hệ quả: **clone repo trên Kaggle sẽ KHÔNG có thư mục đề**, khác với tài
+liệu 14 hồi đề đợt 1 còn nằm trong git.
+
+Nên bây giờ phải **đưa đề lên riêng**:
+
+```powershell
+# nén thư mục đề (vqa/ bị gitignore chặn nên file zip không lọt lên repo)
+.venv\Scripts\python.exe -c "import shutil;print(shutil.make_archive('vqa/de_p2_de_ma_hoa','zip','dev/SOTUYEN2-bo-de-thi'))"
+```
+
+Upload file đó thành **Private Dataset** (~10 KB). **Không bao giờ để public** —
+đây là đề đang thi.
+
 ### Các bước
 
-Giống hệt tài liệu 14, chỉ khác **phải `git pull` bản mới nhất** để tập dev trên
-Kaggle có đủ câu vừa soạn. Notebook: Internet **ON**, Accelerator **None** (CPU
-đủ — đây là tháp văn bản, không phải tháp ảnh).
+Giống tài liệu 14, thêm bước giải nén đề. Notebook: Internet **ON**, Accelerator
+**None** (CPU đủ — đây là tháp văn bản, không phải tháp ảnh).
+
+```python
+# sau khi clone repo, bung de tu Private Dataset vao dung cho
+!mkdir -p /kaggle/working/repo/de_p2
+!cp /kaggle/input/<ten-dataset-de>/*.txt /kaggle/working/repo/de_p2/
+!ls /kaggle/working/repo/de_p2 | wc -l          # phai la 30
+```
+
+rồi đổi bước mã hoá thành:
+
+```python
+!python scripts/25_ma_hoa_truy_van.py --de de_p2 --tap-dev --fp16
+```
 
 ```python
 # 1. mã nguồn — PHẢI chỉ định nhánh, `main` không có script này
