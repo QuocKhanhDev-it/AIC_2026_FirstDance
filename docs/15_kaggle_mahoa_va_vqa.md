@@ -50,43 +50,35 @@ Upload file đó thành **Private Dataset** (~10 KB). **Không bao giờ để p
 
 ### Các bước
 
-Giống tài liệu 14, thêm bước giải nén đề. Notebook: Internet **ON**, Accelerator
-**None** (CPU đủ — đây là tháp văn bản, không phải tháp ảnh).
+Notebook mới: Internet **ON**, Accelerator **None** (CPU đủ — đây là tháp văn
+bản, không phải tháp ảnh), và **Add Input** trỏ vào Private Dataset chứa đề.
 
 ```python
-# sau khi clone repo, bung de tu Private Dataset vao dung cho
-!mkdir -p /kaggle/working/repo/de_p2
-!cp /kaggle/input/<ten-dataset-de>/*.txt /kaggle/working/repo/de_p2/
-!ls /kaggle/working/repo/de_p2 | wc -l          # phai la 30
-```
-
-rồi đổi bước mã hoá thành:
-
-```python
-!python scripts/25_ma_hoa_truy_van.py --de de_p2 --tap-dev --fp16
-```
-
-```python
-# 1. mã nguồn — PHẢI chỉ định nhánh, `main` không có script này
+# 1. ma nguon — PHAI chi dinh nhanh, `main` khong co script nay
 !git clone -q -b giai-doan-0 https://github.com/QuocKhanhDev-it/AIC_2026_FirstDance.git repo
 %cd repo
 !pip -q install open_clip_torch pandas pyarrow
 
-# 2. CHỐT CHẶN — bản trước A40 tách sai câu TRAKE, cache sinh ra sẽ sai lặng lẽ
+# 2. CHOT CHAN — ban truoc A40 tach sai cau TRAKE, cache sinh ra se sai lang le
 import sys; sys.path.insert(0, 'src')
 import run
 n = len(run.tach_su_kien(open('dev/SOTUYEN1-bo-de-thi/query-p1-16-trake.txt', encoding='utf-8').read()))
 assert n == 3, f"tach_su_kien tra ve {n}, phai la 3 — repo chua co ban va A40"
 print("OK, co ban va A40")
 
-# 3. sidecar: script đọc số chiều từ đây, khỏi phải tải ma trận 390 MB lên
+# 3. bung DE tu Private Dataset (repo khong con mang de theo)
+!mkdir -p de_p2 && cp /kaggle/input/<ten-dataset-de>/*.txt de_p2/
+import glob; assert len(glob.glob('de_p2/*.txt')) == 30, "phai co du 30 file de"
+print("OK, 30 goi de")
+
+# 4. sidecar: script doc so chieu tu day, khoi phai tai ma tran 390 MB len
 import json, pathlib
 pathlib.Path('index').mkdir(exist_ok=True)
 json.dump({"model": "ViT-SO400M-14-SigLIP2-378", "pretrained": "webli", "chieu": 1152},
           open('index/clip_siglip2.json', 'w'))
 
-# 4. mã hoá — cả đề thi lẫn cả tập dev
-!python scripts/25_ma_hoa_truy_van.py --de dev/SOTUYEN1-bo-de-thi --tap-dev --fp16
+# 5. ma hoa — ca de dot 2 lan ca tap dev
+!python scripts/25_ma_hoa_truy_van.py --de de_p2 --tap-dev --fp16
 ```
 
 Kiểm **ngay trên Kaggle** trước khi tải về:
