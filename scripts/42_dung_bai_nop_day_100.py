@@ -126,40 +126,51 @@ def main():
         n_tay = 0
         dap_list = []
         if m:
-            vid = m["video"]
-            frames = []
-            for k in m["kf"]:
-                f = fi.get((vid, int(k)))
-                if f is None:
-                    canh_bao.append(f"{ten}: {vid} kf{k} không có trong bảng cái")
-                else:
-                    frames.append(f)
             d = m.get("dap_an", "")
             dap_list = [d] if isinstance(d, str) else list(d)
+            # Một gói có thể có NHIỀU khối video: người soát chốt một video,
+            # nhưng vẫn muốn xếp ứng viên thứ hai ngay sau làm bảo hiểm. Thứ tự
+            # khối = thứ tự nộp, nên khối chắc nhất để trước.
+            khoi = m["khoi"] if "khoi" in m else [{"video": m["video"], "kf": m["kf"]}]
 
-            if loai == "trake" and frames:
-                n = len(R.tach_su_kien(de[ten]))
-                if len(frames) != n:
-                    canh_bao.append(
-                        f"{ten}: đáp án tay có {len(frames)} khung nhưng đề "
-                        f"tách ra {n} sự kiện — SỐ FRAME ID PHẢI KHỚP")
-                dong.append(AnswerTRAKE(vid, sorted(frames)))
-                so_su_kien[ten] = n
-                da_co.add((vid, tuple(sorted(frames))))
-            elif loai == "qa" and frames:
-                # mỗi chuỗi đáp án chiếm một dòng, khung chắc nhất trước
-                for dap in (dap_list or [""]):
+            for kh in khoi:
+                vid = kh["video"]
+                frames = []
+                for k in kh["kf"]:
+                    f = fi.get((vid, int(k)))
+                    if f is None:
+                        canh_bao.append(
+                            f"{ten}: {vid} kf{k} KHÔNG có trong bảng cái — bỏ")
+                    else:
+                        frames.append(f)
+                if not frames:
+                    continue
+
+                if loai == "trake":
+                    n = so_su_kien.setdefault(
+                        ten, len(R.tach_su_kien(de[ten])))
+                    if len(frames) != n:
+                        canh_bao.append(
+                            f"{ten}: đáp án tay có {len(frames)} khung nhưng đề "
+                            f"tách ra {n} sự kiện — SỐ FRAME ID PHẢI KHỚP")
+                    khoa = (vid, tuple(sorted(frames)))
+                    if khoa not in da_co:
+                        da_co.add(khoa)
+                        dong.append(AnswerTRAKE(vid, sorted(frames)))
+                elif loai == "qa":
+                    # mỗi chuỗi đáp án chiếm một dòng, khung chắc nhất trước
+                    for dap in (dap_list or [""]):
+                        for f in frames:
+                            if (vid, f, dap) in da_co:
+                                continue
+                            da_co.add((vid, f, dap))
+                            dong.append(AnswerQA(vid, f, dap))
+                else:
                     for f in frames:
-                        if (vid, f, dap) in da_co:
+                        if (vid, f) in da_co:
                             continue
-                        da_co.add((vid, f, dap))
-                        dong.append(AnswerQA(vid, f, dap))
-            else:
-                for f in frames:
-                    if (vid, f) in da_co:
-                        continue
-                    da_co.add((vid, f))
-                    dong.append(AnswerKIS(vid, f))
+                        da_co.add((vid, f))
+                        dong.append(AnswerKIS(vid, f))
             n_tay = len(dong)
 
         # ---- 2. đắp bằng truy hồi cho đủ 100 ----------------------------
