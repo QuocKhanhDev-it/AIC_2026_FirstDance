@@ -59,12 +59,17 @@ bản, không phải tháp ảnh), và **Add Input** trỏ vào Private Dataset 
 %cd repo
 !pip -q install open_clip_torch pandas pyarrow
 
-# 2. CHOT CHAN — ban truoc A40 tach sai cau TRAKE, cache sinh ra se sai lang le
+# 2. CHOT CHAN — ban `tach_su_kien` cu tach SAI so su kien, cache sinh ra se
+#    mang chuoi sai LANG LE. Kiem ngay tren DE DANG DUNG, khong kiem tren mot
+#    file de cu cam cung: A40 hong voi `E1 `, A44 hong voi `Canh 1:` — moi dot
+#    de doi cach danh dau thi cho kiem cu lai hut dich.
 import sys; sys.path.insert(0, 'src')
 import run
-n = len(run.tach_su_kien(open('dev/SOTUYEN1-bo-de-thi/query-p1-16-trake.txt', encoding='utf-8').read()))
-assert n == 3, f"tach_su_kien tra ve {n}, phai la 3 — repo chua co ban va A40"
-print("OK, co ban va A40")
+DEM = {'query-p2-8-trake': 4, 'query-p2-21-trake': 4}   # DEM BANG MAT tu de
+for ten, can in DEM.items():
+    n = len(run.tach_su_kien(open(f'de_p2/{ten}.txt', encoding='utf-8').read()))
+    assert n == can, f"{ten}: tach ra {n} su kien, dem bang mat la {can}"
+print("OK, so su kien khop")
 
 # 3. bung DE tu Private Dataset (repo khong con mang de theo)
 !mkdir -p de_p2 && cp /kaggle/input/<ten-dataset-de>/*.txt de_p2/
@@ -94,6 +99,26 @@ assert (np.linalg.norm(z['vec'], axis=1) > 0).all()
 
 Tải `index/truy_van.npz` về, đặt đè vào `index/`, rồi chạy lại lệnh kiểm ở trên.
 Phải in **`chua do duoc: 0 / <tổng>`**.
+
+### ⚠️ Vá `tach_su_kien` XONG là cache TRAKE hỏng ngay
+
+Cache lưu **đúng những chuỗi `tach_su_kien` sinh ra**. Sửa bộ tách là chuỗi đổi,
+và những chuỗi mới đó **không có trong cache** — `run.py` dừng với
+`❌ N/M chuỗi truy vấn chưa có trong cache`.
+
+Đã cắn thật (28/08): vá A44 xong thì `query-p2-21-trake` từ 5 mệnh đề thành 4,
+cache sinh trước đó thành vô dụng cho gói ấy. **Vá bộ tách rồi thì phải sinh lại
+cache**, không có đường vòng.
+
+Đường thoát tạm khi không kịp sinh lại: chạy riêng gói đó bằng cấu hình không
+cần model, rồi ghép vào:
+
+```powershell
+.venv\Scripts\python.exe srcun.py --de <thu muc chi chua goi do> ^
+    --ra vqa	am --kenh objects --hop-nhat --bo-metadata
+```
+
+Yếu hơn kênh 1 nhiều, chỉ dùng để không bỏ trống gói.
 
 ### Nghiệm thu: một câu đã biết đáp án phải giữ nguyên hạng
 
