@@ -269,3 +269,38 @@ def test_trich_day_bo_qua_su_kien_khong_co_neo(monkeypatch):
     R.lam_day_bang_trich_day("L01_V000", "gia.mp4", ["c1", "c2"], ung_vien,
                              _KenhGia(), master)
     assert goi["lan"] == 1, "phải gọi trích dày đúng 1 lần (sự kiện có neo)"
+
+
+def test_tach_su_kien_moc_Canh_tieng_viet():
+    """Đề sơ tuyển đợt 2 đổi `E1:` thành `Cảnh 1:` — A44.
+
+    Không nhận mốc này thì câu dẫn bị đếm thành sự kiện: 5 Frame ID nơi BTC
+    đòi 4, tức mất trắng cả gói.
+    """
+    that = (
+        "4 cảnh này xảy ra liên tiếp nhau.\n"
+        "Cảnh 1: Hai người phụ nữ cùng nhau dán niêm phong một thùng carton.\n"
+        "Cảnh 2: Các thùng mì tôm và bọc bánh mì được sắp xếp ngay ngắn.\n"
+        "Cảnh 3: Một người đàn ông nhấc thùng mì tôm lên và xếp lên chồng thùng.\n"
+        "Cảnh 4: Cảnh quay cận cảnh các thùng mì được xếp chồng trên xe tải."
+    )
+    sk = R.tach_su_kien(that)
+    assert len(sk) == 4
+    # câu dẫn phải được GHÉP vào mọi sự kiện, không đứng riêng thành một mốc
+    assert all(s.startswith("4 cảnh này xảy ra liên tiếp nhau") for s in sk)
+    assert "dán niêm phong" in sk[0]
+    assert "xe tải" in sk[3]
+
+
+def test_tach_su_kien_khong_nhan_nham_canh_lien_so_dem():
+    """`Cảnh 2 người...` là câu tả, KHÔNG phải mốc — nên nhánh tiếng Việt bắt
+    buộc có `:` hoặc `.`, khác nhánh `E<n>` vốn nhận cả khoảng trắng trần."""
+    sk = R.tach_su_kien("Cảnh 2 người đàn ông đang khiêng một thùng hàng lớn")
+    assert sk == ["Cảnh 2 người đàn ông đang khiêng một thùng hàng lớn"]
+
+
+def test_tach_su_kien_moc_su_kien_va_scene():
+    assert len(R.tach_su_kien(
+        "Bối cảnh chung.\nSự kiện 1: mở cửa\nSự kiện 2: bước vào")) == 2
+    assert len(R.tach_su_kien(
+        "Intro.\nScene 1. open\nScene 2. enter\nScene 3. leave")) == 3

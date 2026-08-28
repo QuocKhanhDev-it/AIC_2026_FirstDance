@@ -58,7 +58,22 @@ TEN_DE = re.compile(r"^(query-.+-(kis|qa|trake))$")
 #
 # Vẫn đòi MỘT dấu tách (`:`/`.`/khoảng trắng) sau số, để `E12abc` không bị
 # nhận nhầm thành sự kiện 12.
-_SU_KIEN = re.compile(r"^\s*E\s*\d+(?:\s*[:.]\s*|\s+)(?=\S)", re.I)
+# Mốc sự kiện TRAKE. Hai nhánh, và chúng CỐ Ý chặt lỏng khác nhau:
+#
+#   `E1:` `E1.` `E1 `      — đề sơ tuyển đợt 1 viết `E1 ` KHÔNG dấu hai chấm
+#                            (A40). Nên nhánh này nhận cả khoảng trắng trần.
+#   `Cảnh 1:` `Sự kiện 1.` — đề sơ tuyển đợt 2 đổi sang từ tiếng Việt (A44).
+#                            Nhánh này BẮT BUỘC có `:` hoặc `.`, không nhận
+#                            khoảng trắng trần — vì "Cảnh 2 người đàn ông đang
+#                            khiêng thùng" là một câu tả bình thường, nhận nhầm
+#                            nó làm mốc thì tách ra thừa sự kiện.
+#
+# Tách sai số sự kiện = nộp sai số Frame ID = MẤT TRẮNG CẢ GÓI. Đã cắn hai lần.
+_SU_KIEN = re.compile(
+    r"^\s*(?:"
+    r"E\s*\d+(?:\s*[:.]\s*|\s+)"
+    r"|(?:cảnh|sự\s*kiện|scene|event)\s*\d+\s*[:.]\s*"
+    r")(?=\S)", re.I)
 
 # Duoi nguong nay coi la N khung "don cuc" -> rai deu. ~100 frame la 3-4 giay
 # o moi muc fps trong kho (25 / 26,44 / 29,97 / 30).
