@@ -69,7 +69,18 @@ bai_nop_cu/
 # ---- de thi BTC ----
 # Repo cong khai. De thi la tai lieu thi, khong phai ma nguon -> khong duoc
 # lo len GitHub cong khai.
+#
+# LUAT `de_thi/` MOT MINH LA HUT DICH — no khong khop bat ky thu muc de nao
+# thuc te dang co. Da mat: De_Thi_Chinh_Thuc/, de_thi_thu/,
+# dev/SOTUYEN1-bo-de-thi/, dev/THUNGHIEM-bo-de-thi/ deu DA BI THEO DOI truoc
+# khi phat hien (28/08). `.gitignore` khong go duoc file da tracked, nen bon do
+# phai xu ly rieng — xem muc canh bao o cuoi file.
+# Bon luat duoi day chan cac dang ten DA thay va cac dang de sinh tiep.
 de_thi/
+de_thi*/
+De_Thi*/
+*-bo-de-thi/
+query-p*-*.txt
 
 # ---- ma nguon doi khac tai ve de tham khao ----
 # Khong phai ma nguon cua ta: khac giay phep, va lam phinh repo. Doc thi doc,
