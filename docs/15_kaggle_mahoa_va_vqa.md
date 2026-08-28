@@ -16,13 +16,12 @@ lần. Nhưng cache chỉ chứa **đúng những mệnh đề đã có lúc sin
 mới là cache hụt ngay, và những câu đó **im lặng biến mất khỏi mọi phép đo kênh
 1** — không lỗi, không cảnh báo.
 
-Đo lúc viết tài liệu này:
+Đo lúc viết tài liệu này — và **đề sơ tuyển đợt 2 thì hụt hoàn toàn**:
 
-```
+```text
 cache hiện có : 593 mệnh đề
-tập dev cần   : 526
-THIẾU         : 138
-câu chưa đo được kênh 1: 45 / 231
+tập dev cần   : 526   -> THIẾU 138 (45/231 câu)
+đề đợt 2 cần :  71   -> THIẾU 71  (30/30 gói)
 ```
 
 Kiểm bất cứ lúc nào — nếu số cuối khác 0 thì tới lúc chạy lại việc A:
@@ -103,6 +102,24 @@ assert (np.linalg.norm(z['vec'], axis=1) > 0).all()
 
 Tải `index/truy_van.npz` về, đặt đè vào `index/`, rồi chạy lại lệnh kiểm ở trên.
 Phải in **`chua do duoc: 0 / <tổng>`**.
+
+### Nghiệm thu: một câu đã biết đáp án phải giữ nguyên hạng
+
+Kiểm cấu trúc (đúng số chiều, không NaN) **không bắt được** lỗi nguy hiểm nhất:
+mã hoá bằng **sai model** hoặc sai tag. Cosine tụt mà file vẫn hợp lệ hoàn toàn
+— đúng cái bẫy `ViT-B-32-quickgelu`.
+
+Phép thử bắt được: một câu dev mà kênh 1 **đang** xếp đáp án hạng 1. Cache mới
+mà làm nó tụt hạng thì mã hoá sai, dù mọi kiểm tra khác đều xanh.
+
+```powershell
+$env:PYTHONIOENCODING = "utf-8"
+.venv\Scripts\python.exe -c "import sys,json;sys.path.insert(0,'src');import run as R;from dense import KenhAnhCache;k=KenhAnhCache('./index','index/truy_van.npz');c=[json.loads(l) for l in open('dev/tap_dev.jsonl',encoding='utf-8') if 'kis-L22-105' in l][0];rs={r[0] if isinstance(r,list) else r for r in c['row_id_dung']};kq=k.tim(R.tach_truy_van(c['cau_hoi']),k=100);h=next((i+1 for i,x in enumerate(kq) if x.row_id in rs),None);print('kis-L22-105 hang khung =',h,'(phai la 1)')"
+```
+
+Đo lúc viết tài liệu (28/08, `ViT-SO400M-14-SigLIP2-378`/`webli`): **hạng 1**.
+Ra số khác là **đừng dùng cache đó** — sinh lại, và soi lại xem ô sidecar có ghi
+đúng `model`/`pretrained` không.
 
 > `25_ma_hoa_truy_van.py` có cờ `--gop` để chỉ mã hoá phần thiếu. Trên Kaggle
 > **không dùng được** vì repo clone về không mang theo `index/truy_van.npz`
