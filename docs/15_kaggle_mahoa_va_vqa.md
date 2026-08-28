@@ -114,8 +114,8 @@ cache**, không có đường vòng.
 cần model, rồi ghép vào:
 
 ```powershell
-.venv\Scripts\python.exe srcun.py --de <thu muc chi chua goi do> ^
-    --ra vqa	am --kenh objects --hop-nhat --bo-metadata
+.venv\Scripts\python.exe src\run.py --de <thu muc chi chua goi do> ^
+    --ra vqa\tam --kenh objects --hop-nhat --bo-metadata
 ```
 
 Yếu hơn kênh 1 nhiều, chỉ dùng để không bỏ trống gói.
