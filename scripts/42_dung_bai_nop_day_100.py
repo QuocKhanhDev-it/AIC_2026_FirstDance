@@ -43,6 +43,35 @@ Hệ quả có lợi: đáp án còn phân vân thì ghi **nhiều chuỗi** (`"
 cũng vẫn nằm trong top-5, tức 0,80 thay vì 1,00. Mất 0,20 để mua bảo hiểm.
 ⚠️ Chưa kiểm được BTC có khử dòng trùng phía họ không — đây là **giả định**.
 
+`--dao-sau N`: MỘT GIẢ THUYẾT ĐÃ ĐO VÀ KHÔNG ĐỦ ĐỂ BẬT
+=======================================================
+
+Đội đạt 14.800 điểm đợt 2 nộp **97% số dòng nằm cùng một video** với hạng 1 —
+họ đào sâu vào video đã chọn. Ta nộp **10,9%**, trải trên trung vị **53 video**.
+Chênh lệch điểm 11.600 / 14.800 làm giả thuyết này nghe rất thuyết phục.
+
+Đo thử thì không đứng vững. Khoá đo: 16 gói đội đó nộp **đúng một dòng** (tức
+họ rất chắc), chấm theo thời gian vì họ nộp frame ngoài lưới keyframe:
+
+| `--dao-sau` | ±2s | ±5s | ±15s | ±30s | ±60s | TB |
+| ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| **0** | 0,263 | 0,375 | 0,512 | **0,600** | **0,600** | 0,470 |
+| 15 | 0,263 | **0,450** | **0,550** | 0,588 | 0,588 | **0,487** |
+| 30 | 0,263 | 0,425 | 0,537 | 0,575 | 0,588 | 0,478 |
+| 50 | **0,288** | 0,400 | 0,512 | 0,550 | 0,562 | 0,463 |
+| 70 | 0,288 | 0,413 | 0,525 | 0,550 | 0,562 | 0,468 |
+
+**Đổi dấu theo dung sai**: lãi ở ±5s và ±15s, lỗ ở ±30s và ±60s — vì mỗi dòng
+đào sâu đẩy một ứng viên truy hồi xuống dưới hạng 100. Mức tốt nhất hơn mức tắt
+đúng **0,017** trên **n=16**. Đó là nhiễu.
+
+Nên mặc định **0**. Cờ giữ lại để đo tiếp khi có khoá tốt hơn.
+
+**Chỗ chênh lệch thật nằm ở khác**: trong 16 gói đó, ta chọn **sai video 6 gói**,
+và cả 6 đều 0 điểm ở mọi mức dung sai. Mất 0,375 điểm tiềm năng chỉ vì chọn sai
+video — lớn hơn mọi thứ mà cách xếp 100 dòng có thể cứu. Việc phải làm là **truy
+hồi cấp video mạnh hơn**, không phải mẹo đóng gói bài nộp.
+
 ĐỊNH DẠNG FILE ĐÁP ÁN (JSON)
 ============================
 
@@ -101,6 +130,10 @@ def main():
     ap.add_argument("--nen", metavar="FILE.zip")
     ap.add_argument("--khong-dap", action="store_true",
                     help="chỉ ghi đáp án tay, KHÔNG đắp (giống 32_)")
+    ap.add_argument("--dao-sau", type=int, default=0, metavar="N",
+                    help="sau đáp án tay, đắp N dòng bằng khung RẢI ĐỀU TRONG "
+                         "chính video đó, TRƯỚC khi dùng truy hồi. MẶC ĐỊNH 0 "
+                         "(tắt) — đã đo, không thắng nổi nhiễu; xem đầu file")
     a = ap.parse_args()
 
     master = pd.read_parquet(a.index / "master.parquet")
@@ -114,6 +147,12 @@ def main():
     if la:
         raise SystemExit(f"Đáp án có gói không nằm trong đề: {sorted(la)}")
 
+    # (video_id) -> [(frame_idx, pts_time)] theo thu tu thoi gian
+    khung_video = {}
+    for v, f, t in zip(master.video_id.values, master.frame_idx.values,
+                       master.pts_time.values):
+        khung_video.setdefault(str(v), []).append((int(f), float(t)))
+
     goi, so_su_kien, canh_bao = {}, {}, []
     bo_lech = {}
 
@@ -123,7 +162,7 @@ def main():
         dong, da_co = [], set()
 
         # ---- 1. đáp án soát tay lên trước -------------------------------
-        n_tay = 0
+        n_tay = n_sau = 0
         dap_list = []
         if m:
             d = m.get("dap_an", "")
@@ -173,6 +212,32 @@ def main():
                         dong.append(AnswerKIS(vid, f))
             n_tay = len(dong)
 
+        # ---- 1b. ĐÀO SÂU vào chính video đã chọn ------------------------
+        if m and not a.khong_dap and a.dao_sau and loai != "trake" and dong:
+            vid0 = (m["khoi"][0] if "khoi" in m else m)["video"]
+            # Rải ĐỀU theo thời gian, không lấy liên tiếp: đáp án là một CỬA SỔ
+            # rộng 4 giây - 5 phút (A9), nên phủ đều cả video ăn chắc hơn là
+            # dày đặc quanh một điểm.
+            kho = [(f, t) for f, t in khung_video.get(vid0, [])
+                   if (loai != "qa" and (vid0, f) not in da_co)
+                   or (loai == "qa" and (vid0, f, dap_list[0] if dap_list else "") not in da_co)]
+            can = min(a.dao_sau, TOI_DA_DONG - len(dong))
+            if kho and can > 0:
+                buoc = max(1, len(kho) // can)
+                for f, _ in kho[::buoc][:can]:
+                    if loai == "qa":
+                        khoa = (vid0, f, dap_list[0] if dap_list else "không rõ")
+                        if khoa in da_co:
+                            continue
+                        da_co.add(khoa)
+                        dong.append(AnswerQA(vid0, f, khoa[2]))
+                    else:
+                        if (vid0, f) in da_co:
+                            continue
+                        da_co.add((vid0, f))
+                        dong.append(AnswerKIS(vid0, f))
+                n_sau = len(dong) - n_tay
+
         # ---- 2. đắp bằng truy hồi cho đủ 100 ----------------------------
         if not a.khong_dap and a.bo_sung:
             dap_dap = dap_list[0] if dap_list else "không rõ"
@@ -209,7 +274,8 @@ def main():
             continue
         goi[ten] = dong
         nhan = f"tay {n_tay:>2}" if n_tay else "  —   "
-        print(f"  {ten:<20} {nhan} + đắp {len(dong) - n_tay:>3} = {len(dong):>3} dòng"
+        print(f"  {ten:<20} {nhan} + sâu {n_sau:>3} + đắp "
+              f"{len(dong) - n_tay - n_sau:>3} = {len(dong):>3} dòng"
               f"{'  | ' + repr(dap_list) if dap_list else ''}")
 
     if canh_bao:
