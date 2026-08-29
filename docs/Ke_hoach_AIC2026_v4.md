@@ -2962,6 +2962,73 @@ mốc E.
 cân cần cỡ 60–80. Nhưng quy trình nay chạy được đầu-cuối (chọn dải → dựng sheet
 → soi → soát → gộp) nên cả nhóm chia nhau đắp tiếp được, với chính hai script này.
 
+
+---
+
+### A45 — Đo trên ĐỀ THẬT: kênh 1 tụt một nửa, kênh 3 vượt lên, và RRF thô thắng
+
+Dựng `dev/tap_de_that.jsonl` — **52 câu do BTC viết** (23 đề đợt 1 + 29 đợt 2),
+trung vị **62 từ / 2,29 mệnh đề**, đáp án là bài nộp nhóm đã soát. Đo lại đúng
+những thứ đã đo trên tập dev tự soạn, trên 49 câu KIS/QA:
+
+| | tập dev cũ (231 câu) | **tập đề thật (49 câu)** |
+| --- | ---: | ---: |
+| kênh 1 SigLIP2 | 0,3258 | **0,1429** |
+| kênh 3 OCR/ASR | 0,1183 | **0,1633** |
+| RRF(1,3) trọng số 1:1 | **−0,0144** ❌ | **+0,0694** ✅ |
+
+**Ba thứ đảo ngược cùng lúc.**
+
+**1. Tập dev cũ thổi phồng kênh 1 gấp 2,3 lần.** 0,3258 xuống 0,1429. Con số cũ
+đo trên câu 22 từ do người *biết trước đáp án* viết.
+
+**2. Kênh 3 nay MẠNH HƠN kênh 1** (0,1633 so với 0,1429). Tập dev cũ nói kênh 3
+chỉ bằng một phần ba. Câu đề thật dài, nhiều mệnh đề, và hay có chữ đọc được
+trong khung — đúng chỗ BM25 ăn.
+
+**3. RRF thô, trọng số 1:1, ✅ ỔN ĐỊNH.** `+0,0694 / +0,0735`, vượt nhiễu ở ±2s
+(ngưỡng 0,0623), thắng 8 thua 4. Đây chính là thứ A14 đo được là **có hại**
+(−0,0144) trên tập dev cũ.
+
+Và xu hướng trọng số **đảo ngược A23**:
+
+| trọng số kênh phụ | 0,1 | 0,2 | 0,3 | 0,5 | **1,0** |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| hiệu so mốc (±2s) | +0,0041 | +0,0122 | +0,0204 | +0,0327 | **+0,0694** |
+
+Đơn điệu tăng tới 1,0. A23 đo được dìm xuống 0,3 làm tệ đi thì đúng — nhưng
+chiều đúng là **nâng lên**, không phải hạ.
+
+#### Nhóm đối chứng: có phải kênh 3 đang được chấm trên đáp án do chính nó sinh?
+
+Ba câu trong tập đo (`kis-DE2-17`, `qa-DE2-19`, `qa-DE2-23`) do tôi **tra bằng
+OCR** mà tìm ra. Nếu kênh 3 mạnh chỉ vì thế thì đây là rò ở tầng đáp án, cùng
+loại A21. Tách hai nửa:
+
+| tập con | n | kênh 1 | kênh 3 | RRF 1:1 (±2s / ±15s) |
+| --- | ---: | ---: | ---: | --- |
+| **DE1** — soát xong TRƯỚC khi tôi động vào OCR | 22 | 0,2000 | — | **+0,0909 / +0,0727** 🟡 |
+| **DE2 bỏ 3 câu tôi tự tra** | 24 | 0,1000 | 0,1500 | **+0,0417 / +0,0500** 🟡 |
+
+Cùng dấu ở cả hai nửa, cả bốn mức dung sai. Mỗi nửa không vượt nhiễu vì `n` chỉ
+còn một nửa — đúng dáng của một hiệu ứng thật bị chia đôi mẫu, không phải dáng
+của rò.
+
+#### Hệ quả
+
+* **Bật `--hop-nhat --bo-metadata --trong-so-phu 1.0` làm mặc định.** Không cần
+  chờ dense hoá kênh 3, không cần model thứ hai.
+* Mọi con số đo trên `dev/tap_dev.jsonl` từ A10 tới A44 đều phải đọc lại với
+  giả định "kênh 1 được thổi lên gấp 2,3 lần".
+* `dev/tap_de_that.jsonl` là thước đo chính từ nay.
+
+⚠️ Đáp án của tập này là **bài nộp được 11,6 điểm**, không phải đáp án BTC. Có
+câu sai trong đó mà không ai biết là câu nào. Mỗi câu mang nhãn `do_chac` trong
+`ghi_chu`; phép đo nghiêm ngặt nên lọc còn nhãn `xong` (19/29 câu đợt 2).
+
+⚠️ 3 câu TRAKE chưa đo được — cache truy vấn sinh trước bản vá A44 nên thiếu
+chuỗi của `trake-DE2-21`.
+
 ---
 
 ## PHẦN B — QUYẾT ĐỊNH HẠ TẦNG
