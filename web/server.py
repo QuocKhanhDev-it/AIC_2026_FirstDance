@@ -134,28 +134,33 @@ class Kho:
         bể ứng viên. Đây là chỗ dễ lệch nhất giữa hai đường chạy.
         """
         dung_kenh = [x for x in dung_kenh if x in self.kenh] or list(self.kenh)
-        cac = []
+        cac, da_dung, canh_bao = [], [], None
         for ten in dung_kenh:
             kn = self.kenh[ten]
             try:
-                if ten == "anh":
-                    cac.append(kn.tim(R.tach_truy_van(cau), k=k))
-                else:
-                    cac.append(kn.tim(R.tach_truy_van(cau), k=k))
-            except KeyError as e:                     # cache thiếu mệnh đề này
-                return {"loi": f"cache chưa có mệnh đề {e}. "
-                               "Mã hoá thêm bằng scripts/25_ma_hoa_truy_van.py"}
+                cac.append(kn.tim(R.tach_truy_van(cau), k=k))
+                da_dung.append(ten)
+            except KeyError:
+                # Kênh 1 chạy từ cache vector, nên câu GÕ TAY gần như chắc chắn
+                # không có sẵn. Trước đây chỗ này trả lỗi và giết cả lượt tìm —
+                # tức giao diện chỉ dùng được cho câu đã nằm trong bộ đề. Nay bỏ
+                # riêng kênh đó và chạy tiếp bằng kênh còn lại, có báo rõ.
+                canh_bao = (
+                    "Kênh 1 (ảnh) BỊ BỎ: truy vấn này chưa có trong "
+                    "index/truy_van.npz. Kết quả dưới đây chỉ từ kênh văn bản "
+                    "và objects — yếu hơn hẳn. Mã hoá thêm: "
+                    'python scripts/25_ma_hoa_truy_van.py --them "…" --gop')
             except Exception:
                 traceback.print_exc()
 
         cac = [c for c in cac if c]
         if not cac:
-            return {"ung_vien": [], "kenh": dung_kenh}
+            return {"ung_vien": [], "kenh": da_dung, "canh_bao": canh_bao}
 
         # Một kênh thì khỏi RRF — hợp nhất một danh sách chỉ làm mất điểm gốc.
         ket = cac[0] if len(cac) == 1 else hop_nhat(cac, k=k)
         return {"ung_vien": [self._the(c, i) for i, c in enumerate(ket[:k])],
-                "tho": ket[:k], "kenh": dung_kenh}
+                "tho": ket[:k], "kenh": da_dung, "canh_bao": canh_bao}
 
     def _the(self, c, i: int) -> dict:
         r = int(c.row_id)
