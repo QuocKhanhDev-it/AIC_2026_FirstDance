@@ -21,12 +21,17 @@ Máy khác nhau giữ dữ liệu khác nhau (B4), và `ocr_asr.parquet` của k
 thể chưa ai chạy. Thiếu file thì in một dòng rồi đi tiếp — **không bao giờ để
 một kênh phụ làm hỏng cả bài nộp**.
 
-HỢP NHẤT MẶC ĐỊNH TẮT — ĐÂY LÀ QUYẾT ĐỊNH CÓ SỐ ĐO
-Đã đo ba lần (A14, A14.1, A17): cộng một kênh yếu vào kênh mạnh làm **TỆ ĐI**.
-RRF cộng `1/(k+hạng)` từ mỗi kênh mà không nhìn kênh đó tốt hay tệ, nên ứng viên
-hạng 1 của một kênh chết được cộng đúng bằng ứng viên hạng 1 của kênh tốt.
-SigLIP2 đang 0,3258 còn objects 0,0412 — chênh 8 lần. Muốn thử thì `--hop-nhat`,
-và **đo trên tập dev trước khi dùng thật**.
+HỢP NHẤT MẶC ĐỊNH **BẬT** — VÀ ĐÂY LÀ MỘT QUYẾT ĐỊNH ĐÃ BỊ LẬT MỘT LẦN
+Ba phép đo cũ (A14, A14.1, A17) nói cộng kênh yếu vào kênh mạnh làm **tệ đi**,
+nên mặc định từng là TẮT. A45 đo lại trên **49 câu ĐỀ THẬT** thì ngược hẳn:
+
+    kênh 1 SigLIP2   0,3258 (tập dev tự soạn)  ->  0,1429 (đề thật)
+    kênh 3 OCR/ASR   0,1183                    ->  0,1633   <- mạnh hơn kênh 1
+    RRF(1,3) 1:1     -0,0144                   ->  +0,0694  ✅ ỔN ĐỊNH
+
+Ba phép đo cũ không sai về số học — chúng đo trên tập dev tự soạn, thứ đã bị
+chứng minh là **thổi phồng kênh 1 gấp 2,3 lần**. Muốn dựng lại hành vi cũ:
+`--khong-hop-nhat`.
 """
 
 import argparse
@@ -49,15 +54,6 @@ from schema import AnswerTRAKE                                # noqa: E402
 # vì BTC chấm theo đó.
 TEN_DE = re.compile(r"^(query-.+-(kis|qa|trake))$")
 
-# Sự kiện TRAKE trong đề mẫu đánh dấu bằng `E1:`, `E2:`...
-# ⚠️ DẤU HAI CHẤM LÀ TUỲ CHỌN. Bản đầu viết `[:.]` bắt buộc, vá theo ĐỀ MẪU
-# (`E1: Khoảnh khắc…`). ĐỀ THẬT bỏ dấu (`E1 Khoảnh khắc…`) nên không dòng nào
-# khớp, `tach_su_kien` rơi xuống nhánh "mỗi dòng một sự kiện", và **lời mở đầu
-# thành sự kiện 1** — nộp 4 Frame ID nơi BTC đòi 3. Sai số Frame ID là sai
-# định dạng, MẤT TRẮNG cả gói (`query-p1-16-trake` của đề sơ tuyển đợt 1).
-#
-# Vẫn đòi MỘT dấu tách (`:`/`.`/khoảng trắng) sau số, để `E12abc` không bị
-# nhận nhầm thành sự kiện 12.
 # Mốc sự kiện TRAKE. Hai nhánh, và chúng CỐ Ý chặt lỏng khác nhau:
 #
 #   `E1:` `E1.` `E1 `      — đề sơ tuyển đợt 1 viết `E1 ` KHÔNG dấu hai chấm
@@ -754,24 +750,28 @@ def main():
                     help="objects = KHONG can model lon, chay duoc tren may "
                          "thieu RAM. Chat luong kem han (0,0412 so voi 0,3258) "
                          "nhung ra file dung dinh dang")
-    ap.add_argument("--hop-nhat", action="store_true",
-                    help="RRF kênh 1 với kênh văn bản. ĐÃ ĐO LÀ LÀM TỆ ĐI "
-                         "(A14/A17) — chỉ bật khi đo lại thấy thắng")
-    ap.add_argument("--bo-metadata", action="store_true",
-                    help="hop nhat MA KHONG lay kenh 2. Kenh 2 duoc 0,0000 o "
-                         "±2s (A12) nen cong vao la PHA LOANG (A14.2). Cau hinh "
-                         "do duoc tot nhat khong can model la RRF(objects, OCR)")
+    # A45: BẬT MẶC ĐỊNH. Trên tập đề THẬT, RRF(kênh 1, kênh 3) trọng số 1:1
+    # được +0,0694/+0,0735 so với kênh 1 một mình, vượt nhiễu ở ±2s, thắng 8
+    # thua 4 — và cùng dấu ở CẢ HAI nửa của nhóm đối chứng.
+    # A14/A17 đo được điều NGƯỢC LẠI (−0,0144) nhưng đo trên tập dev tự soạn,
+    # thứ đã bị chứng minh là thổi phồng kênh 1 gấp 2,3 lần.
+    ap.add_argument("--khong-hop-nhat", dest="hop_nhat", action="store_false",
+                    help="TẮT RRF, chỉ dùng kênh 1 một mình — hành vi trước A45")
+    ap.set_defaults(hop_nhat=True)
+    ap.add_argument("--co-metadata", dest="bo_metadata", action="store_false",
+                    help="cộng thêm kênh 2 vào RRF. Kênh 2 được 0,0000 ở ±2s "
+                         "(A12) nên mặc định BỎ — cộng vào là pha loãng (A14.2)")
+    ap.set_defaults(bo_metadata=True)
     ap.add_argument("--trong-so-phu", type=float, default=1.0,
-                    help="trọng số cho kênh phụ khi --hop-nhat. MẶC ĐỊNH 1,0 "
-                         "(ngang nhau) — A23 đo được dìm xuống 0,3 làm TỆ ĐI "
-                         "ổn định. Chỉ hạ khi kênh chính mạnh hơn hẳn (A14.2)")
+                    help="trọng số kênh phụ trong RRF. MẶC ĐỊNH 1,0. A45 đo "
+                         "trên đề thật: hiệu tăng ĐƠN ĐIỆU theo trọng số "
+                         "(0,1→+0,0041 ... 1,0→+0,0694). Hạ xuống là mất lãi")
     ap.add_argument("--hop-nhat-chi-cau-ngan", action="store_true",
-                    help="CHỈ áp --hop-nhat cho câu KHÔNG bị tach_truy_van cắt "
-                         "(<=1 mệnh đề) — câu dài giữ nguyên kênh 1 một mình. "
-                         "A34: RRF(1,3) lãi trên câu ngắn (A30, n=125) nhưng "
-                         "⚪ KHÔNG ĐỔI GÌ tới 🟡 âm nhẹ trên câu dài kiểu đề "
-                         "thật (n=32) — bài nộp thật đã tụt điểm vì áp RRF "
-                         "đều cho mọi câu. Cần --hop-nhat bật kèm cờ này")
+                    help="CHỈ áp RRF cho câu <=1 mệnh đề. ⚠️ A45 BÁC cờ này: "
+                         "đo trên 49 câu đề THẬT (trung vị 62 từ, 2,29 mệnh "
+                         "đề) thì RRF thắng ✅ ỔN ĐỊNH, tức thắng trên chính "
+                         "loại câu dài mà A34 tưởng là thua. Giữ lại để dựng "
+                         "lại phép đo cũ, đừng bật khi đi thi")
     ap.add_argument("--tra-loi", default="",
                     help="chuỗi `answer` dùng chung cho mọi dòng Q&A khi chưa "
                          "có VLM. Sai đáp án = 0 điểm, nhưng vẫn phải nộp")
