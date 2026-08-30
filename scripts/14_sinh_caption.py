@@ -77,8 +77,10 @@ API_OLLAMA = "http://localhost:11434/api/generate"
 
 # Chốt dùng FREE (không trả phí): Ollama làm nguồn chính cho khối lượng lớn,
 # Gemini free tier bổ sung. Xem "HAI BACKEND" ở đầu file.
-MODEL_MAC_DINH = {"gemini": "gemini-3.1-flash-lite", "ollama": "qwen2.5vl:7b"}
-GIAY_MOI_ANH_MAC_DINH = {"gemini": 1.4, "ollama": 8.2}   # đo được ở bench Q&A
+MODEL_MAC_DINH = {"gemini": "gemini-3.1-flash-lite", "ollama": "qwen2.5vl:7b",
+                  "hf": "Qwen/Qwen2.5-VL-3B-Instruct"}
+GIAY_MOI_ANH_MAC_DINH = {"gemini": 1.4, "ollama": 8.2,   # đo được ở bench Q&A
+                         "hf": 1.5}                      # ƯỚC, chưa đo — xem chay_hf
 
 # Nhắc: viết cho MÁY TÌM KIẾM đọc, không viết cho người đọc. Nghĩa là ưu tiên
 # danh từ cụ thể và động từ, bỏ hết chữ đưa đẩy ("bức ảnh này cho thấy...") vì
@@ -150,8 +152,19 @@ def chon_row(master: pd.DataFrame, chon: str) -> pd.DataFrame:
                  if c.loai == "TRAKE" else c.row_id_dung)
             vid |= {master.video_id.iloc[r] for r in p}
         return m[m.video_id.isin(vid)]
+    if chon.startswith("tap:"):
+        # Cùng phép chọn với `08_encode.py --theo-tap-dev`: TRỌN VẸN mọi video
+        # mà tập đó đụng tới, không phải vài ảnh quanh đáp án. Bể ứng viên hẹp
+        # lại quanh đáp án là tự thổi phồng điểm.
+        rid = []
+        for dong in Path(chon.split(":", 1)[1]).read_text("utf-8").splitlines():
+            if not dong.strip():
+                continue
+            r = json.loads(dong)["row_id_dung"]
+            rid += [x for b in r for x in b] if isinstance(r[0], list) else r
+        return m[m.video_id.isin(set(master.video_id.iloc[rid]))]
     raise SystemExit(f"--chon không hiểu: {chon!r}. "
-                     f"Dùng: co-anh | tap-dev | nhom:L21,L22")
+                     f"Dùng: co-anh | tap-dev | tap:<file.jsonl> | nhom:L21,L22")
 
 
 def doc_log(f: Path) -> list[dict]:
@@ -297,18 +310,102 @@ def don(text: str) -> str:
     return t
 
 
+def chay_hf(d: pd.DataFrame, log: Path, loi_nhac: str, ten_model: str,
+            batch: int, diem_anh: int, so_chu: int):
+    """Sinh caption bằng model nạp THẲNG trong tiến trình (dùng cho Kaggle GPU).
+
+    VÌ SAO KHÔNG DÙNG CHUNG ĐƯỜNG `goi()` NHƯ HAI BACKEND KIA. Ollama và Gemini
+    là *server*: bắn nhiều luồng vào là chúng tự xếp hàng và tự gộp lô. Model
+    nạp tại chỗ thì không — `--luong` cao chỉ khiến nhiều thread giành một GPU,
+    chậm hơn chứ không nhanh hơn. Cách duy nhất tăng thông lượng là **gộp lô
+    thật** (`--batch`), nên đường chạy này tuần tự và không đụng hàng đợi.
+
+    HAI NÚT QUYẾT ĐỊNH TỐC ĐỘ, cả hai đều KHÔNG phải `--batch`:
+
+    * `--diem-anh` — trần số điểm ảnh đưa vào bộ mã hoá thị giác. Qwen2.5-VL
+      chia ảnh thành token theo diện tích, để mặc định thì một ảnh 1280×720 tốn
+      hàng nghìn token thị giác. Đây là nút đắt nhất.
+    * `--so-chu` — trần token sinh ra. Caption 2–3 câu không cần quá ~180.
+
+    ⚠️ **Chưa có số đo trên phần cứng Kaggle.** `GIAY_MOI_ANH_MAC_DINH["hf"]`
+    là con số ƯỚC, không phải đo. Chạy `--n 40` trước và đọc tốc độ thật in ra,
+    rồi mới nhân lên để quyết định phạm vi — đừng tin dòng `--uoc-tinh` khi
+    backend là `hf`.
+    """
+    import torch
+    from transformers import AutoProcessor, Qwen2_5_VLForConditionalGeneration
+
+    print(f"nạp {ten_model} …", flush=True)
+    proc = AutoProcessor.from_pretrained(
+        ten_model, min_pixels=256 * 28 * 28, max_pixels=diem_anh * 28 * 28)
+    # padding TRÁI: `generate` lấy token cuối của mỗi dòng làm mốc sinh tiếp.
+    # Pad phải là sinh tiếp từ ô đệm -> cả lô ra rác, và KHÔNG có lỗi nào báo.
+    proc.tokenizer.padding_side = "left"
+    model = Qwen2_5_VLForConditionalGeneration.from_pretrained(
+        ten_model, torch_dtype=torch.float16, device_map="auto").eval()
+
+    from qwen_vl_utils import process_vision_info
+    hang = list(d.itertuples(index=False))
+    t0 = time.perf_counter()
+    xong = hong = 0
+
+    for i in range(0, len(hang), batch):
+        lo = hang[i:i + batch]
+        tin = [[{"role": "user", "content": [
+                    {"type": "image", "image": str(r.kf_path)},
+                    {"type": "text", "text": loi_nhac}]}] for r in lo]
+        try:
+            van = [proc.apply_chat_template(t, tokenize=False,
+                                            add_generation_prompt=True) for t in tin]
+            anh, vid = process_vision_info(tin)
+            vao = proc(text=van, images=anh, videos=vid,
+                       padding=True, return_tensors="pt").to(model.device)
+            with torch.no_grad():
+                ra = model.generate(**vao, max_new_tokens=so_chu, do_sample=False)
+            tra = proc.batch_decode([o[len(v):] for v, o in zip(vao.input_ids, ra)],
+                                    skip_special_tokens=True)
+        except Exception as e:
+            # Cả lô hỏng (thường là tràn VRAM). Báo rõ rồi đi tiếp — mất một lô
+            # còn hơn chết cả lượt chạy đã làm được vài nghìn ảnh.
+            hong += len(lo)
+            print(f"  hỏng lô {i}-{i + len(lo)}: {str(e)[:90]}", flush=True)
+            continue
+
+        with log.open("a", encoding="utf-8") as f:
+            for r, t in zip(lo, tra):
+                # Không thử lại đổi nhiệt độ như `goi_ollama_sach`: ở đây greedy
+                # là cả lô, sinh lại một ảnh là phá nhịp gộp lô. Xoá thẳng ký tự
+                # Hán — thà mất một phần nội dung còn hơn để token vô nghĩa với
+                # BM25 tiếng Việt lọt vào caption.
+                cap = don(" ".join(CHU_HAN.sub("", t).split()))
+                f.write(json.dumps({"row_id": int(r.row_id), "caption": cap},
+                                   ensure_ascii=False) + "\n")
+        xong += len(lo)
+        giay = time.perf_counter() - t0
+        con = (len(hang) - xong) * giay / xong / 60
+        print(f"  {xong:,}/{len(hang):,}  {giay / xong:.2f} giây/ảnh  "
+              f"còn ~{con:.0f} phút", flush=True)
+
+    print(f"\nXong {xong:,} ảnh trong {(time.perf_counter() - t0) / 60:.1f} phút"
+          + (f"  |  {hong} hỏng" if hong else ""))
+
+
 def uoc_tinh(d: pd.DataFrame, a):
     """In bảng ước lượng. KHÔNG gọi API/Ollama."""
     n = len(d)
-    giay = n * a.giay_moi_anh / max(a.luong, 1)
+    # `hf` nạp model TẠI CHỖ: một GPU, chạy tuần tự theo lô. Chia cho `--luong`
+    # ở đây là bịa ra tốc độ gấp 4 lần thực tế.
+    chia = 1 if a.backend == "hf" else max(a.luong, 1)
+    giay = n * a.giay_moi_anh / chia
     print(f"{'backend':<28}{a.backend:>12}")
     print(f"{'model':<28}{a.model:>12}")
     print(f"{'số ảnh cần sinh':<28}{n:>12,}")
-    print(f"{'luồng song song':<28}{a.luong:>12}")
+    print(f"{'song song':<28}"
+          f"{('lô ' + str(a.batch)) if a.backend == 'hf' else a.luong:>12}")
     print(f"{'giây/ảnh (giả định)':<28}{a.giay_moi_anh:>12.1f}")
     print(f"{'thời gian tường':<28}{giay / 3600:>12.1f} giờ")
     print(f"\n{'toàn kho 177.321 ảnh':<28}"
-          f"{177321 * a.giay_moi_anh / max(a.luong, 1) / 3600:>12.1f} giờ")
+          f"{177321 * a.giay_moi_anh / chia / 3600:>12.1f} giờ")
     if a.backend == "gemini":
         print(f"{'chi phí ở ' + str(a.gia_1k) + ' /1k ảnh':<28}"
               f"{n / 1000 * a.gia_1k:>12.2f}")
@@ -318,6 +415,12 @@ def uoc_tinh(d: pd.DataFrame, a):
         print("⚠️  Free tier có trần lượt/phút + lượt/ngày, chưa đo trần thật cho\n"
               "    model này. Ở khối lượng vài chục nghìn ảnh, dùng `--backend ollama`\n"
               "    (mặc định) để không bị nghẽn quota — Gemini chỉ nên bổ sung.")
+    elif a.backend == "hf":
+        print("\n⚠️  1,5 giây/ảnh là con số ƯỚC, CHƯA ĐO trên phần cứng Kaggle —\n"
+              "    bảng trên chỉ là chỗ giữ chỗ. Chạy `--n 40` trước, đọc tốc độ\n"
+              "    THẬT script in ra, rồi mới nhân lên để quyết định phạm vi.")
+        print("⚠️  Quota Kaggle 30 giờ GPU/tuần, mỗi phiên tối đa 12 giờ. Con số\n"
+              "    'toàn kho' ở trên vượt cả hai — phải chọn tập con.")
     else:
         print("\n⚠️  Ollama chạy trên MỘT GPU — `--luong` cao không chia sẻ được VRAM,\n"
               "    dễ tràn bộ nhớ. Bắt đầu `--luong 1` hoặc `2`, tự đo trước khi tăng.")
@@ -330,10 +433,19 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--index", default=GOC / "index", type=Path)
     ap.add_argument("--chon", default="tap-dev",
-                    help="co-anh | tap-dev | nhom:L21,L22")
-    ap.add_argument("--backend", default="ollama", choices=("ollama", "gemini"),
+                    help="co-anh | tap-dev | tap:<file.jsonl> | nhom:L21,L22")
+    ap.add_argument("--backend", default="ollama",
+                    choices=("ollama", "gemini", "hf"),
                     help="ollama = nguồn chính (free, local, không trần). "
-                         "gemini = bổ sung (free tier, có trần)")
+                         "gemini = bổ sung (free tier, có trần). "
+                         "hf = model nạp tại chỗ, cho GPU Kaggle")
+    ap.add_argument("--batch", type=int, default=8,
+                    help="chỉ dùng với --backend hf: số ảnh mỗi lô")
+    ap.add_argument("--diem-anh", type=int, default=512,
+                    help="chỉ dùng với --backend hf: trần token thị giác mỗi "
+                         "ảnh. Nút đắt nhất về tốc độ — xem chay_hf()")
+    ap.add_argument("--so-chu", type=int, default=180,
+                    help="chỉ dùng với --backend hf: trần token sinh ra")
     ap.add_argument("--model", default=None,
                     help="mặc định theo backend, xem MODEL_MAC_DINH")
     ap.add_argument("--n", type=int, default=0, help="trần số ảnh lần này. 0 = hết")
@@ -376,6 +488,10 @@ def main():
         return uoc_tinh(d, a)
     if d.empty:
         print("Không còn ảnh nào. Biên ra parquet:")
+        return bien(log, par)
+
+    if a.backend == "hf":
+        chay_hf(d, log, loi_nhac, a.model, a.batch, a.diem_anh, a.so_chu)
         return bien(log, par)
 
     key = None
