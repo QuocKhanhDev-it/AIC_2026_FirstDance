@@ -232,15 +232,45 @@ print("chep tu", hit[0])
 !python scripts/12_va_duong_dan.py --roots /kaggle/input --ghi
 ```
 
-Chốt chặn — dừng lại ngay nếu số này sai, đừng encode:
+### Chốt chặn phải GỌI TÊN nhóm thiếu, không chỉ in một con số tổng
+
+Đã cắn thật ngày 30/08, trên máy một thành viên:
+
+```text
+keyframe có ảnh    97,731 → 88,635    -9,096
+344 thư mục keyframe
+theo nhóm L: L21, L23, L24, L25, L27, L28, L29, L30
+```
+
+**Thiếu hẳn L22** — quên `Add Input`, không phải lỗi quyền. Nhưng bước vá đường
+dẫn vẫn in dấu ✅ và ghi file bình thường; dấu hiệu duy nhất là con số `-9.096`
+lẫn trong một cột. Encode tiếp thì 9.096 dòng lặng lẽ thành vector 0.
+
+`88.635` còn "trông gần đúng" — đó mới là chỗ nguy. Nên chốt phải đối chiếu
+**từng nhóm** và gọi tên cái thiếu:
 
 ```python
 import pandas as pd
+
+# Số keyframe mỗi nhóm — thuộc tính của kho BTC, không đổi theo máy.
+MONG_DOI = {'L21': 7800, 'L22': 9096, 'L23': 2326, 'L24': 6781, 'L25': 37445,
+            'L27': 4914, 'L28': 10683, 'L29': 10771, 'L30': 7915}
+
 m = pd.read_parquet('index/master.parquet')
-n = m.kf_path.notna().sum()
-print(f"co anh: {n:,} / {len(m):,}")
-assert n > 90_000, "duong dan chua va duoc — dataset anh chua mount xong?"
+co = m[m.kf_path.notna()].video_id.str[:3].value_counts().to_dict()
+
+thieu = [n for n in MONG_DOI if co.get(n, 0) == 0]
+lech = [(n, int(co[n]), c) for n, c in MONG_DOI.items()
+        if co.get(n, 0) and co[n] != c]
+for n, c in sorted(MONG_DOI.items()):
+    print(f"  {n}  {int(co.get(n, 0)):>7,} / {c:>7,}")
+
+assert not thieu, f"CHUA Add Input cho nhom: {', '.join(thieu)}"
+assert not lech, f"So anh lech o {lech} — dataset chua giai nen xong?"
 ```
+
+Notebook [`notebooks/kaggle_encode.ipynb`](../notebooks/kaggle_encode.ipynb) đã
+mang sẵn cell này.
 
 Rồi bậc 0:
 
