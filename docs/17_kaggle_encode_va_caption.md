@@ -132,6 +132,19 @@ Internet **ON**. **Add Input**: `aic2026-index` + 9 dataset ảnh.
 
 ## A3. Bậc 0 — dựng notebook và soát
 
+> **Notebook đã dựng sẵn, khỏi chép tay từng cell.** Bản đầy đủ ở
+> [`notebooks/kaggle_encode.ipynb`](../notebooks/kaggle_encode.ipynb) — tải lên
+> Kaggle bằng *File → Import Notebook*, hoặc đẩy thẳng:
+>
+> ```powershell
+> .venv\Scripts\kaggle.exe kernels push -p kaggle_uploadic2026-encode
+> ```
+>
+> Nó đã gắn sẵn 10 dataset, bật GPU + Internet, đặt `is_private: true`.
+> Vẫn phải vào **Settings** đổi Accelerator sang **P100** — API không chọn được
+> loại GPU cụ thể.
+
+
 ```python
 # 1. ma nguon
 !git clone -q -b giai-doan-0 https://github.com/QuocKhanhDev-it/AIC_2026_FirstDance.git repo
