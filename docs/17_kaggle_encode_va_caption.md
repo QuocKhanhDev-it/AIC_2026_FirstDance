@@ -8,7 +8,7 @@ Hai việc **không ngang nhau về độ chắc**, và đừng làm cùng lúc:
 | | Việc A — mã hoá model thứ hai | Việc B — sinh caption (kênh 5) |
 | --- | --- | --- |
 | Đã có script chạy được | ✅ `08_encode.py`, đã chạy thật một lần | ⚠️ `14_sinh_caption.py --backend hf`, **chưa chạy lần nào** |
-| Thời gian | ~3–4 giờ | 3,6 giờ (tập thử) → **74 giờ** (toàn kho) |
+| Thời gian | **chưa đo** — bậc 0 ở mục A3 cho số thật | 3,6 giờ (tập thử) → **74 giờ** (toàn kho) |
 | Rủi ro | thấp — ma trận tệ thì xoá file | cao — chưa đo, có thể vô ích |
 | Thứ tự | **làm trước** | chỉ làm sau khi A xong |
 
@@ -103,11 +103,34 @@ Model chọn: **`ViT-gopt-16-SigLIP2-384`** / `webli`. Cùng họ SigLIP2 nên v
 hiểu truy vấn tiếng Việt như model đang dùng, nhưng kiến trúc và độ phân giải
 khác — đủ khác để hai bên sai lệch nhau.
 
-## A2. Notebook
+## A2. Thang leo — làm nhỏ trước, to sau
 
-Accelerator **GPU T4 x2** (hoặc P100). Internet **ON**.
-**Add Input**: dataset `aic2026-index` + **9 dataset ảnh** `aic2026-keyframes-l21`
-… `-l30`.
+Không chạy một lượt 7 giờ ngay. Leo theo bậc, **mỗi bậc là một vòng trọn vẹn**:
+encode → tải về → ghép → đo. Bậc nào cũng cho ra một ma trận dùng được ngay,
+nên hỏng ở bậc nào thì mất đúng bậc đó.
+
+| bậc | phạm vi | ảnh | cộng dồn | mục đích |
+| ---: | --- | ---: | ---: | --- |
+| **0** | 100 video phân tầng | ~4.000 | — | bắt sai model / sai đường dẫn / lệch hàng |
+| **1** | L23 | 2.326 | 2.326 | chạy trọn vòng, kể cả tải về + ghép + đo |
+| **2** | L27, L24 | 11.695 | 14.021 | đo tốc độ thật ở quy mô có nghĩa |
+| **3** | L21, L30, L22 | 24.811 | 38.832 | |
+| **4** | L28, L29 | 21.454 | 60.286 | |
+| **5** | L25 | 37.445 | **97.731** | nhóm to nhất đã có ảnh |
+| — | *L26* | *79.590* | *177.321* | *chưa lên Kaggle* |
+
+Bậc 0 và 1 **vứt đi được** — chúng chỉ để soát. Từ bậc 2 trở đi mới tích lũy
+vào ma trận thật.
+
+### Chọn Accelerator: **P100**, không phải T4 x2
+
+`08_encode.py` chạy trên **một GPU** (`cuda:0`), không chia việc cho GPU thứ hai.
+Chọn T4 x2 là để không một nửa phần cứng nằm không mà vẫn tính đủ quota.
+P100 nhanh hơn một T4 đơn ở fp16 cho model cỡ này.
+
+Internet **ON**. **Add Input**: `aic2026-index` + 9 dataset ảnh.
+
+## A3. Bậc 0 — dựng notebook và soát
 
 ```python
 # 1. ma nguon
@@ -125,50 +148,124 @@ Accelerator **GPU T4 x2** (hoặc P100). Internet **ON**.
 !python scripts/12_va_duong_dan.py --roots /kaggle/input --ghi
 ```
 
-Bước 3 phải in ra ~97.731 ảnh. In ra 0 thì dừng lại — dataset ảnh chưa mount,
-hoặc còn *processing*. Kiểm lại ngay, đừng chạy tiếp:
+Chốt chặn — dừng lại ngay nếu số này sai, đừng encode:
 
 ```python
 import pandas as pd
 m = pd.read_parquet('index/master.parquet')
 n = m.kf_path.notna().sum()
 print(f"co anh: {n:,} / {len(m):,}")
-assert n > 90_000, "duong dan chua va duoc — dung lai, dung encode"
+assert n > 90_000, "duong dan chua va duoc — dataset anh chua mount xong?"
 ```
 
-## A3. Chạy thử 100 video TRƯỚC
-
-Đừng bắt đầu bằng lượt 3 giờ. Lượt thử này để bắt sai model, sai đường dẫn, sai
-số chiều — những thứ mà lượt dài cũng không tự báo, chỉ tốn 3 giờ rồi mới lộ.
+Rồi bậc 0:
 
 ```python
 !python scripts/08_encode.py --model ViT-gopt-16-SigLIP2-384 --pretrained webli \
-    --videos 100 --out index/clip_gopt_thu.npy
+    --videos 100 --workers 4 --batch 32 --out /kaggle/working/thu.npy
 
 # CHOT AN TOAN cai san trong script: kiem lech hang.
 # Lech hang la loi nguy hiem nhat o day — moi vector ve sai anh, cosine van
 # dep, moi kiem tra cau truc van xanh, va diem thi tut ma khong ai biet vi sao.
-!python scripts/08_encode.py --kiem-lech-hang index/clip_gopt_thu.npy
+!python scripts/08_encode.py --kiem-lech-hang /kaggle/working/thu.npy
 ```
 
-Đọc tốc độ **ảnh/giây** script in ra rồi nhân lên: `97731 / (ảnh/giây) / 3600` =
-số giờ thật. Vượt 12 giờ thì chia làm nhiều phiên (`--chi-video`), đừng để
-Kaggle cắt ngang.
+Bốn thứ phải đọc trong log bậc 0, **trước khi leo tiếp**:
 
-## A4. Chạy thật
+| đọc gì | phải là |
+| --- | --- |
+| dòng `GPU:` | `Tesla P100` (hoặc T4) — ra `cpu` là hỏng, sẽ chậm gấp ~50 lần |
+| số chiều | **1536** — ra 1152 là đang chạy nhầm model cũ |
+| `--kiem-lech-hang` | ✅ đạt |
+| **ảnh/giây** | ghi lại — đây là con số cả kế hoạch dựa vào |
+
+`--workers 4`: Kaggle cấp 4 vCPU. Đặt 8 là các tiến trình đọc ảnh giành nhau CPU.
+Tràn VRAM thì hạ `--batch` xuống 16.
+
+### Tính thời gian thật từ ảnh/giây
+
+```text
+giờ cho phần còn lại = 97.731 / (ảnh mỗi giây) / 3600
+```
+
+Chưa có số đo cho `ViT-gopt-16-SigLIP2-384` trên phần cứng Kaggle — model này
+~1,1 tỷ tham số, **gấp gần ba lần** SO400M (đo được 23,9 ảnh/giây trên máy dựng
+index, GPU khác). Đừng suy ra từ con số đó.
+
+Ra dưới ~4 ảnh/giây thì tổng vượt 7 giờ. Lúc đó cân nhắc
+**`ViT-L-16-SigLIP2-384`** (1024 chiều, nhẹ hơn nhiều) — vẫn là model thứ hai
+độc lập, vẫn hiểu tiếng Việt, và một ma trận chạy xong đáng giá hơn một ma trận
+chạy dở.
+
+## A4. Bậc 1 trở đi — encode theo nhóm rồi ghép
+
+`--chi-video` nhận file danh sách `video_id`, mỗi dòng một id. Sinh thẳng trong
+notebook để luôn khớp với `master.parquet`, khỏi phải mang file qua lại:
+
+```python
+import pandas as pd
+m = pd.read_parquet('index/master.parquet')
+
+BAC = {1: ['L23'], 2: ['L27','L24'], 3: ['L21','L30','L22'],
+       4: ['L28','L29'], 5: ['L25']}
+
+def lam(bac):
+    nhom = BAC[bac]
+    v = sorted(m[m.video_id.str[:3].isin(nhom) & m.kf_path.notna()].video_id.unique())
+    ten = f'ds_bac{bac}.txt'
+    open(ten, 'w').write('\n'.join(v) + '\n')
+    print(f"bac {bac}: {nhom} -> {len(v)} video")
+    return ten
+
+ten = lam(1)
+```
 
 ```python
 !python scripts/08_encode.py --model ViT-gopt-16-SigLIP2-384 --pretrained webli \
-    --out /kaggle/working/clip_gopt.npy --batch 64
+    --chi-video ds_bac1.txt --workers 4 --batch 32 \
+    --out /kaggle/working/clip_gopt_bac1.npy
 ```
 
-Script tự ghi checkpoint mỗi 10.000 ảnh. Phiên bị cắt thì chạy lại đúng lệnh đó.
+Tải `clip_gopt_bac1.npy` **và `clip_gopt_bac1.json`** về máy.
 
-Tải `clip_gopt.npy` **và `clip_gopt.json` cạnh nó** về `index/`.
-
-> ⚠️ **KHÔNG tải `master.parquet` từ Kaggle về.** File đó đã bị bước A2.3 vá
+> ⚠️ **KHÔNG tải `master.parquet` từ Kaggle về.** File đó đã bị bước A3.3 vá
 > thành đường dẫn `/kaggle/input/...`. Đè nó lên máy local là mọi thứ đọc ảnh
 > chết hàng loạt. Chỉ tải `.npy` và `.json`.
+
+### Ghép ở máy local
+
+Bậc 1 là bậc đầu, chưa có gì để ghép — đổi tên thành ma trận chính:
+
+```powershell
+$env:PYTHONIOENCODING = "utf-8"
+copy index\clip_gopt_bac1.npy  index\clip_gopt.npy
+copy index\clip_gopt_bac1.json index\clip_gopt.json
+```
+
+Từ bậc 2 trở đi thì ghép. **Xem trước rồi mới `--ghi`** — mặc định không ghi:
+
+```powershell
+.venv\Scripts\python.exe scripts\18_ghep_ma_tran.py ^
+    --chinh index\clip_gopt.npy --va index\clip_gopt_bac2.npy
+.venv\Scripts\python.exe scripts\18_ghep_ma_tran.py ^
+    --chinh index\clip_gopt.npy --va index\clip_gopt_bac2.npy --ghi
+```
+
+Script sao lưu bản cũ thành `clip_gopt.npy.truoc_khi_ghep.npy` trước khi ghi đè.
+Số dòng "mới" nó in ra phải khớp số ảnh của bậc đó ở bảng A2 — lệch là dừng lại
+tìm hiểu, đừng ghép tiếp lên trên.
+
+Kiểm độ phủ cộng dồn sau mỗi lần ghép:
+
+```powershell
+.venv\Scripts\python.exe -c "import numpy as np;a=np.load('index/clip_gopt.npy',mmap_mode='r');print('co vector:',int((np.abs(a).sum(1)>0).sum()),'/',a.shape[0],'| chieu',a.shape[1])"
+```
+
+### Sửa `so_dong`/`da_encode` trong sidecar
+
+Sidecar `clip_gopt.json` mang số của **riêng bậc cuối**, không phải cộng dồn.
+`25_ma_hoa_truy_van.py` chỉ đọc `model`/`pretrained`/`chieu` nên không sai gì,
+nhưng đừng trích các số kia ra tài liệu.
 
 ## A4b. ⚠️ Cache truy vấn: PHẢI sinh lại, và là một FILE RIÊNG
 
@@ -268,7 +365,7 @@ chứ không nhanh hơn. Nút tăng tốc là `--batch` và `--diem-anh`.
 
 ## B3. Notebook
 
-Accelerator **GPU T4 x2**. Internet **ON**. Input: `aic2026-index` + 9 dataset ảnh.
+Accelerator **P100** (hoặc T4). Internet **ON**. Input: `aic2026-index` + 9 dataset ảnh.
 
 ```python
 !git clone -q -b giai-doan-0 https://github.com/QuocKhanhDev-it/AIC_2026_FirstDance.git repo
