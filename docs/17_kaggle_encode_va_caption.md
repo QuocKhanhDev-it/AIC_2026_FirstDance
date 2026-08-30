@@ -141,8 +141,20 @@ Internet **ON**. **Add Input**: `aic2026-index` + 9 dataset ảnh.
 > ```
 >
 > Nó đã gắn sẵn 10 dataset, bật GPU + Internet, đặt `is_private: true`.
-> Vẫn phải vào **Settings** đổi Accelerator sang **P100** — API không chọn được
-> loại GPU cụ thể.
+>
+> ⚠️ **`kernels push` KHÔNG chỉ lưu — nó là "Save & Run All".** Đẩy lên là
+> Kaggle chạy ngay toàn bộ notebook và bắt đầu tiêu quota GPU, không hỏi gì.
+> Muốn xem trước rồi mới chạy thì dùng *File → Import Notebook* trên giao diện.
+>
+> Lượt chạy do `push` khởi động dùng **GPU mặc định của API (T4)**, không phải
+> P100 — API không chọn được loại GPU. Nên tốc độ đo được từ lượt đó là **cận
+> dưới**. Muốn P100 thì vào **Settings** đổi rồi chạy lại bằng tay.
+>
+> Theo dõi / dừng:
+>
+> ```powershell
+> .venv\Scripts\kaggle.exe kernels status duyanhdz2412/aic2026-encode
+> ```
 
 
 ```python
