@@ -21,12 +21,17 @@ Máy khác nhau giữ dữ liệu khác nhau (B4), và `ocr_asr.parquet` của k
 thể chưa ai chạy. Thiếu file thì in một dòng rồi đi tiếp — **không bao giờ để
 một kênh phụ làm hỏng cả bài nộp**.
 
-HỢP NHẤT MẶC ĐỊNH TẮT — ĐÂY LÀ QUYẾT ĐỊNH CÓ SỐ ĐO
-Đã đo ba lần (A14, A14.1, A17): cộng một kênh yếu vào kênh mạnh làm **TỆ ĐI**.
-RRF cộng `1/(k+hạng)` từ mỗi kênh mà không nhìn kênh đó tốt hay tệ, nên ứng viên
-hạng 1 của một kênh chết được cộng đúng bằng ứng viên hạng 1 của kênh tốt.
-SigLIP2 đang 0,3258 còn objects 0,0412 — chênh 8 lần. Muốn thử thì `--hop-nhat`,
-và **đo trên tập dev trước khi dùng thật**.
+HỢP NHẤT MẶC ĐỊNH **BẬT** — VÀ ĐÂY LÀ MỘT QUYẾT ĐỊNH ĐÃ BỊ LẬT MỘT LẦN
+Ba phép đo cũ (A14, A14.1, A17) nói cộng kênh yếu vào kênh mạnh làm **tệ đi**,
+nên mặc định từng là TẮT. A45 đo lại trên **49 câu ĐỀ THẬT** thì ngược hẳn:
+
+    kênh 1 SigLIP2   0,3258 (tập dev tự soạn)  ->  0,1429 (đề thật)
+    kênh 3 OCR/ASR   0,1183                    ->  0,1633   <- mạnh hơn kênh 1
+    RRF(1,3) 1:1     -0,0144                   ->  +0,0694  ✅ ỔN ĐỊNH
+
+Ba phép đo cũ không sai về số học — chúng đo trên tập dev tự soạn, thứ đã bị
+chứng minh là **thổi phồng kênh 1 gấp 2,3 lần**. Muốn dựng lại hành vi cũ:
+`--khong-hop-nhat`.
 """
 
 import argparse
@@ -49,8 +54,22 @@ from schema import AnswerTRAKE                                # noqa: E402
 # vì BTC chấm theo đó.
 TEN_DE = re.compile(r"^(query-.+-(kis|qa|trake))$")
 
-# Sự kiện TRAKE trong đề mẫu đánh dấu bằng `E1:`, `E2:`...
-_SU_KIEN = re.compile(r"^\s*E\s*\d+\s*[:.]\s*", re.I)
+# Mốc sự kiện TRAKE. Hai nhánh, và chúng CỐ Ý chặt lỏng khác nhau:
+#
+#   `E1:` `E1.` `E1 `      — đề sơ tuyển đợt 1 viết `E1 ` KHÔNG dấu hai chấm
+#                            (A40). Nên nhánh này nhận cả khoảng trắng trần.
+#   `Cảnh 1:` `Sự kiện 1.` — đề sơ tuyển đợt 2 đổi sang từ tiếng Việt (A44).
+#                            Nhánh này BẮT BUỘC có `:` hoặc `.`, không nhận
+#                            khoảng trắng trần — vì "Cảnh 2 người đàn ông đang
+#                            khiêng thùng" là một câu tả bình thường, nhận nhầm
+#                            nó làm mốc thì tách ra thừa sự kiện.
+#
+# Tách sai số sự kiện = nộp sai số Frame ID = MẤT TRẮNG CẢ GÓI. Đã cắn hai lần.
+_SU_KIEN = re.compile(
+    r"^\s*(?:"
+    r"E\s*\d+(?:\s*[:.]\s*|\s+)"
+    r"|(?:cảnh|sự\s*kiện|scene|event)\s*\d+\s*[:.]\s*"
+    r")(?=\S)", re.I)
 
 # Duoi nguong nay coi la N khung "don cuc" -> rai deu. ~100 frame la 3-4 giay
 # o moi muc fps trong kho (25 / 26,44 / 29,97 / 30).
@@ -525,7 +544,9 @@ def _don_cuc(khung: list, cach: str) -> bool:
 
 def dung_trake(cac_su_kien: list, master, so_dong: int = TOI_DA_DONG,
                su_kien_text: list | None = None, kenh1=None,
-               so_video_trich_day: int = 5, don_cuc: str = "tong") -> list:
+               so_video_trich_day: int = 5, don_cuc: str = "tong",
+               dong_hang: str = "cu", he_so_phat: float = 0.0,
+               trai_toi_da: float | None = None, rai_hep: bool = False) -> list:
     """Từ N danh sách ứng viên (mỗi sự kiện một danh sách) -> các dòng TRAKE.
 
     Chọn video bằng điểm MỀM (`thoi_gian.xep_video_theo_chuoi` — Bước 2b),
@@ -542,11 +563,25 @@ def dung_trake(cac_su_kien: list, master, so_dong: int = TOI_DA_DONG,
     tiên: cần văn bản gốc của từng sự kiện (để encode) và kênh 1 đang nạp
     (để encode ảnh CÙNG model). Để trống thì bỏ qua Bước 4, giữ đúng hành vi
     cũ — máy chưa có `.mp4` vẫn chạy được bình thường.
+
+    BỐN THAM SỐ A39 (`dong_hang`, `he_so_phat`, `trai_toi_da`, `rai_hep`) —
+    xem `chuoi_trake.py`. **Mặc định cả bốn giữ nguyên hành vi cũ từng đẻ ra
+    bài nộp 3,8 điểm**, cố ý: kỷ luật đo của dự án là chưa thắng trên tập dev
+    thì chưa được bật. Đo bằng `scripts/35_do_chuoi_trake.py`.
     """
     from thoi_gian import xep_video_theo_chuoi
     n = len(cac_su_kien)
     if n == 0:
         return []
+
+    # Nhập vô điều kiện: `rai_hep` bật được ĐỘC LẬP với `dong_hang` — đó là
+    # cả điểm của việc đo (chỉ đổi MỘT thứ mỗi lần).
+    from chuoi_trake import (TRAI_TOI_DA_GIAY, dong_hang_theo_thoi_gian,
+                             rai_deu_hep)
+    han_trai = TRAI_TOI_DA_GIAY if trai_toi_da is None else trai_toi_da
+    # `row_id` trùng vị trí dòng trong bảng cái (kiểm ở A39) -> tra O(1), khỏi dict.
+    pts_theo_row = master.pts_time.values
+    fps_theo_video = master.groupby("video_id").fps.first()
 
     # xep_video_theo_chuoi() đã trả về MỌI video xuất hiện ở bất kỳ sự kiện
     # nào, xếp theo điểm mềm (thưởng video có sự kiện lân cận cũng khớp) —
@@ -569,12 +604,14 @@ def dung_trake(cac_su_kien: list, master, so_dong: int = TOI_DA_DONG,
         # Bước 1 + 5: DP chọn khung cho từng sự kiện trong video này, GIỮ ĐÚNG
         # chỉ số sự kiện và đã ép tăng dần ngay trong DP (xem dong_hang_dp).
         cac_ung_vien_trong_video = []
+        thoi_diem: dict = {}          # frame_idx -> pts_time, cho prior A39
         for ds in cac_su_kien:
             trong: dict = {}
             for c in ds:
                 if c.video_id == vid and (c.frame_idx not in trong
                                           or c.score > trong[c.frame_idx]):
                     trong[c.frame_idx] = c.score
+                    thoi_diem[c.frame_idx] = float(pts_theo_row[c.row_id])
             top = sorted(trong.items(), key=lambda x: -x[1])[:K_UNG_VIEN_MOI_SU_KIEN]
             cac_ung_vien_trong_video.append(top)
 
@@ -585,7 +622,19 @@ def dung_trake(cac_su_kien: list, master, so_dong: int = TOI_DA_DONG,
                                    cac_ung_vien_trong_video, kenh1, master)
             so_da_trich_day += 1
 
-        tot = dong_hang_dp(cac_ung_vien_trong_video)
+        fps_v = float(fps_theo_video.get(vid, 25.0))
+        if dong_hang == "thoi_gian":
+            # Khung do Bước 4 trích thêm KHÔNG có trong bảng cái nên không có
+            # `pts_time` -> suy từ `frame_idx / fps`. Được phép ở ĐÂY vì con số
+            # này chỉ vào prior khoảng cách, KHÔNG BAO GIỜ được nộp; cái cấm
+            # suy lại (CLAUDE.md) là `frame_idx` — chiều ngược lại.
+            bo_ba = [[(f, thoi_diem.get(f, f / fps_v), s) for f, s in ds]
+                     for ds in cac_ung_vien_trong_video]
+            tot = dong_hang_theo_thoi_gian(
+                bo_ba, he_so_phat=he_so_phat, trai_toi_da=han_trai,
+                k_moi_su_kien=K_UNG_VIEN_MOI_SU_KIEN)
+        else:
+            tot = dong_hang_dp(cac_ung_vien_trong_video)
 
         if all(x is None for x in tot):
             continue
@@ -637,9 +686,20 @@ def dung_trake(cac_su_kien: list, master, so_dong: int = TOI_DA_DONG,
         # TRAKE với ứng viên kênh 3 thì cả ba chính sách đều **0,0000** — không
         # có bằng chứng nào để rời khỏi hành vi đã sinh ra bài nộp 3,8 điểm.
         # Đo lại khi có ứng viên kênh 1 (SigLIP2), nơi TRAKE mới có điểm để so.
+        #
+        # ⚠️ A39 — RẢI KHẮP VIDEO LÀ SAI, và đo được sai bao nhiêu. Độ trải
+        # thật của một chuỗi TRAKE chiếm trung vị **10%** (max 20%) độ dài
+        # video, nên rải đều trên `[lo, hi]` đẩy các sự kiện ra xa gấp 5–10
+        # lần. `rai_hep=True` rải trong cửa sổ 56,6 s (trung vị đo được) quanh
+        # neo mà DP thật sự chọn được. Mặc định vẫn False cho tới khi thắng
+        # trên tập dev.
         if n > 1 and hi > lo and _don_cuc(khung, don_cuc):
-            buoc = (hi - lo) / (n + 1)
-            khung = [lo + round(buoc * (i + 1)) for i in range(n)]
+            if rai_hep and co:
+                neo_vt, neo_f = co[0]
+                khung = rai_deu_hep(neo_f, neo_vt, n, fps_v, lo, hi)
+            else:
+                buoc = (hi - lo) / (n + 1)
+                khung = [lo + round(buoc * (i + 1)) for i in range(n)]
 
         for i in range(1, n):                    # phải TĂNG THẬT, không bằng nhau
             if khung[i] <= khung[i - 1]:
@@ -690,24 +750,28 @@ def main():
                     help="objects = KHONG can model lon, chay duoc tren may "
                          "thieu RAM. Chat luong kem han (0,0412 so voi 0,3258) "
                          "nhung ra file dung dinh dang")
-    ap.add_argument("--hop-nhat", action="store_true",
-                    help="RRF kênh 1 với kênh văn bản. ĐÃ ĐO LÀ LÀM TỆ ĐI "
-                         "(A14/A17) — chỉ bật khi đo lại thấy thắng")
-    ap.add_argument("--bo-metadata", action="store_true",
-                    help="hop nhat MA KHONG lay kenh 2. Kenh 2 duoc 0,0000 o "
-                         "±2s (A12) nen cong vao la PHA LOANG (A14.2). Cau hinh "
-                         "do duoc tot nhat khong can model la RRF(objects, OCR)")
+    # A45: BẬT MẶC ĐỊNH. Trên tập đề THẬT, RRF(kênh 1, kênh 3) trọng số 1:1
+    # được +0,0694/+0,0735 so với kênh 1 một mình, vượt nhiễu ở ±2s, thắng 8
+    # thua 4 — và cùng dấu ở CẢ HAI nửa của nhóm đối chứng.
+    # A14/A17 đo được điều NGƯỢC LẠI (−0,0144) nhưng đo trên tập dev tự soạn,
+    # thứ đã bị chứng minh là thổi phồng kênh 1 gấp 2,3 lần.
+    ap.add_argument("--khong-hop-nhat", dest="hop_nhat", action="store_false",
+                    help="TẮT RRF, chỉ dùng kênh 1 một mình — hành vi trước A45")
+    ap.set_defaults(hop_nhat=True)
+    ap.add_argument("--co-metadata", dest="bo_metadata", action="store_false",
+                    help="cộng thêm kênh 2 vào RRF. Kênh 2 được 0,0000 ở ±2s "
+                         "(A12) nên mặc định BỎ — cộng vào là pha loãng (A14.2)")
+    ap.set_defaults(bo_metadata=True)
     ap.add_argument("--trong-so-phu", type=float, default=1.0,
-                    help="trọng số cho kênh phụ khi --hop-nhat. MẶC ĐỊNH 1,0 "
-                         "(ngang nhau) — A23 đo được dìm xuống 0,3 làm TỆ ĐI "
-                         "ổn định. Chỉ hạ khi kênh chính mạnh hơn hẳn (A14.2)")
+                    help="trọng số kênh phụ trong RRF. MẶC ĐỊNH 1,0. A45 đo "
+                         "trên đề thật: hiệu tăng ĐƠN ĐIỆU theo trọng số "
+                         "(0,1→+0,0041 ... 1,0→+0,0694). Hạ xuống là mất lãi")
     ap.add_argument("--hop-nhat-chi-cau-ngan", action="store_true",
-                    help="CHỈ áp --hop-nhat cho câu KHÔNG bị tach_truy_van cắt "
-                         "(<=1 mệnh đề) — câu dài giữ nguyên kênh 1 một mình. "
-                         "A34: RRF(1,3) lãi trên câu ngắn (A30, n=125) nhưng "
-                         "⚪ KHÔNG ĐỔI GÌ tới 🟡 âm nhẹ trên câu dài kiểu đề "
-                         "thật (n=32) — bài nộp thật đã tụt điểm vì áp RRF "
-                         "đều cho mọi câu. Cần --hop-nhat bật kèm cờ này")
+                    help="CHỈ áp RRF cho câu <=1 mệnh đề. ⚠️ A45 BÁC cờ này: "
+                         "đo trên 49 câu đề THẬT (trung vị 62 từ, 2,29 mệnh "
+                         "đề) thì RRF thắng ✅ ỔN ĐỊNH, tức thắng trên chính "
+                         "loại câu dài mà A34 tưởng là thua. Giữ lại để dựng "
+                         "lại phép đo cũ, đừng bật khi đi thi")
     ap.add_argument("--tra-loi", default="",
                     help="chuỗi `answer` dùng chung cho mọi dòng Q&A khi chưa "
                          "có VLM. Sai đáp án = 0 điểm, nhưng vẫn phải nộp")

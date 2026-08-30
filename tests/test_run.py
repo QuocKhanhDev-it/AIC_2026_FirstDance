@@ -70,6 +70,35 @@ def test_tach_su_kien_mot_su_kien_van_ra_mot():
     assert R.tach_su_kien("một người đàn ông đi bộ") == ["một người đàn ông đi bộ"]
 
 
+def test_tach_su_kien_moc_E_khong_can_dau_hai_cham():
+    """Đề MẪU viết `E1:`, đề THẬT viết `E1 ` — cả hai phải ra cùng số sự kiện.
+
+    Regex bản đầu đòi `[:.]` bắt buộc nên không khớp dòng nào của đề thật, rơi
+    xuống nhánh mỗi-dòng-một-sự-kiện và biến LỜI MỞ ĐẦU thành sự kiện 1: nộp 4
+    Frame ID nơi BTC đòi 3. Sai số Frame ID là sai định dạng, mất trắng cả gói.
+    """
+    that = ("Đoạn video bắt đầu bằng ảnh cận đầu một con lân trắng.\n"
+            "E1 Khoảnh khắc đầu tiên xuất hiện hai con rồng vàng.\n"
+            "E2 Khoảnh khắc đầu tiên lân hoàn tất cú xoay người.\n"
+            "E3 Khoảnh khắc đầu tiên dùi chạm vào kẻng đồng.")
+    mau = that.replace("E1 ", "E1: ").replace("E2 ", "E2: ").replace("E3 ", "E3: ")
+    assert len(R.tach_su_kien(that)) == 3
+    assert len(R.tach_su_kien(mau)) == 3
+    # Lời mở đầu là BỐI CẢNH CHUNG, ghép vào mọi sự kiện, không phải sự kiện.
+    assert all("con lân trắng" in s for s in R.tach_su_kien(that))
+    assert "E1" not in R.tach_su_kien(that)[0]
+
+
+def test_tach_su_kien_khong_nhan_nham_E_lien_chu():
+    """Vẫn đòi một dấu tách sau số, để `E12abc` không thành sự kiện 12."""
+    assert R.tach_su_kien("E12abc một dòng") == ["E12abc một dòng"]
+
+
+def test_tach_su_kien_dem_theo_dong_khong_theo_so():
+    """Đề mẫu `query-p1-18-trake` đánh nhầm E1,E2,E2,E4 — bốn dòng là bốn sự kiện."""
+    assert len(R.tach_su_kien("E1: a\nE2: b\nE2: c\nE4: d")) == 4
+
+
 # ---- dựng dòng TRAKE ------------------------------------------------------
 
 def test_trake_tang_dan_theo_thoi_gian():
@@ -240,3 +269,38 @@ def test_trich_day_bo_qua_su_kien_khong_co_neo(monkeypatch):
     R.lam_day_bang_trich_day("L01_V000", "gia.mp4", ["c1", "c2"], ung_vien,
                              _KenhGia(), master)
     assert goi["lan"] == 1, "phải gọi trích dày đúng 1 lần (sự kiện có neo)"
+
+
+def test_tach_su_kien_moc_Canh_tieng_viet():
+    """Đề sơ tuyển đợt 2 đổi `E1:` thành `Cảnh 1:` — A44.
+
+    Không nhận mốc này thì câu dẫn bị đếm thành sự kiện: 5 Frame ID nơi BTC
+    đòi 4, tức mất trắng cả gói.
+    """
+    that = (
+        "4 cảnh này xảy ra liên tiếp nhau.\n"
+        "Cảnh 1: Hai người phụ nữ cùng nhau dán niêm phong một thùng carton.\n"
+        "Cảnh 2: Các thùng mì tôm và bọc bánh mì được sắp xếp ngay ngắn.\n"
+        "Cảnh 3: Một người đàn ông nhấc thùng mì tôm lên và xếp lên chồng thùng.\n"
+        "Cảnh 4: Cảnh quay cận cảnh các thùng mì được xếp chồng trên xe tải."
+    )
+    sk = R.tach_su_kien(that)
+    assert len(sk) == 4
+    # câu dẫn phải được GHÉP vào mọi sự kiện, không đứng riêng thành một mốc
+    assert all(s.startswith("4 cảnh này xảy ra liên tiếp nhau") for s in sk)
+    assert "dán niêm phong" in sk[0]
+    assert "xe tải" in sk[3]
+
+
+def test_tach_su_kien_khong_nhan_nham_canh_lien_so_dem():
+    """`Cảnh 2 người...` là câu tả, KHÔNG phải mốc — nên nhánh tiếng Việt bắt
+    buộc có `:` hoặc `.`, khác nhánh `E<n>` vốn nhận cả khoảng trắng trần."""
+    sk = R.tach_su_kien("Cảnh 2 người đàn ông đang khiêng một thùng hàng lớn")
+    assert sk == ["Cảnh 2 người đàn ông đang khiêng một thùng hàng lớn"]
+
+
+def test_tach_su_kien_moc_su_kien_va_scene():
+    assert len(R.tach_su_kien(
+        "Bối cảnh chung.\nSự kiện 1: mở cửa\nSự kiện 2: bước vào")) == 2
+    assert len(R.tach_su_kien(
+        "Intro.\nScene 1. open\nScene 2. enter\nScene 3. leave")) == 3

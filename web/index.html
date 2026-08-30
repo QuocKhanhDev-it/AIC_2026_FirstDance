@@ -1,0 +1,641 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FirstDance — truy hồi AIC 2026</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@500;600&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* Bảng màu xám lạnh + nhấn xanh mòng két đã khử bão hoà. Bản cũ dùng nền kem
+   ấm với nhấn vàng kim và chữ serif — chói mắt khi soi ảnh hàng giờ, và sắc
+   vàng đó đánh nhau với chính màu trong keyframe. Ở đây nền lùi hẳn ra sau để
+   ảnh là thứ duy nhất có màu mạnh. */
+:root{
+  --bg:#E7EBEA; --surface:#F3F6F5; --text:#1A2321;
+  --accent:#2F7D72; --accent-100:#DCE9E6; --accent-700:#215C53; --accent-800:#17423B;
+  --n100:#F1F4F3; --n200:#E3E8E7; --n300:#CFD6D4; --n400:#AFB9B6;
+  --n600:#75817E; --n700:#5C6866; --n800:#3F4A48; --n900:#28312F;
+  --divider:rgba(26,35,33,.14);
+  --anh-nen:#D4DAD8;
+  --lb-nen:rgba(16,22,21,.82);
+  --heading:"Be Vietnam Pro",system-ui,sans-serif;
+  --body:"IBM Plex Sans",system-ui,-apple-system,sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,monospace;
+  --radius:4px;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#111817; --surface:#18201F; --text:#E2E9E7;
+    --accent:#54BCAB; --accent-100:#173330; --accent-700:#8ED6C9; --accent-800:#B2E4DB;
+    --n100:#151D1C; --n200:#1D2725; --n300:#2A3634; --n400:#3C4A47;
+    --n600:#7C8B88; --n700:#9AA8A5; --n800:#C0CCC9; --n900:#DCE5E3;
+    --divider:rgba(226,233,231,.13);
+    --anh-nen:#0C1211;
+    --lb-nen:rgba(6,10,9,.88);
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#111817; --surface:#18201F; --text:#E2E9E7;
+  --accent:#54BCAB; --accent-100:#173330; --accent-700:#8ED6C9; --accent-800:#B2E4DB;
+  --n100:#151D1C; --n200:#1D2725; --n300:#2A3634; --n400:#3C4A47;
+  --n600:#7C8B88; --n700:#9AA8A5; --n800:#C0CCC9; --n900:#DCE5E3;
+  --divider:rgba(226,233,231,.13);
+  --anh-nen:#0C1211;
+  --lb-nen:rgba(6,10,9,.88);
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font-family:var(--body);font-size:15px;line-height:1.55}
+h1,h2,h3{font-family:var(--heading);font-weight:600;line-height:1.12;margin:0}
+button{font:inherit;cursor:pointer}
+.mono{font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:.94em}
+.kicker{font-size:9px;letter-spacing:.22em;text-transform:uppercase;color:var(--n600)}
+.btn{display:inline-flex;align-items:center;gap:6px;font-family:var(--heading);font-weight:600;
+  font-size:13px;background:transparent;border:1px solid var(--divider);color:var(--text);
+  padding:6px 12px;border-radius:var(--radius)}
+.btn:hover{background:var(--n200)}
+.btn-primary{color:var(--accent-800);border-color:var(--accent)}
+.btn-primary:hover{background:var(--accent-100)}
+.btn-sm{font-size:11.5px;padding:4px 9px}
+.tag{display:inline-flex;align-items:center;font-size:10.5px;letter-spacing:.04em;padding:2px 8px;border-radius:3px}
+.tag-a{background:var(--accent-100);color:var(--accent-800)}
+.tag-n{background:var(--n200);color:var(--n800)}
+.tag-o{border:1px solid var(--accent);color:var(--accent-800)}
+
+#app{display:flex;height:100vh;overflow:hidden}
+
+/* ── rail: bộ đề ─────────────────────────────────────────── */
+aside.rail{width:266px;flex:none;border-right:1px solid var(--divider);background:var(--n100);display:flex;flex-direction:column}
+.brand{padding:20px 20px 14px;border-bottom:1px solid var(--divider)}
+.brand h1{font-size:24px;margin-top:6px}
+.rail select{width:100%;font:inherit;font-size:12.5px;padding:6px 8px;border:1px solid var(--n300);
+  border-radius:var(--radius);background:var(--bg);color:var(--text)}
+.cauhoi{flex:1;overflow:auto;padding:6px 10px 10px}
+.cauhoi .row{padding:8px 10px;border-radius:var(--radius);cursor:pointer;border-left:2px solid transparent}
+.cauhoi .row:hover{background:var(--n200)}
+.cauhoi .row.on{background:var(--accent-100);border-left-color:var(--accent)}
+.cauhoi .row .t{font-size:12px;color:var(--n800);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rail .chan{border-top:1px solid var(--divider);padding:12px 20px;font-size:10.5px;line-height:1.6;color:var(--n700)}
+.rail .chan .kv{display:flex;justify-content:space-between}
+
+/* ── giữa ────────────────────────────────────────────────── */
+main{flex:1;min-width:0;display:flex;flex-direction:column}
+header.top{flex:none;height:56px;border-bottom:1px solid var(--divider);display:flex;align-items:center;
+  gap:16px;padding:0 22px}
+.canhbao{flex:none;padding:8px 22px;background:var(--accent-100);border-bottom:1px solid var(--divider);
+  font-size:11.5px;color:var(--accent-800);display:flex;gap:10px;align-items:baseline}
+.body{flex:1;overflow:auto;padding:22px}
+.hoi{border:1px solid var(--n300);border-radius:7px;background:var(--n100);padding:12px 14px 10px}
+.hoi textarea{width:100%;border:0;outline:0;resize:vertical;background:transparent;
+  font:inherit;font-size:14.5px;line-height:1.7;min-height:52px;color:var(--text)}
+.hoi .duoi{display:flex;align-items:center;gap:8px;margin-top:6px;flex-wrap:wrap}
+.pill{border:1px solid var(--n300);background:transparent;color:var(--n700);border-radius:999px;
+  padding:4px 11px;font-size:11.5px}
+.pill.on{border-color:var(--accent);background:var(--accent-100);color:var(--accent-800)}
+
+/* ── ứng viên ────────────────────────────────────────────── */
+.uv{display:flex;gap:14px;padding:12px 0;border-bottom:1px solid var(--divider)}
+.uv.chot{background:linear-gradient(90deg,var(--accent-100),transparent 70%)}
+.uv .hang{font-family:var(--heading);font-size:26px;color:var(--n400);width:34px;flex:none;text-align:right}
+.uv.chot .hang{color:var(--accent)}
+.uv .anh{width:168px;height:95px;flex:none;border:1px solid var(--n300);border-radius:3px;
+  background:var(--anh-nen);object-fit:cover;display:block}
+.uv .khonganh{width:168px;height:95px;flex:none;border:1px dashed var(--n400);border-radius:3px;
+  display:flex;align-items:center;justify-content:center;text-align:center;
+  font-size:10px;color:var(--n600);padding:8px;line-height:1.4}
+.uv .than{flex:1;min-width:0}
+.uv .id{font-family:var(--heading);font-weight:600;font-size:17px;letter-spacing:.03em}
+.uv .meta{font-size:11px;color:var(--n700);margin-top:3px}
+.uv .ocr{font-size:11.5px;color:var(--n800);margin-top:7px;border-left:1px solid var(--accent);
+  padding-left:9px;font-style:italic;max-height:44px;overflow:hidden}
+.uv .nut{display:flex;gap:6px;margin-top:9px;flex-wrap:wrap}
+
+/* ── phải: bài nộp ───────────────────────────────────────── */
+aside.nop{width:310px;flex:none;border-left:1px solid var(--divider);background:var(--n100);
+  display:flex;flex-direction:column}
+.nop .dau{padding:18px 20px 12px;border-bottom:1px solid var(--divider)}
+.diem{margin-top:12px;border:1px solid var(--n300);border-radius:var(--radius);background:var(--bg);padding:11px 12px}
+.diem .so{font-family:var(--heading);font-size:34px;line-height:1}
+.thang{display:flex;gap:2px;margin-top:9px}
+.thang div{flex:1;height:5px;background:var(--n200);border-radius:1px}
+.thang div.on{background:var(--accent)}
+.nop .ds{flex:1;overflow:auto;padding:10px 12px}
+.nop .ds .r{display:flex;gap:8px;align-items:baseline;padding:5px 6px;border-radius:3px;font-size:12px}
+.nop .ds .r:nth-child(odd){background:var(--n200)}
+.nop .ds .r.chot{background:var(--accent-100)}
+.nop .chan{border-top:1px solid var(--divider);padding:14px 20px}
+.nop input[type=text]{width:100%;font:inherit;font-size:12.5px;padding:6px 8px;
+  border:1px solid var(--n300);border-radius:var(--radius);background:var(--bg);color:var(--text)}
+.trong{border:1px dashed var(--n300);border-radius:var(--radius);padding:18px 14px;text-align:center;
+  font-size:11.5px;line-height:1.7;color:var(--n600)}
+.dangchay{display:flex;align-items:center;gap:9px;font-size:13px;color:var(--n700);padding:20px 0}
+.cham{width:6px;height:6px;border-radius:50%;background:var(--accent);animation:p 1.1s ease-in-out infinite}
+@keyframes p{0%,100%{opacity:.25}50%{opacity:1}}
+
+/* ── phóng to keyframe ───────────────────────────────────────
+   Ô ảnh trong danh sách chỉ rộng 168px — docs/07 đã ghi một ca vấp thật: ô 713
+   nhìn tưởng "xe container va chạm xe máy", mở ảnh gốc ra chỉ là dừng đèn đỏ.
+   Nên mọi ảnh keyframe ở đây đều bấm được để xem bản gốc. */
+.kf{cursor:zoom-in;transition:outline-color .12s}
+.kf:hover{outline:2px solid var(--accent);outline-offset:1px}
+#lb[hidden]{display:none}
+#lb{position:fixed;inset:0;z-index:60;background:var(--lb-nen);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:24px}
+#lb img{max-width:100%;max-height:calc(100vh - 150px);object-fit:contain;
+  border-radius:3px;background:var(--anh-nen);box-shadow:0 24px 70px -30px rgba(0,0,0,.9)}
+#lb .thanh{display:flex;align-items:center;gap:14px;flex-wrap:wrap;justify-content:center;
+  background:var(--surface);border:1px solid var(--divider);border-radius:var(--radius);
+  padding:9px 14px;max-width:100%}
+#lb .ten{font-family:var(--heading);font-weight:600;font-size:16px;letter-spacing:.03em}
+#lb .phu{font-family:var(--mono);font-size:11.5px;color:var(--n700)}
+#lb .phu b{color:var(--accent-800);font-weight:500}
+#lb .goi{font-family:var(--mono);font-size:10.5px;color:var(--n600);letter-spacing:.04em}
+#lb .dong{position:absolute;top:16px;right:20px;font-size:22px;line-height:1;
+  background:var(--surface);border:1px solid var(--divider);color:var(--text);
+  width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center}
+#lb .chuyen{background:var(--surface);border:1px solid var(--divider);color:var(--text);
+  border-radius:var(--radius);padding:5px 11px;font-size:13px}
+#lb .chuyen:disabled{opacity:.35;cursor:default}
+</style>
+</head>
+<body>
+<div id="app">
+
+  <aside class="rail">
+    <div class="brand">
+      <div class="kicker" style="color:var(--accent-700)">AI Challenge HCMC 2026</div>
+      <h1>First Dance</h1>
+      <div style="font-size:11.5px;color:var(--n700);margin-top:3px">KIS · Q&amp;A · TRAKE</div>
+      <select id="boDe" style="margin-top:12px"><option>— chọn bộ đề —</option></select>
+    </div>
+    <div class="kicker" style="padding:12px 20px 4px">Câu hỏi</div>
+    <div class="cauhoi" id="dsCau">
+      <div class="trong" style="margin:8px 4px">Chọn một bộ đề ở trên, hoặc gõ thẳng truy vấn vào ô giữa.</div>
+    </div>
+    <div class="chan" id="chanRail"></div>
+  </aside>
+
+  <main>
+    <header class="top">
+      <div id="tenCau" style="font-family:var(--heading);font-weight:600;font-size:16px">Truy vấn tự do</div>
+      <div style="flex:1"></div>
+      <div class="kicker">Kênh đang dùng</div>
+      <div id="dsKenh" style="display:flex;gap:5px"></div>
+    </header>
+    <div class="canhbao" id="canhbao" style="display:none"></div>
+
+    <div class="body">
+      <div class="hoi">
+        <textarea id="oHoi" placeholder="Mô tả khoảnh khắc — ví dụ: người đàn ông áo đỏ phát biểu trước micro, sau đó đám đông vỗ tay"></textarea>
+        <div class="duoi">
+          <button class="pill on" data-loai="kis">KIS</button>
+          <button class="pill" data-loai="qa">Q&amp;A</button>
+          <button class="pill" data-loai="trake">TRAKE</button>
+          <span style="width:10px"></span>
+          <span id="kenhChon" style="display:flex;gap:5px"></span>
+          <span style="flex:1"></span>
+          <span class="mono" style="font-size:10.5px;color:var(--n600)">top-100</span>
+          <button class="btn btn-primary" id="nutTim">Tìm →</button>
+        </div>
+      </div>
+      <div id="ketQua"></div>
+    </div>
+  </main>
+
+  <aside class="nop">
+    <div class="dau">
+      <div class="kicker" style="color:var(--accent-700)">Bài nộp</div>
+      <h2 style="font-size:20px;margin-top:5px" id="tenGoi">chưa có gói</h2>
+      <div style="font-size:11px;line-height:1.6;color:var(--n700);margin-top:4px">
+        100 dòng, không phạt dòng sai. Việc của bạn là <em>đẩy dòng đã soi bằng mắt lên hạng 1</em> —
+        không phải xoá phần còn lại.
+      </div>
+      <div class="diem">
+        <div class="kicker">Điểm nếu đáp án đang ở hạng đã chốt</div>
+        <div style="display:flex;align-items:baseline;gap:9px;margin-top:5px">
+          <div class="so mono" id="diemSo">—</div>
+          <div style="font-size:11px;color:var(--n700)" id="diemGiaiThich">chưa chốt dòng nào</div>
+        </div>
+        <div class="thang" id="thangMoc"></div>
+        <div class="mono" style="display:flex;justify-content:space-between;font-size:9px;color:var(--n600);margin-top:3px">
+          <span>R@1</span><span>@5</span><span>@20</span><span>@50</span><span>@100</span>
+        </div>
+      </div>
+    </div>
+    <div class="ds" id="dsNop">
+      <div class="trong">Chạy một truy vấn — mọi ứng viên trả về đã nằm sẵn trong 100 dòng này.</div>
+    </div>
+    <div class="chan">
+      <div class="kicker">Đáp án Q&amp;A (≤100 ký tự)</div>
+      <input type="text" id="oDapAn" placeholder="chỉ dùng cho gói -qa" style="margin-top:6px">
+      <button class="btn btn-primary" id="nutNop" style="width:100%;margin-top:9px;justify-content:center">Ghi gói vào submission/</button>
+      <div id="ketNop" style="font-size:11px;line-height:1.6;margin-top:8px;color:var(--n700)"></div>
+    </div>
+  </aside>
+</div>
+
+<script>
+const MOC = [1, 5, 20, 50, 100];
+const $ = s => document.querySelector(s);
+const esc = s => (s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const mmss = t => `${String(Math.floor(t/60)).padStart(2,"0")}:${String(Math.floor(t%60)).padStart(2,"0")}`;
+
+let S = { loai:"kis", kenh:[], kenhCo:[], ungVien:[], chot:null, tenGoi:"", trake:null,
+          a39:{ dong_hang:"cu", he_so_phat:0, rai_hep:false } };
+
+/* Điểm BTC: Final = trung bình R@{1,5,20,50,100}. Đây là toàn bộ lý do giao
+   diện xoay quanh THỨ HẠNG chứ quanh việc chọn một đáp án duy nhất. */
+const diemTheoHang = h => h == null ? 0 : MOC.reduce((s,k) => s + (h <= k ? 1 : 0), 0) / MOC.length;
+
+async function api(p, o) {
+  const r = await fetch(p, o);
+  const j = await r.json().catch(() => ({ loi: "phản hồi không phải JSON" }));
+  if (!r.ok) throw new Error(j.loi || r.status);
+  return j;
+}
+
+/* ── khởi động ────────────────────────────────────────────── */
+(async () => {
+  const t = await api("/api/trang_thai");
+  S.kenhCo = t.kenh; S.kenh = t.kenh.slice();
+  $("#chanRail").innerHTML = [
+    ["Video", t.so_video.toLocaleString("vi")],
+    ["Keyframe", t.so_khung.toLocaleString("vi")],
+    ["Có ảnh ở máy này", `${t.so_co_anh.toLocaleString("vi")} · ${(100*t.so_co_anh/t.so_khung).toFixed(0)}%`],
+  ].map(([k,v]) => `<div class="kv"><span>${k}</span><span class="mono">${v}</span></div>`).join("");
+
+  $("#dsKenh").innerHTML = t.kenh.map(k => `<span class="tag tag-n">${k}</span>`).join("") || `<span class="tag tag-o">không có kênh nào</span>`;
+  $("#kenhChon").innerHTML = t.kenh.map(k => `<button class="pill on" data-kenh="${k}">${k}</button>`).join("");
+  $("#kenhChon").onclick = e => {
+    const b = e.target.closest("[data-kenh]"); if (!b) return;
+    b.classList.toggle("on");
+    S.kenh = [...document.querySelectorAll("[data-kenh].on")].map(x => x.dataset.kenh);
+  };
+
+  if (!t.kenh.includes("anh")) {
+    $("#canhbao").style.display = "flex";
+    $("#canhbao").innerHTML = `<strong>Kênh 1 (SigLIP2) đang TẮT.</strong>
+      <span>Bể ứng viên yếu hơn ~3 lần bài nộp thật (0,3258 so với 0,1183 + 0,0417).
+      Bật lại: chạy máy chủ với <code>--cache index/truy_van.npz</code>.</span>`;
+  }
+
+  const sel = $("#boDe");
+  sel.innerHTML = `<option value="">— chọn bộ đề —</option>` +
+    t.bo_de.map(d => `<option>${esc(d)}</option>`).join("");
+  sel.onchange = () => sel.value && napDe(sel.value);
+})();
+
+/* ── bộ đề ────────────────────────────────────────────────── */
+async function napDe(bo) {
+  const { cau } = await api("/api/de?bo=" + encodeURIComponent(bo));
+  $("#dsCau").innerHTML = cau.map((c,i) => `
+    <div class="row" data-i="${i}">
+      <div class="t">${esc(c.ten)}</div>
+      <div class="mono" style="font-size:10px;color:var(--n600);margin-top:2px">
+        ${c.loai.toUpperCase()} · ${c.noi_dung.split(/\s+/).length} từ</div>
+    </div>`).join("");
+  $("#dsCau").onclick = e => {
+    const r = e.target.closest("[data-i]"); if (!r) return;
+    document.querySelectorAll(".cauhoi .row").forEach(x => x.classList.remove("on"));
+    r.classList.add("on");
+    const c = cau[+r.dataset.i];
+    $("#oHoi").value = c.noi_dung;
+    $("#tenCau").textContent = c.ten;
+    S.tenGoi = c.ten; $("#tenGoi").textContent = c.ten;
+    datLoai(c.loai);
+    tim();
+  };
+}
+
+function datLoai(l) {
+  S.loai = l;
+  document.querySelectorAll("[data-loai]").forEach(b => b.classList.toggle("on", b.dataset.loai === l));
+}
+document.querySelector(".hoi .duoi").onclick = e => {
+  const b = e.target.closest("[data-loai]"); if (b) datLoai(b.dataset.loai);
+};
+
+/* ── tìm ──────────────────────────────────────────────────── */
+$("#nutTim").onclick = tim;
+$("#oHoi").onkeydown = e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); tim(); } };
+
+async function tim() {
+  const q = $("#oHoi").value.trim(); if (!q) return;
+  S.chot = null; S.trake = null; S.ungVien = [];
+  $("#ketQua").innerHTML = `<div class="dangchay"><span class="cham"></span>
+    <span>Đang tìm trên 177.321 keyframe…</span></div>`;
+  try {
+    const j = await api("/api/tim", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ q, loai: S.loai, k: 100, kenh: S.kenh, ...S.a39 })
+    });
+    S.canhBao = j.canh_bao || null;
+    if (j.chuoi) { S.trake = j; veTrake(); }
+    else { S.ungVien = j.ung_vien; veKis(); }
+  } catch (e) {
+    $("#ketQua").innerHTML = `<div class="trong" style="margin-top:18px;border-color:var(--accent)">
+      <strong>Không tìm được.</strong><br>${esc(e.message)}</div>`;
+  }
+  veNop();
+}
+
+/* KIS/Q&A — một danh sách xếp hạng, chính là 100 dòng sẽ nộp. */
+/* Dải cảnh báo khi một kênh bị bỏ giữa chừng. Không im lặng: bể ứng viên
+   thiếu kênh 1 yếu hơn hẳn, người soát phải biết mình đang nhìn cái gì. */
+function daiCanhBao() {
+  return S.canhBao
+    ? `<div class="canhbao" style="margin:-22px -22px 16px">⚠️ <span>${esc(S.canhBao)}</span></div>`
+    : "";
+}
+
+function veKis() {
+  if (!S.ungVien.length) {
+    $("#ketQua").innerHTML = daiCanhBao() +
+      `<div class="trong" style="margin-top:18px">Không kênh nào trả về ứng viên nào.</div>`;
+    return;
+  }
+  $("#ketQua").innerHTML = daiCanhBao() + `
+    <div style="display:flex;align-items:baseline;gap:12px;margin:22px 0 4px">
+      <span class="kicker">${S.ungVien.length} ứng viên · tất cả đều đang nằm trong bài nộp</span>
+      <span style="flex:1;height:1px;background:var(--divider)"></span>
+    </div>` + S.ungVien.slice(0, 40).map(theUngVien).join("") + `
+    <div class="trong" style="margin-top:14px">Còn ${Math.max(0, S.ungVien.length-40)} dòng nữa ở hạng 41–100.
+      Chúng vẫn được nộp — chỉ không hiện ở đây vì mắt người không soi nổi 100 ảnh.</div>`;
+  $("#ketQua").onclick = xuLyNut;
+}
+
+function theUngVien(c) {
+  const anh = c.co_anh
+    ? `<img class="anh kf" data-kf="${c.row_id}" loading="lazy" src="/api/anh?row_id=${c.row_id}" alt="keyframe ${c.kf_n}">`
+    : `<div class="khonganh">máy này<br>không có ảnh<br><span class="mono">kf ${c.kf_n}</span></div>`;
+  return `<div class="uv ${S.chot === c.row_id ? "chot" : ""}" data-row="${c.row_id}">
+    <div class="hang mono">${c.hang}</div>
+    ${anh}
+    <div class="than">
+      <div class="id mono">${c.video_id} · <span style="color:var(--accent-800)">${c.frame_idx}</span></div>
+      <div class="meta mono">${mmss(c.pts_time)} · ${c.fps} fps · keyframe ${c.kf_n} · ${c.nguon} ${c.diem}</div>
+      ${c.van_ban ? `<div class="ocr">${esc(c.van_ban)}</div>` : ""}
+      <div class="nut">
+        <button class="btn btn-primary btn-sm" data-act="chot">↑ Đây rồi — đẩy lên hạng 1</button>
+        <button class="btn btn-sm" data-act="lancan">Khung lân cận</button>
+      </div>
+      <div data-lancan></div>
+    </div>
+  </div>`;
+}
+
+/* TRAKE — bài nộp là các CHUỖI khung tăng dần, không phải khung rời. Chuỗi do
+   `run.dung_trake` lắp (quy hoạch động, giữ đúng chỉ số sự kiện); trang này
+   chỉ vẽ lại và cho người soát đẩy chuỗi đúng lên hạng 1. */
+function veTrake() {
+  const n = S.trake.so_su_kien;
+  $("#ketQua").innerHTML = `
+    <div style="display:flex;align-items:baseline;gap:12px;margin:22px 0 8px">
+      <span class="kicker">${S.trake.chuoi.length} chuỗi · ${n} sự kiện mỗi chuỗi</span>
+      <span style="flex:1;height:1px;background:var(--divider)"></span>
+      <span class="mono" style="font-size:10.5px;color:var(--n600)">A39:</span>
+      <button class="pill ${S.a39.rai_hep?"on":""}" data-a39="rai_hep">rải hẹp 56,6s</button>
+      <button class="pill ${S.a39.he_so_phat?"on":""}" data-a39="phat">prior khoảng cách</button>
+    </div>
+    <div style="font-size:11px;color:var(--n700);margin-bottom:12px">
+      Số sự kiện đếm <strong>theo dòng</strong> của đề, không theo con số — đề mẫu từng đánh nhầm
+      <code class="mono">E1,E2,E2,E4</code>. Sai số Frame ID là sai định dạng, mất trắng cả gói.
+    </div>
+    ${S.trake.chuoi.slice(0, 25).map(theChuoi).join("")}
+    <div class="trong" style="margin-top:14px">Còn ${Math.max(0, S.trake.chuoi.length-25)} chuỗi ở hạng 26–100 — vẫn được nộp.</div>
+    <div style="margin-top:26px">
+      <div class="kicker">Ứng viên thô của từng sự kiện</div>
+      ${S.trake.su_kien.map((sk, i) => `
+        <div style="margin-top:14px">
+          <div style="display:flex;align-items:baseline;gap:10px">
+            <span class="tag tag-a mono">sự kiện ${i+1}</span>
+            <span style="font-size:12px;color:var(--n800)">${esc(sk.text)}</span>
+          </div>
+          <div style="display:flex;gap:6px;margin-top:7px;overflow-x:auto">
+            ${(sk.ung_vien||[]).slice(0,10).map(c => `
+              <div style="flex:none;width:118px">
+                ${c.co_anh ? `<img class="kf" data-kf="${c.row_id}" loading="lazy" src="/api/anh?row_id=${c.row_id}" style="width:100%;aspect-ratio:16/9;object-fit:cover;border:1px solid var(--n300);border-radius:2px">`
+                           : `<div style="aspect-ratio:16/9;border:1px dashed var(--n400);border-radius:2px"></div>`}
+                <div class="mono" style="font-size:9.5px;margin-top:3px">${c.video_id}·${c.frame_idx}</div>
+              </div>`).join("")}
+          </div>
+        </div>`).join("")}
+    </div>`;
+  $("#ketQua").onclick = xuLyTrake;
+}
+
+function theChuoi(ch) {
+  const bip = ch.so_that < ch.khung.length;
+  return `<div class="uv ${S.chot === ch.hang ? "chot" : ""}" data-chuoi="${ch.hang}" style="align-items:flex-start">
+    <div class="hang mono">${ch.hang}</div>
+    <div class="than">
+      <div style="display:flex;align-items:baseline;gap:9px">
+        <span class="id mono">${ch.video_id}</span>
+        <span class="mono" style="font-size:11.5px;color:var(--accent-800)">${ch.frame_idxs.join(", ")}</span>
+        ${bip ? `<span class="tag tag-o">${ch.khung.length - ch.so_that}/${ch.khung.length} khung do DP nội suy</span>` : ""}
+      </div>
+      <div style="display:flex;gap:6px;margin-top:8px">
+        ${ch.khung.map((k, i) => `
+          <div style="flex:1;max-width:150px">
+            ${k.co_anh
+              ? `<img class="kf" data-kf="${k.row_id}" loading="lazy" src="/api/anh?row_id=${k.row_id}" style="width:100%;aspect-ratio:16/9;object-fit:cover;border:1px solid var(--n300);border-radius:2px">`
+              : k.that
+                ? `<div class="khonganh" style="width:100%;height:auto;aspect-ratio:16/9">máy này không có ảnh</div>`
+                : `<div class="khonganh" style="width:100%;height:auto;aspect-ratio:16/9;border-color:var(--accent);color:var(--accent-800)">nội suy<br>không phải kết quả truy hồi</div>`}
+            <div class="mono" style="font-size:9.5px;color:var(--n600);margin-top:3px">
+              e${i+1} · ${k.frame_idx}${k.pts_time != null ? " · " + mmss(k.pts_time) : ""}</div>
+          </div>`).join("")}
+      </div>
+      <div class="nut">
+        <button class="btn btn-primary btn-sm" data-act="chotchuoi">↑ Chuỗi này — đẩy lên hạng 1</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+function xuLyTrake(e) {
+  const t = e.target.closest("[data-a39]");
+  if (t) {                                  // đổi cấu hình -> lắp lại chuỗi
+    if (t.dataset.a39 === "rai_hep") S.a39.rai_hep = !S.a39.rai_hep;
+    else S.a39.he_so_phat = S.a39.he_so_phat ? 0 : 1;
+    S.a39.dong_hang = S.a39.he_so_phat ? "thoi_gian" : "cu";
+    return tim();
+  }
+  const b = e.target.closest("[data-act='chotchuoi']"); if (!b) return;
+  const h = +b.closest("[data-chuoi]").dataset.chuoi;
+  const i = S.trake.chuoi.findIndex(c => c.hang === h);
+  S.trake.chuoi.unshift(...S.trake.chuoi.splice(i, 1));
+  S.trake.chuoi.forEach((c, j) => c.hang = j + 1);
+  S.chot = 1;
+  veTrake(); veNop();
+}
+
+async function xuLyNut(e) {
+  const b = e.target.closest("[data-act]"); if (!b) return;
+  const the = b.closest("[data-row]"), row = +the.dataset.row;
+  if (b.dataset.act === "chot") {
+    // Đẩy lên hạng 1: đổi THỨ TỰ bài nộp, không xoá dòng nào. Xoá là vứt
+    // một trong 100 vé số mà không nhận lại gì (không có điểm phạt).
+    const i = S.ungVien.findIndex(c => c.row_id === row);
+    S.ungVien.unshift(...S.ungVien.splice(i, 1));
+    S.ungVien.forEach((c, j) => c.hang = j + 1);
+    S.chot = row;
+    veKis(); veNop();
+  } else {
+    const hop = the.querySelector("[data-lancan]");
+    if (hop.innerHTML) { hop.innerHTML = ""; return; }
+    const { lan_can } = await api("/api/lan_can?row_id=" + row);
+    hop.innerHTML = `<div style="display:flex;gap:5px;margin-top:9px">` + lan_can.map(n => `
+      <div style="flex:1">
+        ${n.co_anh ? `<img class="kf" data-kf="${n.row_id}" loading="lazy" src="/api/anh?row_id=${n.row_id}" style="width:100%;aspect-ratio:16/9;object-fit:cover;border:1px solid ${n.row_id===row?"var(--accent)":"var(--n300)"};border-radius:2px">`
+                   : `<div style="aspect-ratio:16/9;border:1px dashed var(--n400);border-radius:2px"></div>`}
+        <div class="mono" style="font-size:9px;color:var(--n600);margin-top:2px">${n.frame_idx}</div>
+      </div>`).join("") + `</div>`;
+  }
+}
+
+/* ── bảng bài nộp ─────────────────────────────────────────── */
+function veNop() {
+  const d = S.chot ? 1 : null;
+  const diem = diemTheoHang(d);
+  $("#diemSo").textContent = S.chot ? diem.toFixed(2).replace(".", ",") : "—";
+  $("#diemGiaiThich").textContent = S.chot
+    ? "dòng đã soi bằng mắt đang ở hạng 1 — điểm tối đa cho câu này"
+    : "chưa chốt dòng nào · để nguyên thì điểm phụ thuộc hạng thật của đáp án";
+  $("#thangMoc").innerHTML = MOC.map(k => `<div class="${d && d <= k ? "on" : ""}"></div>`).join("");
+
+  if (S.trake) {
+    $("#dsNop").innerHTML = S.trake.chuoi.slice(0, 100).map((c, i) => `
+      <div class="r ${i === 0 && S.chot ? "chot" : ""}" style="align-items:baseline">
+        <span class="mono" style="color:var(--n600);width:22px;flex:none">${i+1}</span>
+        <span class="mono" style="flex:none">${c.video_id}</span>
+        <span class="mono" style="margin-left:auto;color:var(--accent-800);font-size:10.5px;
+          text-align:right">${c.frame_idxs.join(",")}</span>
+      </div>`).join("");
+    return;
+  }
+  if (!S.ungVien.length) return;
+  $("#dsNop").innerHTML = S.ungVien.slice(0, 100).map((c, i) => `
+    <div class="r ${S.chot === c.row_id ? "chot" : ""}">
+      <span class="mono" style="color:var(--n600);width:22px;flex:none">${i+1}</span>
+      <span class="mono">${c.video_id}</span>
+      <span class="mono" style="margin-left:auto;color:var(--accent-800)">${c.frame_idx}</span>
+    </div>`).join("");
+}
+
+/* ── ghi gói ──────────────────────────────────────────────── */
+$("#nutNop").onclick = async () => {
+  const out = $("#ketNop");
+  if (!S.tenGoi) return out.textContent = "Chưa chọn câu nào từ bộ đề — tên gói phải đúng query-<số>-<kis|qa|trake>.";
+  const dap = $("#oDapAn").value.trim();
+  // TRAKE nộp CHUỖI khung, không nộp khung rời. `nop_bai.soat` chặn nếu các
+  // dòng dài khác nhau hoặc khung không tăng dần.
+  const dong = S.trake
+    ? S.trake.chuoi.slice(0, 100).map(c => ({ video_id: c.video_id, frame_idxs: c.frame_idxs }))
+    : S.ungVien.slice(0, 100).map(c => ({ video_id: c.video_id, frame_idx: c.frame_idx, answer: dap }));
+  if (!dong.length) return out.textContent = "Chưa có dòng nào để ghi.";
+  out.textContent = "đang ghi…";
+  try {
+    const j = await api("/api/nop", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ten_goi: S.tenGoi, dong })
+    });
+    out.innerHTML = `✅ ghi ${j.so_dong} dòng → <code>${esc(j.duong_dan)}</code>`;
+  } catch (e) {
+    out.innerHTML = `❌ <strong>nop_bai.soat từ chối:</strong> ${esc(e.message)}
+      <br><span style="color:var(--n600)">Không file nào được ghi. Mỗi gói chỉ nộp được 3 lần.</span>`;
+  }
+};
+</script>
+
+<script>
+/* ── PHÓNG TO KEYFRAME ────────────────────────────────────────────────────
+   Một handler uỷ quyền cho MỌI ảnh `.kf`, nên ứng viên, chuỗi TRAKE và dải
+   lân cận đều bấm được mà không phải nối dây riêng cho từng chỗ.
+
+   Mũi tên ←/→ đi dọc các keyframe LÂN CẬN của cùng video. Đây là thao tác
+   người soát làm nhiều nhất: truy hồi trả về một khung gần đúng, việc còn lại
+   là lần sang trái phải vài khung để tìm đúng khoảnh khắc. */
+const LB = {
+  el: null, img: null, ds: [], i: 0,
+  async mo(row) {
+    if (!this.el) this.dung();
+    this.ds = [{ row_id: row }]; this.i = 0;
+    this.el.hidden = false;
+    document.body.style.overflow = "hidden";
+    this.ve();
+    try {
+      const { lan_can } = await api("/api/lan_can?row_id=" + row);
+      const co = lan_can.filter(n => n.co_anh);
+      if (co.length) {
+        this.ds = co;
+        this.i = Math.max(0, co.findIndex(n => n.row_id === row));
+        this.ve();
+      }
+    } catch (e) { /* không lấy được lân cận thì vẫn xem được ảnh chính */ }
+  },
+  dong() {
+    this.el.hidden = true;
+    document.body.style.overflow = "";
+  },
+  di(b) {
+    const j = this.i + b;
+    if (j < 0 || j >= this.ds.length) return;
+    this.i = j; this.ve();
+  },
+  ve() {
+    const n = this.ds[this.i];
+    this.img.src = "/api/anh?row_id=" + n.row_id;
+    this.img.alt = "keyframe " + (n.kf_n ?? "");
+    $("#lbTen").textContent = n.video_id ?? "";
+    $("#lbPhu").innerHTML = n.video_id
+      ? `frame <b>${n.frame_idx}</b> · ${mmss(n.pts_time)} · keyframe ${n.kf_n} · row_id ${n.row_id}`
+      : `row_id ${n.row_id}`;
+    $("#lbGoi").textContent = this.ds.length > 1
+      ? `${this.i + 1} / ${this.ds.length} khung lân cận · ← → để lần` : "";
+    $("#lbTruoc").disabled = this.i <= 0;
+    $("#lbSau").disabled = this.i >= this.ds.length - 1;
+  },
+  dung() {
+    const d = document.createElement("div");
+    d.id = "lb"; d.hidden = true;
+    d.innerHTML = `
+      <button class="dong" title="Đóng (Esc)">×</button>
+      <img alt="">
+      <div class="thanh">
+        <button class="chuyen" id="lbTruoc" title="Khung trước (←)">←</button>
+        <div>
+          <div class="ten" id="lbTen"></div>
+          <div class="phu" id="lbPhu"></div>
+          <div class="goi" id="lbGoi"></div>
+        </div>
+        <button class="chuyen" id="lbSau" title="Khung sau (→)">→</button>
+      </div>`;
+    document.body.appendChild(d);
+    this.el = d; this.img = d.querySelector("img");
+    d.querySelector(".dong").onclick = () => this.dong();
+    $("#lbTruoc").onclick = () => this.di(-1);
+    $("#lbSau").onclick = () => this.di(1);
+    // bấm ra nền thì đóng; bấm trúng ảnh hoặc thanh thông tin thì không
+    d.onclick = e => { if (e.target === d) this.dong(); };
+  },
+};
+
+document.addEventListener("click", e => {
+  const a = e.target.closest("img.kf");
+  if (!a) return;
+  e.preventDefault();
+  e.stopPropagation();          // đừng để nút "chốt"/"lân cận" bắt nhầm
+  LB.mo(Number(a.dataset.kf));
+});
+
+document.addEventListener("keydown", e => {
+  if (!LB.el || LB.el.hidden) return;
+  if (e.key === "Escape") LB.dong();
+  else if (e.key === "ArrowLeft") LB.di(-1);
+  else if (e.key === "ArrowRight") LB.di(1);
+});
+</script>
+</body>
+</html>

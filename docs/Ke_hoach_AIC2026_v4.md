@@ -2342,6 +2342,772 @@ dựa trên đúng khung đã xem. Khớp CHỮ (OCR/ASR) có thể ổn định
 
 ---
 
+### A38 — Ghi chép suy nghĩ của người soát: **đề được viết từ VIDEO, hệ thống lại tìm trên KEYFRAME**
+
+Nhóm soát tay 25 gói đề sơ tuyển đợt 1 trên máy mạnh (SigLIP2) rồi kể lại từng
+ca. Đọc hết thì thấy **cùng một nguyên nhân gốc** ở gần như mọi câu, và nó không
+phải lỗi của model.
+
+#### Bằng chứng — bảy ca, cùng một dạng
+
+| Gói | Hệ thống trả về | Người phải làm gì thêm |
+| --- | --- | --- |
+| **p1-4-kis** | kf183: *"đàn sư tử… bảng London Zoo"* — **chỉ mệnh đề 1** | Mệnh đề 2 (*"hai nhân viên áo xanh cân thú"*) nằm ở kf186/187. Mà **mỗi kf chỉ có MỘT nhân viên**; cộng hai kf lại mới đủ "hai người" |
+| **p1-6-kis** | kf có mỏ đá quý | Nội dung **có thật trong video nhưng KHÔNG nằm trong keyframe nào**. Lấy dải kf lân cận thì vẫn trúng |
+| **p1-21-kis** | 3 kf mới đủ ngữ nghĩa | Ba ổ bánh mì chỉ thoáng hiện ở **một khung chuyển cảnh** |
+| **p1-9-qa** | kf có xe lội nước, đúng màu | **Đáp án nằm ở kf SAU đó** — chỉ lúc ấy mới thấy cây cầu và hai biển hiệu |
+| **p1-2-kis** | bám *"công trình thuỷ lợi"* + *"bản đồ"* | Chốt đúng là **"con đập"** — có đập thì hiển nhiên có thuỷ điện. Và *"trời mưa"* gần như vô vọng: video chất lượng thấp, mưa nhỏ không thấy hạt |
+| **p1-12-kis** | OCR bắt *"mazut"* (từ hiếm) | Nhưng khung **mơ hồ**: có xe ôm công nghệ, mà đông hơn 4 người, và **không ai rẽ trái vào khung** như đề tả |
+| **p1-15-qa** | đúng khung cần tìm | **Không đếm nổi** số tâm chấn cấp 4 — Gemini bản web cũng không chốt được con số |
+
+#### Quy luật rút ra
+
+> **Đề thi được viết bằng cách XEM VIDEO, còn hệ thống thì tìm trên KEYFRAME.**
+> Người viết đề mô tả một **quãng thời gian**; ta lại đi khớp từng **ảnh tĩnh
+> rời rạc**. Một truy vấn 63 từ / 2,4 mệnh đề gần như **không bao giờ** có đủ
+> ngữ nghĩa trong một keyframe duy nhất.
+
+Ba hệ quả, và cả ba đều đo được:
+
+**1. Nộp một DẢI luôn tốt hơn nộp một khung.** BTC chấm theo cửa sổ 4 giây–5
+phút (A9), nên khung lân cận vẫn được tính đúng. Ca `p1-6-kis` là bằng chứng
+sắc nhất: nội dung **không nằm trong keyframe nào cả**, nhưng lấy dải quanh đó
+vẫn trúng. Việc này đã làm ở `33_trai_dai_khung.py` và **hai bản nộp đều 11
+điểm** — bản trải dài không thua bản gốc.
+
+**2. Nên xếp hạng CỬA SỔ, không xếp hạng khung.** Đây là thứ chưa làm. Hiện
+`dense.tim` lấy **điểm cao nhất trên từng keyframe** qua các mệnh đề — tức nó
+thưởng cho khung khớp MỘT mệnh đề thật mạnh. Nhưng ca `p1-4` cho thấy đáp án
+đúng là khung mà **cả cụm quanh nó** phủ được nhiều mệnh đề:
+
+    điểm(cửa sổ W) = Σ_j  max_{khung f ∈ W}  cos(f, mệnh_đề_j)
+
+Cộng theo mệnh đề, lấy max trong cửa sổ. Khung nào phủ được nhiều mệnh đề khác
+nhau **trong vùng lân cận của nó** thì thắng. Đúng cách người soát đã làm bằng
+tay: *"cộng hai kf lại thì đúng bằng hai người"*.
+
+**3. Q&A phải ĐI BỘ TIẾP sau khi tìm ra cảnh.** `p1-9-qa` nói thẳng quy trình:
+tìm khung có *xe lội nước đúng màu* → rồi **duyệt các khung sau** để tìm *cây
+cầu và biển hiệu* — thứ thật sự chứa đáp án. Cảnh và đáp án **không cùng một
+khung**.
+
+> ⚠️ Đây KHÔNG mâu thuẫn với A18 (chèn khung lân cận vào danh sách nộp làm tệ
+> đi). A18 chèn lân cận **thay chỗ** ứng viên khác trong 100 dòng; ở đây lân cận
+> được dùng để **chấm điểm** và **truy tìm đáp án**, không tiêu chỗ nộp nào.
+> Cùng một dữ liệu, đổi vai trò thì đổi giá trị — như kênh OCR ở A27/A28.
+
+#### Hai ca KHÔNG thuộc quy luật trên, và cũng đáng ghi
+
+**`p1-2-kis` — hệ thống bám sai danh từ.** Đề nói *"công trình thuỷ lợi"*, người
+soát chốt bằng **"con đập"**: có đập thì hiển nhiên có thuỷ điện, việc còn lại
+chỉ là tìm bản đồ. Đây là **suy luận bắc cầu bằng tri thức thế giới**, thứ mà
+truy hồi vector không làm được nhưng LLM làm được — và là chỗ duy nhất trong cả
+25 ca mà "phân rã truy vấn bằng LLM" (A32, đang bị bác) có thể cứu được: không
+phải cắt câu, mà **thay danh từ trừu tượng bằng vật thể nhìn thấy được**.
+
+**`p1-15-qa` — trần của việc ĐẾM.** Hệ thống tìm đúng khung, nhưng không đếm nổi
+số tâm chấn cấp 4; Gemini bản web cũng không. Ghi lại để đừng đầu tư tiếp: đây
+là giới hạn của model hiện tại, không phải lỗi truy hồi. Trùng với A26 (câu đếm
+và câu màu sắc trượt 100% qua OCR).
+
+#### Một ghi nhận về chính luồng làm việc
+
+Với `p1-17-qa` (tên đèo), nhóm nhận xét luồng đã chạy là đúng: bám **từ hiếm**
+(*"sạt lở" + "đèo"*) → khoanh còn 10 video → đọc lời bình → xác minh bằng ảnh.
+Bài học nhóm rút: **chuỗi suy luận NGẮN thì ít lệch**; suy nghĩ dài dòng dễ trôi
+khỏi đáp án rồi phải quay lui.
+
+Điều đó nói ngược lại một phần với đề xuất "cho model suy luận nhiều bước hơn":
+với truy vấn có **mỏ neo văn bản** (tên riêng, địa danh, từ hiếm), đường ngắn
+nhất là bám thẳng mỏ neo đó. Suy luận nhiều bước chỉ đáng dùng khi **không có mỏ
+neo nào** — đúng nhóm câu thuần thị giác mà A26 đã khoanh.
+
+### A39 — TRAKE: thuật toán biết THỨ TỰ nhưng không biết KHOẢNG CÁCH, mà khoảng cách thì đo được
+
+Nhóm báo *"câu TRAKE thì hệ thống bên máy mạnh không làm được"*. Đây là chỗ
+đáng đổ công sức "mô phỏng luồng suy nghĩ con người" nhất — và cũng là chỗ
+**duy nhất** trong hệ thống mà ý tưởng đó không trùng với thứ đã bị đo bác.
+
+Lý do đơn giản: bốn trong năm nhóm kỹ thuật được đề xuất (CoT, ToT, region,
+self-correction) đều nằm ở **khâu xếp lại**, tức chọn tốt hơn trong danh sách
+đã có. Khâu đó đã đo khá kỹ: xếp lại bằng chữ **+1,6 điểm**, còn mọi nỗ lực làm
+nó tinh vi hơn (top-100 A28, tiêu đề video, xếp lại bằng ảnh A33/A37) đều
+**0 hoặc âm**. Trần không nằm ở chỗ suy luận sâu hơn về cùng những ứng viên đó.
+
+Còn TRAKE thì **bản chất là bài toán nhiều bước có thứ tự**, và đó đúng dạng
+bài mà suy luận từng bước hơn hẳn một phép truy hồi một phát.
+
+#### Quy ý tưởng đó ra số thì nó là cái này
+
+Người soát **không** tìm sự kiện 2 trên cả kho. Họ tìm sự kiện 1, rồi **đi tiếp
+về phía trước từ đó một quãng hợp lý**. Bản đang chạy (`run.dong_hang_dp`) chỉ
+ràng buộc `khung(i) < khung(i+1)`: nó biết **THỨ TỰ**, nhưng **không biết
+KHOẢNG CÁCH**.
+
+Mà khoảng cách đo được, và phân bố rất chặt — đo trên 42 câu TRAKE của tập dev
+(106 cặp sự kiện liền kề):
+
+| | trung vị | p25 | p75 | min | max |
+| --- | --- | --- | --- | --- | --- |
+| độ trải cả chuỗi | 56,6 s | 52,5 | 59,3 | 12,9 | **101,0** |
+| khoảng cách 2 sự kiện liền kề | 18,7 s | 12,4 | 28,9 | **5,1** | 55,7 |
+| **độ trải / độ dài video** | **0,1** | 0,1 | 0,2 | 0,0 | **0,2** |
+
+Keyframe cách nhau trung vị 2,16 s, nên 18,7 s ≈ **9 keyframe** và 101 s ≈ 47.
+
+#### Ba chỗ sai trong bản đang chạy, cả ba suy thẳng ra từ bảng trên
+
+**1. Chốt chống dồn cục rải N sự kiện đều khắp TOÀN BỘ video.** Mà độ trải thật
+chiếm trung vị **10%**, và **không bao giờ quá 20%** độ dài video. Tức khi chốt
+nổ, nó đẩy các sự kiện ra xa gấp **5–10 lần** sự thật. Chốt này nổ trên
+**47/100 dòng** của `query-p1-18-trake` và 33/100 của `query-p1-4-trake` trong
+chính bài nộp thật.
+
+**2. `DON_NHAU = 100` khung nằm DƯỚI mức sàn đo được.** 100 khung là 3,3 s
+(30 fps) đến 4,0 s (25 fps), còn khoảng cách nhỏ nhất từng quan sát là
+**5,1 s**. Một ngưỡng đặt thấp hơn cả sàn thì gần như không bắt được gì —
+giải thích vì sao A14.1 đo ba chính sách dồn cục đều ra 0,0000.
+
+**3. Đếm bằng KHUNG là dính đúng bẫy fps của PHẦN A.** Kho có 4 giá trị fps
+(25 / 26,44 / 29,97 / 30) nên `DON_NHAU = 100` mang ý nghĩa khác nhau ở từng
+video. `src/chuoi_trake.py` làm việc hoàn toàn trên `pts_time`.
+
+#### Đã cài gì
+
+`src/chuoi_trake.py` — ba thứ, bật/tắt **độc lập** để đo từng cái một:
+
+* `phat_khoang(dt)` — phạt 0 trong vùng đã quan sát `[5,1 s; 55,7 s]`, phạt
+  tuyến tính khi ra ngoài, `inf` khi `dt <= 0`. **Phạt mềm chứ không chặn
+  cứng**: bóc tách truy vấn có thể sai, chặn cứng thì xoá luôn đáp án đúng
+  (cùng nguyên tắc của `objects.py` và `thoi_gian.py`).
+* `dong_hang_theo_thoi_gian()` — quy hoạch động có prior + trần độ trải. Cách
+  cài phản chiếu đúng luồng suy nghĩ nó mô phỏng: vòng ngoài chọn một **NEO**
+  cho sự kiện đầu, vòng trong **đi tiếp về phía trước** trong
+  `[t_neo, t_neo + trần]`.
+* `rai_deu_hep()` — rải trong cửa sổ 56,6 s quanh neo, thay cho rải khắp video.
+
+Ràng buộc quan trọng nhất, và có test chốt (`test_mac_dinh_giong_het_ban_cu`):
+đặt `he_so_phat=0` + `trai_toi_da=inf` phải cho **kết quả trùng khít
+`run.dong_hang_dp`**. Đây là bản MỞ RỘNG, không phải bản thay thế — không có
+tính chất đó thì mọi phép đo sau không so được với gì.
+
+Bốn tham số mới của `run.dung_trake` (`dong_hang`, `he_so_phat`, `trai_toi_da`,
+`rai_hep`) **mặc định giữ nguyên hành vi cũ**. Đo bằng
+`scripts/35_do_chuoi_trake.py`.
+
+#### Một chỗ prior này khôn hơn cái test đầu tiên tôi viết cho nó
+
+Test đầu chờ prior sẽ **vứt** khung điểm cao đang dồn cục và chọn bộ ba giãn
+đều. DP thật lại trả `[0, 700, 1150]`: nó **giữ** neo điểm cao ở khung 0 mà vẫn
+đi ra chuỗi giãn hợp lý. Đúng hơn cái test chờ — prior này phạt **dồn cục**, nó
+không có nhiệm vụ vứt bỏ một khung điểm cao. Test đã sửa để chốt theo *tính
+chất* (không còn cặp nào dưới sàn 5,1 s) thay vì theo một bộ số cụ thể.
+
+#### Số đo hiện có, và vì sao chưa kết luận được
+
+Chạy với **kênh 3 (OCR+ASR)** trên máy 7,7 GB — kênh duy nhất chạy được không
+cần model:
+
+| biến thể | ±2 s | ±15 s | thắng–thua–hoà (±15 s) |
+| --- | --- | --- | --- |
+| mốc nền (DP ép tăng dần) | 0,0117 | 0,0270 | — |
+| + trần độ trải 180 s | 0,0356 | 0,0508 | 1–0–41 |
+| + prior khoảng cách | 0,0117 | 0,0349 | 1–0–41 |
+| + rải hẹp 56,6 s | 0,0117 | 0,0270 | 0–0–42 |
+
+Không âm ở đâu, nhưng **chỉ 1–2 câu trong 42 nhúc nhích**. Đúng như dự đoán:
+A14.1 đã đo kênh 3 một mình cho **0,0000** trên TRAKE, không có gì để lắp ráp
+thì khâu lắp ráp không lộ ra được. **Phép đo thật phải chạy với ứng viên kênh 1
+(SigLIP2)** — xem `docs/13_lenh_cho_may_manh_dot2.md`.
+
+⚠️ **Cảnh báo về chính tập dev này.** 41/42 câu TRAKE là câu **tự soạn**, chỉ
+`trake-DE1-16` do BTC viết — và câu đó ăn 0,0000 ở mọi biến thể. Tập dev tự
+soạn đã mù 5 lần (A19/A20/A31/A34/A37). Nhưng phân bố *thời gian đáp án* ở bảng
+đầu thì đỡ hơn phân bố *câu hỏi*: nó là tính chất của **video và của cách người
+ta chọn một chuỗi sự kiện**, không phải của cách viết câu. Và câu đề thật duy
+nhất có độ trải **101,0 s** — mép trên, vẫn trong khoảng. Vì n=1 nên trần trong
+code đặt **rộng gấp 1,8 lần** con số đó chứ không bám sát nó.
+
+#### Đã sửa một lỗi trong chính công cụ đo
+
+Hàm in kết luận của `35_do_chuoi_trake.py` bản đầu xét `d[0] > 0 and d[1] > 0`,
+nên gán nhãn **`🟡 TỆ HƠN`** cho kết quả `±2s +0,0000 | ±15s +0,0079` — một kết
+quả **dương**. Một mức bằng 0 nghĩa là *"ở mức đó không đổi gì"*, không phải
+*"xấu đi"*. Cùng họ với lỗi `MOC` bị đè ở PHẦN A: **thước đo sai thì không có
+gì báo**, và ở đây suýt kéo theo một kết luận ngược hẳn.
+### A40 — `tach_su_kien` vá theo ĐỀ MẪU, đề THẬT đổi format: nộp 4 Frame ID nơi BTC đòi 3
+
+Dựng giao diện truy vấn (`web/`) và chạy thử câu TRAKE thật đầu tiên thì lộ ra:
+`query-p1-16-trake` của đề sơ tuyển đợt 1 bị tách thành **4 sự kiện**, trong khi
+đề đánh dấu **E1, E2, E3**.
+
+#### Nguyên nhân
+
+```python
+_SU_KIEN = re.compile(r"^\s*E\s*\d+\s*[:.]\s*", re.I)   # bản cũ
+```
+
+Dấu `[:.]` là **bắt buộc**. Nhưng hai bộ đề viết khác nhau:
+
+| | |
+| --- | --- |
+| đề MẪU `THUNGHIEM` | `E1: Lân quay vòng trên cột số 4…` |
+| đề THẬT `SOTUYEN1` | `E1 Khoảnh khắc đầu tiên xuất hiện…` |
+
+Regex vá theo đề mẫu. Đề thật bỏ dấu hai chấm → **không dòng nào khớp** →
+`tach_su_kien` rơi xuống nhánh *"nhiều dòng thì mỗi dòng là một sự kiện"* →
+**lời mở đầu (`Đoạn video bắt đầu bằng ảnh cận đầu một con lân trắng…`) thành
+sự kiện 1**.
+
+Hậu quả: nộp 4 Frame ID cho gói BTC đòi 3. **Sai số Frame ID là sai định dạng,
+mất trắng cả gói** — đúng thứ docstring của chính `tach_su_kien` cảnh báo.
+
+#### Vì sao bài nộp 11 điểm không dính
+
+Gói `query-p1-16-trake` được dựng bằng `32_dung_tu_dap_an_tay.py` từ bảng soát
+tay `("L24_V031", [1, 14, 25])` — 3 khung, đúng. Nhóm thoát **chỉ vì gói đó
+dựng bằng tay**, không phải vì code đúng. Bất kỳ bài nộp nào sinh bằng
+`run.py` cho câu này đều đã mất trắng.
+
+#### Bản vá
+
+```python
+_SU_KIEN = re.compile(r"^\s*E\s*\d+(?:\s*[:.]\s*|\s+)(?=\S)", re.I)
+```
+
+Dấu hai chấm thành tuỳ chọn, nhưng vẫn đòi **một** dấu tách (`:` / `.` /
+khoảng trắng) sau số, để `E12abc` không bị nhận nhầm thành sự kiện 12. Bốn test
+chốt lại: đề thật và đề mẫu ra cùng số sự kiện; lời mở đầu là bối cảnh chung
+ghép vào mọi sự kiện; `E1,E2,E2,E4` vẫn ra 4 (đếm theo DÒNG, không theo số).
+
+#### Một dự đoán của tôi đã SAI, ghi lại vì phần đó mới có giá trị
+
+Tôi cho rằng đây là lý do `trake-DE1-16` ăn **0,0000** ở mọi biến thể trong
+phép đo A39 — tách 4 sự kiện thì `diem_trake_bai_nop` so vị trí 1 (lời mở đầu)
+với sự kiện 1 thật, lệch hết. Chạy lại `35_do_chuoi_trake.py` sau bản vá:
+
+    trước vá:  đề thật 0,0000 ở mọi biến thể
+    sau vá:    đề thật 0,0000 ở mọi biến thể   ← KHÔNG ĐỔI
+
+Toàn bộ bảng 42 câu cũng không đổi một chữ số. Nguyên nhân thật đơn giản hơn:
+**kênh 3+4 không tìm ra video múa lân đó**, vì nó gần như không có chữ OCR để
+bám. Lỗi tách sự kiện là thật và phải sửa, nhưng nó không phải nguyên nhân tôi
+gán cho nó.
+
+#### Hệ quả cho `truy_van.npz`
+
+Cache vector truy vấn chứa **đúng những chuỗi `tach_su_kien` sinh ra**
+(`25_ma_hoa_truy_van.py`). Cache sinh trước bản vá mang mệnh đề sai cho mọi câu
+TRAKE viết theo kiểu đề thật → phải sinh lại. Đã ghi vào
+`docs/13_lenh_cho_may_manh_dot2.md` Việc 0.
+
+#### Bài học chung, và nó lặp lại
+
+Đây là lần thứ **sáu** một thứ được vá theo mẫu tự soạn rồi hụt trên đề thật —
+sau A19, A20, A31, A34, A37. Năm lần trước là tập dev mù; lần này là **regex mù**.
+Cùng một hình dạng: *cái ta tự tạo ra không phải cái BTC gửi tới.* Mọi chỗ
+đọc/tách đề nên được chạy thử trên `dev/SOTUYEN1-bo-de-thi` (đề thật) chứ không
+chỉ `dev/THUNGHIEM-bo-de-thi` (đề mẫu).
+### A41 — Có cache kênh 1, đo được hai giả thuyết đang treo: **A38 bị bác, A39 không đủ điều kiện bật**
+
+`index/truy_van.npz` sinh trên Kaggle (593 chuỗi, 2,58 MB, xem
+`docs/14_kaggle_sinh_truy_van_npz.md`). Nghiệm thu trước khi tin:
+
+| kiểm | kết quả |
+| --- | --- |
+| cấu trúc | 593 chuỗi × 1152 chiều, chuẩn L2 = 1,00000 |
+| model / pretrained | `ViT-SO400M-14-SigLIP2-378` / `webli` ✅ |
+| độ phủ | **611/611** chuỗi sẽ được tra, không thiếu cái nào |
+| `query-p1-1-kis` → `L30_V046` | video hạng **1**, khung đúng hạng 8 |
+| `query-p1-4-kis` → `L22_V021` | video hạng **1**, khung đúng hạng 5 |
+| `query-p1-25-kis` → `L30_V003` | video hạng 3, khung đúng hạng 3 |
+| mốc nền tự dựng vs `kenh.tim()` | **TRÙNG** |
+
+Trúng video đúng ở hạng 1 trên 873 video hai lần — nếu sai `pretrained` thì đã
+là nhiễu. Cache đúng không gian vector.
+
+---
+
+#### A38 — chấm theo CỬA SỔ: **BỊ BÁC, ổn định và âm ở mọi bán kính**
+
+`scripts/36_do_cua_so.py --cache index/truy_van.npz --kiem-moc`, 144 câu KIS/QA.
+
+| bán kính | toàn bộ 144 (±2s / ±15s) | 22 câu ĐỀ THẬT | kết luận |
+| --- | --- | --- | --- |
+| ±1 | −0,0083 / −0,0625 | +0,0182 / −0,0273 | ❌ ĐẢO DẤU ở đề thật |
+| ±2 | −0,0236 / −0,0958 | −0,0182 / −0,0818 | ✅ ổn định, **ÂM** |
+| ±3 | −0,0528 / −0,1056 | −0,0364 / −0,1000 | ✅ ổn định, **ÂM** |
+| ±5 | −0,0764 / −0,1264 | −0,0364 / −0,1000 | ✅ ổn định, **ÂM** |
+
+Âm ở **cả ba khối** (toàn bộ / đề thật / tự soạn), vượt nhiễu ở hầu hết ô, và
+càng nới bán kính càng tệ. Không có góc nào để đọc đây là kết quả tốt.
+
+**Vì sao sai — và đáng ra phải thấy trước khi viết code.** Dòng thứ hai của log
+nói hết: **95/144 câu chỉ có MỘT mệnh đề**. Với một mệnh đề thì "cộng qua mệnh
+đề" và "max qua mệnh đề" là *cùng một phép tính*, nên phần còn lại của thuật
+toán chỉ là **làm nhoè điểm ra ±k khung**. Nhoè thì chỉ mất độ sắc. Hai phần ba
+câu rơi vào tình huống đó.
+
+Cơ chế hại **giống hệt A32** đã ghi: *"pha loãng tín hiệu sắc của câu gốc bằng
+phép cộng"*. A32 bác `max + λ·tổng`; A38 là **cùng một sai lầm về cấu trúc** —
+thêm một phép cộng qua mệnh đề. Sổ đo đã có sẵn câu trả lời từ hôm trước.
+
+Chi tiết xác nhận cơ chế: ở ±15s điểm âm **nặng hơn** ±2s. Vì `no_cua_so` đã nở
+đáp án ra ±15 giây — mốc nền vốn đã được tính công cho khung lân cận, nên cửa
+sổ chỉ còn đóng góp nhiễu.
+
+> **KHÔNG bác phần quan sát của A38.** Bảy ca soát tay vẫn đúng: `p1-4` cần
+> kf183 + kf186/187 mới đủ "hai nhân viên", `p1-6` có nội dung không nằm trong
+> keyframe nào. Đề vẫn được viết từ VIDEO còn ta vẫn tìm trên KEYFRAME. Cái sai
+> là **cách quy nó ra thuật toán**. Hệ quả thứ nhất của A38 vẫn đứng: *nộp một
+> DẢI tốt hơn nộp một khung* — `33_trai_dai_khung.py`, hai bản nộp cùng 11 điểm.
+
+`src/cua_so.py` giữ lại kèm cảnh báo bị bác, không xoá — để người sau không
+nghĩ lại ra nó lần nữa.
+
+---
+
+#### A39 — prior khoảng cách TRAKE: mốc nền nhảy **18 lần**, ba đề xuất đều không đủ điều kiện bật
+
+`scripts/35_do_chuoi_trake.py --cache index/truy_van.npz`, 42 câu TRAKE.
+
+**Điều đáng ghi nhất không phải ba biến thể, mà là MỐC NỀN:**
+
+| | kênh 3+4 | kênh 1 (SigLIP2) |
+| --- | ---: | ---: |
+| ±2s | 0,0117 | **0,2162** |
+| ±15s | 0,0270 | **0,3556** |
+
+Gấp ~18 lần. Xác nhận thẳng chẩn đoán ở A39: TRAKE chưa bao giờ tắc vì thuật
+toán lắp ráp hay vì RAM — nó tắc vì **thiếu ứng viên kênh 1**.
+
+Ba biến thể, sau khi sửa nhãn cho xét cả nhiễu:
+
+| biến thể | ±2s | ±15s | thắng–thua–hoà (±15s) | kết luận |
+| --- | ---: | ---: | --- | --- |
+| trần độ trải 180 s | +0,0016 | +0,0095 | 4–2–36 | 🟡 **YẾU** — chưa vượt nhiễu (2·SE 0,0351) |
+| prior khoảng cách | −0,0181 | −0,0032 | 6–4–32 | 🟠 tệ hơn |
+| rải hẹp 56,6 s | 0,0000 | 0,0000 | 0–0–42 | ⚪ **KHÔNG ĐỔI GÌ** |
+
+**Không cái nào được bật.** Cả ba giữ mặc định TẮT như đã đặt sẵn.
+
+**Một dự đoán đúng, và nó là kết quả hữu ích nhất trong ba.** Trước khi đo, tôi
+đã ghi: *"`rai_hep` mà vẫn ⚪ với kênh 1 thì nghĩa là chốt dồn cục hầu như
+không nổ nữa khi ứng viên đủ tốt, và cả nhánh đó nên bỏ chứ không phải sửa
+tiếp."* Kết quả: **0–0–42 ở cả hai mức dung sai** — chốt không nổ lần nào.
+
+Nghĩa là toàn bộ chẩn đoán "rải khắp video là sai" của A39 tuy **đúng về số
+liệu** (độ trải thật chiếm trung vị 10% độ dài video) nhưng **vô nghĩa về hậu
+quả**: nhánh đó chỉ chạy khi truy hồi thất bại, mà với kênh 1 nó gần như không
+thất bại. Sửa một nhánh chết không đem lại gì.
+
+`query-p1-16-trake` (câu đề thật duy nhất) vẫn **0,0000 kể cả với kênh 1** —
+n=1, không kết luận được, nhưng đủ để nói: bản vá A40 không phải nguyên nhân,
+và SigLIP2 cũng không tìm ra video múa lân đó.
+
+---
+
+#### Đã sửa một lỗi trong chính công cụ đo — lần thứ hai trong hai ngày
+
+`35_do_chuoi_trake.py` gắn nhãn kết luận **chỉ theo DẤU**, nên `+0,0016` (kém
+xa nhiễu, nhúc nhích 2/42 câu) được in là **✅ tốt hơn ở cả hai mức**. Nói quá.
+
+Ngưỡng nó in ra cũng không phải ngưỡng thống kê: `1/(số sự kiện × số câu)` là
+**lượng tử nhỏ nhất** điểm có thể đổi — trả lời "có đổi gì không", không trả
+lời "đổi có thật không".
+
+Đã đổi sang đúng công thức `cham_diem._hieu` (2·SE của hiệu theo cặp), để hai
+script hiểu "vượt nhiễu" giống nhau. Cùng họ với lỗi nhãn `🟡 TỆ HƠN` sửa hôm
+trước, và với `MOC` bị đè ở PHẦN A: **thước đo sai thì không có gì báo.**
+
+---
+
+#### Tổng kết phiên: giá trị nằm ở phần ÂM
+
+Hai giả thuyết do chính tôi đề xuất, viết code, viết test, ghi thành luật — cả
+hai đều **không sống nổi phép đo đầu tiên có ứng viên thật**. Ghi lại đầy đủ vì
+đó mới là phần đáng tiền: ba hướng nữa bị loại khỏi bàn, và mốc nền TRAKE lần
+đầu có con số thật để so.
+
+Thứ **thật sự** thay đổi hôm nay không phải thuật toán nào — mà là `truy_van.npz`
+về tới máy, biến mọi phép đo dính kênh 1 từ "không chạy được" thành "chạy 10 phút".
+### A42 — Đo bốn đề xuất "phá lối mòn": ba cái đã chết sẵn, cái thứ tư chết theo cách dạy ta một cơ chế
+
+Bốn hướng do Gemini đề xuất sau khi đọc tới A40. Đối chiếu trước khi bỏ công:
+
+| Gemini đề xuất | thật ra là | |
+| --- | --- | --- |
+| 1. Sliding Window Pooling | **chính là A38** — công thức trùng khít `cua_so.diem_cua_so` | đã bác (A41) |
+| 2. Anchor & Expand | **chưa ai đo** | ⬅ đo ở đây |
+| 3. Reverse Caption Alignment | **chính là A32** (`max + λ·tổng`, khác mỗi lời prompt) | đã bác |
+| 4. DTW / beam search TRAKE | **chính là A39** `dong_hang_theo_thoi_gian` + trần độ trải | đã đo, 🟡 |
+
+Chỉ hướng 2 đáng dựng. Nhưng trước đó, đóng nốt một cửa còn hé của A38.
+
+---
+
+#### A38 chết cả trên SÂN NHÀ — và điều đó sửa lại lời giải thích ở A41
+
+A41 quy nguyên nhân cho **95/144 câu chỉ có MỘT mệnh đề** (ở đó "cộng qua mệnh
+đề" ≡ "max qua mệnh đề", nên thuật toán rút gọn thành làm nhoè). Nếu đúng vậy
+thì trên câu NHIỀU mệnh đề nó phải thắng. Thêm hai khối vào
+`36_do_cua_so.py` để hỏi thẳng:
+
+| khối | ±1 | ±2 | ±3 |
+| --- | --- | --- | --- |
+| 49 câu **≥2 mệnh đề** | −0,0082/−0,0653 🟡 | −0,0327/−0,0980 ✅ **âm** | −0,0612/−0,1061 ✅ **âm** |
+| 17 câu **đề thật ≥2 mệnh đề** | +0,0353/−0,0235 ❌ đảo | −0,0118/−0,0824 🟡 | −0,0353/−0,1059 ✅ **âm** |
+
+Âm ngay trên tập câu mà A38 sinh ra để phục vụ. **Lời giải thích ở A41 SAI** —
+không phải tại câu một mệnh đề. Nguyên nhân thật đơn giản hơn và đúng y như
+A32: **phép cộng qua mệnh đề TỰ NÓ pha loãng**, bất kể có mấy mệnh đề.
+
+Ghi lại chỗ này vì nó là bài học về cách sửa sai: lần đầu tôi giải thích thất
+bại bằng một giả thuyết *nghe hợp lý*; hỏi thẳng dữ liệu thì giả thuyết đó cũng
+sai nốt.
+
+---
+
+#### Hướng 2 — Anchor & Expand: ba biến thể, và một cơ chế đáng giá hơn cả ba
+
+`scripts/37_do_neo_mo_rong.py`. Mỏ neo định nghĩa **đo được**, không phải danh
+sách soạn tay: token của truy vấn có mặt trong kho OCR với `1 <= df <= 60`
+(có nên tra được, hiếm nên tra ra sắc). Rồi "đi bộ thời gian" `[-15s, +30s]`
+quanh mỗi lần khớp, dùng `pts_time` chứ không dùng số khung.
+
+Cơ chế tìm neo hoạt động đúng như người soát tay đã làm bằng tay:
+
+    p1-12-kis  ->  'mazut'   ->  68 khung      (đúng từ nhóm bám khi soát tay)
+    p1-17-qa   ->  'nghẽn'   ->  38 khung
+    p1-1-kis   ->  không có  ->  rơi về SigLIP2
+
+**38/144 câu có mỏ neo.** Trên chính 38 câu đó:
+
+| biến thể | ±2s | ±15s | thắng–thua–hoà |
+| --- | ---: | ---: | --- |
+| `chen` — chèn lên đầu (vi phạm A27/A28) | **−0,1474** | **−0,2316** | 5–16–17 ✅ ổn định |
+| `xep_lai` — đảo thứ tự trong bể (tuân A27/A28) | −0,0053 | −0,0053 | 0–1–37 |
+| `duoi` — chỉ chiếm hạng 81–100 | **+0,0053** | **+0,0105** | **1–0–37 / 2–0–36** |
+
+Trên 10 câu đề thật có mỏ neo, `duoi` cũng **0 thua**: 0–0–10 và 1–0–9.
+
+##### Cơ chế: mỏ neo và SigLIP2 tìm ra những chỗ KHÁC NHAU
+
+Đo trực tiếp phần giao giữa tập khung neo và top-100 của SigLIP2:
+
+> **25/38 câu giao = 0 khung.** Trung vị giao **0**, trung bình 1,8, max 20 —
+> trên tập neo trung vị **72 khung**.
+
+Hai tập gần như rời nhau. Từ đó cả ba kết quả trên đều suy ra được:
+
+* `xep_lai` **là no-op** — không có gì để đảo, vì neo không nằm trong bể.
+* `chen` **thảm hoạ** — nhét 72 khung rời vào đầu đẩy ứng viên tốt của SigLIP2
+  từ hạng 1–100 xuống 73–172, tức **rơi hẳn khỏi bài nộp**. Đây là con số âm
+  lớn nhất từng đo trong repo.
+* `duoi` **an toàn** — hạng 81–100 chỉ vào `R@100`, mỗi dòng đáng nhiều nhất
+  `0,2/5 = 0,04`. Mặt trái bị chặn cứng, mặt phải là từ 0 lên 0,2.
+
+##### Vì sao NGƯỜI làm được mà MÁY không
+
+Người soát tay ở `p1-12` không trộn hai danh sách. Họ **đổi hẳn chiến lược
+tìm** (bỏ SigLIP2, quét OCR), rồi **dùng mắt làm bộ xếp lại**. Mắt là bộ xếp
+lại hoàn hảo — nó nhìn 68 khung và chọn đúng cái.
+
+Máy không có bộ xếp lại hoàn hảo. Nên khi bắt chước bước một mà thiếu bước hai,
+nó chỉ còn cách trộn vào danh sách xếp hạng — và trộn hai tập rời nhau trong
+một danh sách **có kích thước cố định** thì bên này lên đúng bằng bên kia xuống.
+
+> **Đây là lời giải thích CƠ CHẾ cho A27/A28**, thứ hai điều luật đó chưa có.
+> Không phải "kênh yếu thì có hại". Mà là: **thêm ứng viên rời vào một danh
+> sách 100 chỗ là một phép ĐỔI CHỖ, không phải phép BỔ SUNG.** Xếp lại thì
+> không đổi chỗ ai — nên nó lãi. Chèn thì đổi chỗ — nên nó lỗ. Xác nhận độc
+> lập lần thứ ba, và lần này biết vì sao.
+
+##### Suy ra một thiết kế, và nó là thứ duy nhất dương cả phiên
+
+`duoi` không sinh ra từ trực giác mà **suy ra từ cơ chế**: nếu vấn đề là đổi
+chỗ, thì hãy tiêu vào những chỗ rẻ nhất. Hạng 81–100 vốn là vé số ngẫu nhiên
+(PHẦN C: không phạt dòng sai), đổi lấy vé số có mỏ neo là phép đổi không mất gì.
+
+Kết quả đúng như dự đoán: **không thua câu nào**, ở cả hai mức dung sai, trên
+cả hai khối. Nhưng vẫn 🟡 **YẾU** — chưa vượt nhiễu ở đâu.
+
+> **Khuyến nghị: CHƯA BẬT.** Kỷ luật đo của dự án không cho bật thứ chưa vượt
+> nhiễu, và A34/A37 là hai lần trả giá gần nhất cho việc bật sớm. Nhưng đây là
+> ứng viên đáng đo lại đầu tiên khi tập dev có thêm câu đề thật — nó là kỹ
+> thuật duy nhất trong ngày có **mặt trái bị chặn về mặt toán học**, không phải
+> chặn bằng hy vọng.
+
+---
+
+#### Tổng kết: bốn đề xuất, không cái nào phá được trần
+
+Ba cái trùng với thứ đã đo. Cái thứ tư đo mới, và cả ba biến thể của nó đều
+không đủ điều kiện bật. Nhưng phiên này không phí:
+
+1. **A38 đóng cửa hẳn**, kể cả trên sân nhà — và lời giải thích ở A41 được sửa.
+2. **A27/A28 có cơ chế**, không còn là quy tắc kinh nghiệm.
+3. **Một thiết kế mới suy ra từ cơ chế đó** (`duoi`), dương và có mặt trái chặn cứng.
+
+Điều đáng nói nhất về chiến lược: cả bốn đề xuất đều nhắm vào **cách tổng hợp
+tín hiệu**, mà ba lần đo hôm nay đều chỉ về cùng một chỗ — trần không nằm ở
+cách tổng hợp. `xep_lai` no-op vì neo không nằm trong bể; `chen` lỗ vì bể chỉ
+có 100 chỗ. **Cả hai đều nói: bể ứng viên là thứ đang thiếu, không phải phép
+gộp.** Đó cũng là điều A27/A28 đã nói từ đầu, nay có thêm số liệu.
+
+---
+
+### A43 — Đắp 35 câu dev soạn từ hình, và cái bẫy rò văn bản hiện ra ở dạng thứ hai
+
+Tập dev đã mù **sáu lần** (A19/A20/A31/A34/A37/A41) vì cùng một lý do: câu tự
+soạn **22 từ / 1,39 mệnh đề**, đề thật **60 từ / 2,33**. Đo trên câu ngắn rồi
+suy ra cho câu dài là chỗ hỏng lặp lại nhiều nhất trong repo. 23 câu đề thật
+nạp ở A34 vá được một phần, nhưng 23 câu thì mọi phép so theo cặp đều nằm dưới
+ngưỡng nhiễu.
+
+**Đắp thêm 35 câu**, soạn bằng mắt từ contact sheet, chỉ trong năm nhóm máy này
+có ảnh (L21/L22/L24/L27/L30 — 36.506 khung, 215 video, phủ 100% mỗi nhóm).
+Công cụ mới: `scripts/39_chon_dai_soan.py` chọn dải, `scripts/38_soat_cau_dev_moi.py`
+soát trước khi gộp.
+
+| | n | từ (trung vị) | mệnh đề | ≥2 mệnh đề |
+| --- | ---: | ---: | ---: | ---: |
+| đề thật (DE1) | 22 | 60 | 2,36 | 77% |
+| **mô phỏng (MP) — mới** | **37** | **71** | **2,65** | **100%** |
+| tự soạn khác | 122 | 22 | 1,39 | 26% |
+
+Tập dev **186 → 227**. TRAKE 42 → 46, trong đó 4 câu mới viết theo đúng khuôn
+`trake-DE1-16` (câu dẫn tả cảnh mở đầu + `E1`/`E2`/`E3` **không dấu hai chấm** —
+cố ý, để câu dev cũng đi qua đúng chỗ đã hỏng ở A40).
+
+#### Ba luật rút ra khi chọn dải, đều là thứ đã suýt hỏng
+
+* **Bỏ đầu và cuối video.** Gần như luôn là hình hiệu, MC trong trường quay,
+  hoặc chữ chạy — giống hệt nhau giữa hàng trăm bản tin, nên câu viết ra không
+  có đáp án duy nhất.
+* **Không trùng video đã dùng làm đáp án.** Soạn thêm trên video cũ thì tập dev
+  to ra mà độ phủ đứng yên.
+* **Tả DẢI, không tả khung lẻ.** Khoảng đúng dài 4 giây – 5 phút (A9); tả một
+  khung lẻ là quay lại đúng phân bố câu ngắn đã gây ra sáu lần mù.
+
+#### Rò văn bản có DẠNG THỨ HAI, và cờ cũ không phân biệt được
+
+`38_soat_cau_dev_moi.py` hỏi kênh OCR/ASR xếp đáp án ở hạng nào; hạng ≤ 10 là
+cờ. Nó bắt được ba ca, và ba ca đó **không cùng loại**:
+
+| ca | hạng | chẩn đoán | xử lý |
+| --- | ---: | --- | --- |
+| `kis-MP-02` (bản đầu) | 2 rồi 3 | tôi viết "khung giới hạn chiều cao" — đúng cụm trong bản tin chạy | **bỏ**, thay dải khác |
+| `kis-MP-11` (bản đầu) | 5 | mở bằng "một đợt dịch bệnh ở châu Phi" — lấy từ dòng tin chạy | **viết lại** |
+| `kis-MP-34` (bản đầu) | **1** | mở bằng "buổi dạy nhạc cụ tre nứa" — trùng gần nguyên cụm ASR | **viết lại** |
+
+Ca thứ ba mới là ca dạy được điều gì. Tôi **không** đọc `ocr_asr.parquet` khi
+soạn. Cụm đó không nằm trên khung hình. Vậy vì sao OCR xếp hạng 1?
+
+Vì câu mở đầu ấy là **diễn giải việc đang diễn ra**, không phải tả cái nhìn
+thấy. Mà diễn giải thì trùng lời thuyết minh là chuyện đương nhiên — ASR của
+đúng khung đáp án nói *"chế tác một số loại nhạc cụ bằng tre nứa"*.
+
+Đây là chỗ phải cẩn thận, vì có **hai thứ khác nhau** cùng làm hạng OCR cao:
+
+* **RÒ** — câu chứa cụm chỉ có trong CHỮ hiển thị trên khung hình. Người soạn
+  không nhìn thấy cụm đó, họ *đọc* nó. Câu hỏng, phải sửa hoặc bỏ.
+* **TRÙNG TỰ NHIÊN** — câu tả đúng cái nhìn thấy, lời thuyết minh tình cờ gọi
+  tên đúng thứ đó. **Đề thật cũng vậy**: người ra đề xem video, phát thanh viên
+  đang nói về đúng cảnh ấy. Cắt bỏ loại trùng này là **thiên vị ngược** — làm
+  tập dev bất công với kênh 3 và khiến mọi phép đo kênh 3 sau đó thấp giả.
+
+Cờ hạng-≤-10 **không phân biệt được hai thứ đó**, nên script nay in kèm **những
+từ trùng giữa câu hỏi và văn bản của chính khung đáp án, sắp theo IDF**:
+
+```
+kis-MP-34:
+    8.35  tre_nứa      <- IDF cao, cụm dài, khớp nguyên văn ASR
+    7.46  nhạc_cụ
+    6.95  làm_bằng
+    4.29  dạy
+```
+
+Quy tắc đọc: IDF cao + danh từ riêng/số/cụm dài → nghiêng về **rò**; IDF thấp +
+từ tả cảnh thông thường → nghiêng về **trùng**. Vẫn là **cờ để người soạn đọc
+lại**, không phải bằng chứng — nhưng nay người soạn có cái để nhìn.
+
+Cách xử lý an toàn cho ca lưng chừng: **bỏ phần diễn giải, giữ phần tả vật thể**
+rồi đo lại. `kis-MP-34` viết lại chỉ còn ống tre, rổ đan, vòng đội đầu kết hạt
+đỏ → hạng rơi từ **1** xuống **ngoài top-100**. Chuyện đó tự nó là bằng chứng:
+thứ kéo hạng lên là câu diễn giải, không phải vật thể.
+
+Sau ba lần sửa: **35/35 câu sạch cờ**.
+
+#### Hai giới hạn phải nói thẳng
+
+**Người soạn chỉ nhìn được KEYFRAME, không xem được video.** Đề thật do người
+*xem video* viết — đó chính là A38. Nên đây là **xấp xỉ** cách đề thật ra đời,
+không phải bản sao. Hệ quả cụ thể ở TRAKE: chữ "đầu tiên" trong câu MP chỉ có
+nghĩa "keyframe đầu tiên nhìn thấy được", mốc thật có thể sớm hơn vài giây. Mốc
+nào không chắc là lần đầu thì đã viết thành **một cấu hình hình ảnh chỉ xuất
+hiện một lần** thay vì dùng chữ "đầu tiên".
+
+**Đáp án phải DUY NHẤT, và L24 gần như cố tình phá luật đó.** Cả nhóm L24 là hội
+thi lân sư rồng — hàng chục video na ná nhau. Một đoạn múa lân trắng ban đêm ở
+`L24_V015` đã bị **bỏ** vì mô tả của nó đúng luôn cho `kis-MP-05` (`L24_V027`,
+cũng lân trắng ban đêm, cũng cờ đuôi nheo). Hai câu cùng đúng cho hai video khác
+nhau thì đáp án không còn duy nhất, và câu đó đo ra số vô nghĩa. Bốn câu lân sư
+rồng còn lại (`kis-MP-17..20`) cố ý đặt cạnh nhau và cố ý tả rõ **điểm phân
+biệt** — rồng hay lân, màu lông, ngày hay đêm, trong nhà hay ngoài trời. Với
+TRAKE thì **câu dẫn tả cảnh mở đầu** mới là thứ định danh video, không phải các
+mốc E.
+
+35 câu chưa đủ để lật kết luận nào — 35 so với 122 câu tự soạn cũ. Muốn dời cán
+cân cần cỡ 60–80. Nhưng quy trình nay chạy được đầu-cuối (chọn dải → dựng sheet
+→ soi → soát → gộp) nên cả nhóm chia nhau đắp tiếp được, với chính hai script này.
+
+
+---
+
+### A45 — Đo trên ĐỀ THẬT: kênh 1 tụt một nửa, kênh 3 vượt lên, và RRF thô thắng
+
+Dựng `dev/tap_de_that.jsonl` — **52 câu do BTC viết** (23 đề đợt 1 + 29 đợt 2),
+trung vị **62 từ / 2,29 mệnh đề**, đáp án là bài nộp nhóm đã soát. Đo lại đúng
+những thứ đã đo trên tập dev tự soạn, trên 49 câu KIS/QA:
+
+| | tập dev cũ (231 câu) | **tập đề thật (49 câu)** |
+| --- | ---: | ---: |
+| kênh 1 SigLIP2 | 0,3258 | **0,1429** |
+| kênh 3 OCR/ASR | 0,1183 | **0,1633** |
+| RRF(1,3) trọng số 1:1 | **−0,0144** ❌ | **+0,0694** ✅ |
+
+**Ba thứ đảo ngược cùng lúc.**
+
+**1. Tập dev cũ thổi phồng kênh 1 gấp 2,3 lần.** 0,3258 xuống 0,1429. Con số cũ
+đo trên câu 22 từ do người *biết trước đáp án* viết.
+
+**2. Kênh 3 nay MẠNH HƠN kênh 1** (0,1633 so với 0,1429). Tập dev cũ nói kênh 3
+chỉ bằng một phần ba. Câu đề thật dài, nhiều mệnh đề, và hay có chữ đọc được
+trong khung — đúng chỗ BM25 ăn.
+
+**3. RRF thô, trọng số 1:1, ✅ ỔN ĐỊNH.** `+0,0694 / +0,0735`, vượt nhiễu ở ±2s
+(ngưỡng 0,0623), thắng 8 thua 4. Đây chính là thứ A14 đo được là **có hại**
+(−0,0144) trên tập dev cũ.
+
+Và xu hướng trọng số **đảo ngược A23**:
+
+| trọng số kênh phụ | 0,1 | 0,2 | 0,3 | 0,5 | **1,0** |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| hiệu so mốc (±2s) | +0,0041 | +0,0122 | +0,0204 | +0,0327 | **+0,0694** |
+
+Đơn điệu tăng tới 1,0. A23 đo được dìm xuống 0,3 làm tệ đi thì đúng — nhưng
+chiều đúng là **nâng lên**, không phải hạ.
+
+#### Nhóm đối chứng: có phải kênh 3 đang được chấm trên đáp án do chính nó sinh?
+
+Ba câu trong tập đo (`kis-DE2-17`, `qa-DE2-19`, `qa-DE2-23`) do tôi **tra bằng
+OCR** mà tìm ra. Nếu kênh 3 mạnh chỉ vì thế thì đây là rò ở tầng đáp án, cùng
+loại A21. Tách hai nửa:
+
+| tập con | n | kênh 1 | kênh 3 | RRF 1:1 (±2s / ±15s) |
+| --- | ---: | ---: | ---: | --- |
+| **DE1** — soát xong TRƯỚC khi tôi động vào OCR | 22 | 0,2000 | — | **+0,0909 / +0,0727** 🟡 |
+| **DE2 bỏ 3 câu tôi tự tra** | 24 | 0,1000 | 0,1500 | **+0,0417 / +0,0500** 🟡 |
+
+Cùng dấu ở cả hai nửa, cả bốn mức dung sai. Mỗi nửa không vượt nhiễu vì `n` chỉ
+còn một nửa — đúng dáng của một hiệu ứng thật bị chia đôi mẫu, không phải dáng
+của rò.
+
+#### Hệ quả
+
+* **Bật `--hop-nhat --bo-metadata --trong-so-phu 1.0` làm mặc định.** Không cần
+  chờ dense hoá kênh 3, không cần model thứ hai.
+* Mọi con số đo trên `dev/tap_dev.jsonl` từ A10 tới A44 đều phải đọc lại với
+  giả định "kênh 1 được thổi lên gấp 2,3 lần".
+* `dev/tap_de_that.jsonl` là thước đo chính từ nay.
+
+⚠️ Đáp án của tập này là **bài nộp được 11,6 điểm**, không phải đáp án BTC. Có
+câu sai trong đó mà không ai biết là câu nào. Mỗi câu mang nhãn `do_chac` trong
+`ghi_chu`; phép đo nghiêm ngặt nên lọc còn nhãn `xong` (19/29 câu đợt 2).
+
+⚠️ 3 câu TRAKE chưa đo được — cache truy vấn sinh trước bản vá A44 nên thiếu
+chuỗi của `trake-DE2-21`.
+
+
+---
+
+### A46 — Trần của MỌI cách xếp lại là **63%**, và tác tử VLM chưa vượt được mốc nền
+
+Dựng `src/tac_tu.py`: vòng lặp có công cụ, gửi keyframe cho Gemini xem và hỏi
+"khung này khớp câu hỏi tới đâu", rồi xếp lại 100 dòng. Đây là bước định thay
+người soát tay — thứ đã kéo bài nộp đợt 2 lên 11,6.
+
+#### Đo TRẦN trước khi đo tác tử
+
+Xếp lại chỉ hoán vị bể có sẵn. Nên câu đầu tiên phải hỏi là: **video đúng có
+nằm trong 100 dòng không?** Đo trên 30 gói đợt 2:
+
+| | |
+| --- | ---: |
+| video đúng CÓ trong top-100 | **19/30 = 63%** |
+| trong đó ở hạng 1 | 6 |
+| trong top-5 | 7 |
+| trong top-20 | 12 |
+| hạng trung vị | 8 |
+
+**11/30 gói không cách nào cứu bằng xếp lại** — tác tử giỏi mấy cũng vô ích.
+Đây là trần cứng, và nó khớp với điều rút ra từ bài nộp đội 14.800 điểm: chỗ mất
+điểm là **truy hồi cấp video**, không phải hậu xử lý.
+
+Số còn lại cũng đáng chú ý: 13/19 gói có video đúng trong bể nhưng **không ở
+hạng 1** — rải tới hạng 38, 65, 70, 84, 87, 96. Đó mới là phần xếp lại ăn được.
+
+#### Tác tử: hai lỗi thiết kế, đo mới thấy
+
+Bản đầu chỉ soi **18 dòng đầu** rồi sắp thuần theo điểm VLM. Đo trên 4 gói:
+
+| gói | video đúng | hạng trước | hạng sau |
+| --- | --- | ---: | ---: |
+| `p2-10` | L26_V120 | 6 | **8** ❌ |
+| `p2-12` | L26_V192 | 10 | **23** ❌ |
+
+Tệ đi cả hai gói đo được. Truy nguyên ra hai lỗi:
+
+1. **Chỉ soi 18 dòng đầu** — mà video đúng hay nằm ở hạng 38–96, tức tác tử
+   không bao giờ *nhìn thấy* đúng những gói nó có ích nhất. Sửa: dày ở đầu rồi
+   rải đều hết 100 dòng.
+2. **Ứng viên chưa được soi cũng nhận 0,0** rồi bị đẩy xuống dưới mọi dương tính
+   giả. *Chưa soi không phải bằng chứng là sai.* Sửa: chỉ điểm ≥ 0,8 mới được
+   nhấc lên, còn lại giữ nguyên thứ tự kênh.
+
+Sau khi sửa cả hai:
+
+| gói | hạng trước | hạng sau |
+| --- | ---: | ---: |
+| `p2-10` | 6 | 7 ❌ |
+| `p2-12` | 10 | 10 ⚪ |
+
+Ca thảm hoạ đã hết (10→23 thành 10→10), nhưng **vẫn không dương**. Nguyên nhân
+còn lại: VLM chấm *"trông hợp lý"* chứ không chấm *"đúng cảnh này"* — nó cho
+`p2-10` điểm **1,00** cho một video nấu ăn khác cùng chủ đề, đủ để hất ứng viên
+đúng ở hạng 6 xuống 7.
+
+#### Cờ `do_chac` đang NÓI DỐI
+
+`p2-1` và `p2-11` có đáp án **ngoài top-100** — không cứu được. Tác tử vẫn báo
+`do_chac = chac` cho `p2-1` vì tìm được một khung điểm 0,80. Người soát tin cờ
+đó sẽ bỏ qua đúng gói cần mở nhất.
+
+#### Kết luận
+
+* **Không bật tác tử.** `src/tac_tu.py` giữ lại làm công cụ và làm nền để đo
+  tiếp, mặc định không nằm trong đường ống.
+* Việc đáng làm là **kéo 63% lên**, không phải xếp lại tinh vi hơn. Đúng thứ
+  ngày 2–4 của kế hoạch đợt 3 nhắm tới.
+* Trước khi tin tác tử lần sau: cờ `do_chac` phải được hiệu chỉnh trên gói **đã
+  biết đáp án ngoài bể**, nếu không nó chỉ đo mức tự tin của VLM.
+
+⚠️ `n = 4 gói, 2 gói đo được`. Không đủ để kết luận mạnh — nhưng cũng không có
+lý do nào để bật một thứ chưa bao giờ đo được dương.
+
+---
+
 ## PHẦN B — QUYẾT ĐỊNH HẠ TẦNG
 
 ### B1. Không dùng Supabase / Postgres / Milvus / Elasticsearch — ĐÃ KIỂM CHỨNG
@@ -3084,27 +3850,45 @@ Giai đoạn 1.*
 
 ### H1. Đường găng — ✅ **ĐÃ THÔNG**
 
-**117 câu, đủ cả 10 nhóm L**, đã tách tập test giữ kín:
+**247 câu, đủ cả 10 nhóm L**, đã tách tập test giữ kín:
 
 | | KIS | QA | TRAKE | Tổng |
 | --- | ---: | ---: | ---: | ---: |
-| `dev/tap_dev.jsonl` | 55 | 42 | 0 | **97** |
+| `dev/tap_dev.jsonl` | 136 | 45 | 46 | **227** |
 | `dev/tap_test.jsonl` 🔒 | 10 | 10 | 0 | **20** |
 
-Phân bố dev theo nhóm: L21 7 · L22 11 · L23 7 · L24 5 · L25 10 · L26 19 ·
-L27 9 · L28 10 · L29 10 · L30 9.
+> **23 câu trong tập dev là ĐỀ THẬT do BTC viết** (đề sơ tuyển đợt 1, nạp bằng
+> `scripts/34_de_thanh_tap_dev.py`, đáp án nhóm soát tay). Đây là thứ tập dev
+> thiếu suốt từ đầu và là nguyên nhân của cả 5 lần dev mù
+> (A19/A20/A31/A34/A37): câu tự soạn ~15-22 từ / 1,1 mệnh đề, đề thật **63 từ /
+> 2,4 mệnh đề**. **Mọi phép đo từ nay nên báo RIÊNG cột 23 câu đề thật** —
+> `scripts/36_do_cua_so.py` làm sẵn việc đó.
+>
+> **Thêm 35 câu MÔ PHỎNG phân bố đề thật** (A43, tiền tố `MP`): 71 từ / 2,65
+> mệnh đề, 100% có ≥2 mệnh đề, soạn bằng mắt từ contact sheet trong
+> L21/L22/L24/L27/L30. Cộng lại **59/227 câu** nay đúng phân bố đang đi thi.
+>
+> Ngược lại, **câu TRAKE thì 41/46 vẫn là tự soạn** (1 đề thật `trake-DE1-16` +
+> 4 câu mô phỏng `trake-MP-01..04`), nên phân bố *câu hỏi* TRAKE vẫn là chỗ yếu
+> nhất — xem cảnh báo ở A39.
+>
+> **Soạn câu mới thì dùng `scripts/39_chon_dai_soan.py` để chọn dải và BẮT BUỘC
+> chạy `scripts/38_soat_cau_dev_moi.py` trước khi gộp** — nó bắt rò văn bản
+> (A21), lệch phân bố, và đáp án không tra được. Ba câu đã bị nó chặn (A43).
 
-**Còn thiếu: câu TRAKE (0 câu) và câu đếm.** `scripts/11_tim_cau_dem.py` lọc
-sẵn ứng viên khung nhiều vật đếm được.
+**Còn thiếu: câu đếm.** `scripts/11_tim_cau_dem.py` lọc sẵn ứng viên khung
+nhiều vật đếm được. Riêng câu đếm thì A26 và ca `p1-15-qa` cho thấy đó là
+**trần của model**, không phải lỗi truy hồi — đừng đầu tư thêm.
 
 Thêm câu mới thì cứ `--gop` bình thường — **câu mới vào tập dev, tập test giữ
 nguyên**, `gop()` tự loại. **Không chạy lại `--tach-test`** (nó cũng tự từ
 chối). Quy trình đầy đủ: [07_lam_tap_dev.md](07_lam_tap_dev.md).
 
 ```powershell
-python scripts\10_contact_sheet.py --nhom <L của mình> --thua 10
-python scripts\10_contact_sheet.py --tra <row_id...> --mo
-# soạn vào dev/tap_dev_thanh_vien/tap_dev_<nhóm>.jsonl
+# chọn 30 dải chưa ai dùng, dựng sẵn contact sheet (bỏ đầu/cuối video)
+python scripts\39_chon_dai_soan.py --nhom <L của mình> --so 30
+# soạn vào dev/tap_dev_thanh_vien/tap_dev_<nhóm>.jsonl — TẢ CẢ DẢI, ~60 từ
+python scripts\38_soat_cau_dev_moi.py dev\tap_dev_thanh_vien\tap_dev_<nhóm>.jsonl
 python src\tap_dev.py --gop dev\tap_dev_thanh_vien
 python src\tap_dev.py --no-cum
 python src\tap_dev.py --kiem

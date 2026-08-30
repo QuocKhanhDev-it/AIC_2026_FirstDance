@@ -6,12 +6,13 @@ dính kênh 1 đều tắc — kể cả hai thứ đáng giá nhất còn lại
 và RRF(SigLIP2, OCR). Nhưng model chỉ làm đúng MỘT việc: biến câu chữ thành
 vector. Ma trận ảnh 177.321 × 1152 thì đã nằm sẵn trên đĩa mọi máy.
 
-Mà tập truy vấn là **hữu hạn và biết trước**: 24 câu đề + 115 câu tập dev. Mã
-hoá chúng một lần ra file vài trăm KB, rồi máy yếu dùng `dense.KenhAnhCache` làm
+Mà tập truy vấn là **hữu hạn và biết trước**: 25 gói đề sơ tuyển đợt 1 + 186
+câu tập dev = **593 chuỗi** sau khi tách mệnh đề và bỏ trùng. Mã
+hoá chúng một lần ra file ~2,5 MB, rồi máy yếu dùng `dense.KenhAnhCache` làm
 toàn bộ truy hồi bằng numpy thuần — **không nạp model, không cần 6,5 GB RAM**.
 
     # chạy MỘT LẦN trên máy >= 16 GB (hoặc Colab/Kaggle)
-    python scripts/25_ma_hoa_truy_van.py --de dev/THUNGHIEM-bo-de-thi --tap-dev
+    python scripts/25_ma_hoa_truy_van.py --de dev/SOTUYEN1-bo-de-thi --tap-dev --gop
 
     # từ đó về sau, trên máy nào cũng được
     python scripts/22_do_trake.py --cache index/truy_van.npz
@@ -122,7 +123,16 @@ def ma_hoa(cac_cau: list, matrix: str, index: Path, fp16: bool) -> tuple:
     # chiều (512 = ViT-B/32 nhẹ, 1152 = SO400M nặng). Mã hoá văn bản bỏ được
     # tháp ảnh nên chỉ cần một phần: ~45% nếu fp16, ~85% nếu fp32.
     from dense import RAM_CAN, RAM_CAN_MAC_DINH, ram_trong_gb
-    chieu = int(np.load(index / matrix, mmap_mode="r").shape[1])
+    # Số chiều lấy từ SIDECAR trước, chỉ mở `.npy` khi sidecar không có.
+    #
+    # Bản đầu luôn `np.load(...)` — mà ma trận SigLIP2 nặng **390 MB** còn thứ
+    # cần chỉ là `shape[1]`. Trên máy dựng index thì vô hại; trên Colab/Kaggle
+    # (đúng nơi script này sinh ra để phục vụ) nó bắt tải 390 MB lên chỉ để
+    # đọc một con số mà sidecar 605 byte đã ghi sẵn.
+    chieu = gc.get("chieu")
+    if chieu is None:
+        chieu = int(np.load(index / matrix, mmap_mode="r").shape[1])
+    chieu = int(chieu)
     day_du = RAM_CAN.get(chieu, RAM_CAN_MAC_DINH)
     can = round(day_du * (0.45 if fp16 else 0.85), 1)
     tro = ram_trong_gb()
@@ -136,7 +146,7 @@ def ma_hoa(cac_cau: list, matrix: str, index: Path, fp16: bool) -> tuple:
             f"     • Đóng bớt ứng dụng (trình duyệt là thủ phạm thường gặp)\n"
             f"     • Thêm --fp16 nếu chưa dùng (hạ ngưỡng còn ~3 GB)\n"
             f"     • Chạy trên Colab/Kaggle rồi chép file .npz về — file chỉ\n"
-            f"       vài trăm KB, chép qua chat cũng được\n"
+            f"       ~2,5 MB, chép qua chat cũng được\n"
             f"     • Ép chạy bất chấp: --bo-qua-ram (RỦI RO TREO MÁY)\n")
 
     print(f"Nạp {model_tag} / {pretrained}"

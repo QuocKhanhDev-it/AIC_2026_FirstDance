@@ -36,6 +36,9 @@ cache/
 # Ảnh ghép TỪ KEYFRAME CỦA BTC -> repo public, không đẩy. Cả kho ~240 MB;
 # chia sẻ giữa các máy bằng Drive, xem docs/07_lam_tap_dev.md §2.
 dev/sheets/
+# `39_chon_dai_soan.py` ghi mặc định vào dev/.sheet_soan/; người soạn hay đặt
+# thêm thư mục tạm khi soi dày (dev/.sheet_trake/...). Bắt cả họ luật này.
+dev/.sheet*/
 
 # ---- ảnh mẫu + kết quả dở của bench OCR/ASR ----
 # contact sheet là ảnh ghép TỪ KEYFRAME CỦA BTC -> repo public, không đẩy.
@@ -57,12 +60,27 @@ desktop.ini
 # nen `submission_v2/` lot qua. Cung kieu loi da lam lot 15 anh keyframe khi
 # doi ten thu muc (xem muc Benchmark_OCR_ASR o tren).
 submission*/
+sub_*/
 *.zip
+# Bai nop cua ky THI THU (20-21/08) da gom vao mot cho cho goc repo do bua.
+# Luat rieng vi ten thu muc nay khong khop hai luat tren.
+bai_nop_cu/
 
 # ---- de thi BTC ----
 # Repo cong khai. De thi la tai lieu thi, khong phai ma nguon -> khong duoc
 # lo len GitHub cong khai.
+#
+# LUAT `de_thi/` MOT MINH LA HUT DICH — no khong khop bat ky thu muc de nao
+# thuc te dang co. Da mat: De_Thi_Chinh_Thuc/, de_thi_thu/,
+# dev/SOTUYEN1-bo-de-thi/, dev/THUNGHIEM-bo-de-thi/ deu DA BI THEO DOI truoc
+# khi phat hien (28/08). `.gitignore` khong go duoc file da tracked, nen bon do
+# phai xu ly rieng — xem muc canh bao o cuoi file.
+# Bon luat duoi day chan cac dang ten DA thay va cac dang de sinh tiep.
 de_thi/
+de_thi*/
+De_Thi*/
+*-bo-de-thi/
+query-p*-*.txt
 
 # ---- ma nguon doi khac tai ve de tham khao ----
 # Khong phai ma nguon cua ta: khac giay phep, va lam phinh repo. Doc thi doc,
@@ -79,3 +97,11 @@ github_repo/
 # ---- benchmark VLM tam thoi ----
 # ~200 MB anh keyframe + ket qua chay thu, khong phai ma nguon on dinh.
 Test VLM AIC/
+
+# ---- goi anh chuan bi upload len Kaggle ----
+# Zip anh keyframe cua BTC, ~35 GB. Repo cong khai.
+kaggle_upload/
+
+# ---- goi VQA ----
+# Anh keyframe cua BTC, thu nho lai van la anh cua BTC. Repo public.
+vqa/
