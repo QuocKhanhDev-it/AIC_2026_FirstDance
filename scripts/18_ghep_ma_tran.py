@@ -15,10 +15,25 @@ Nguyên tắc ghép: dòng nào trong ma trận VÁ có vector khác 0 (đã enc
 không phải "chưa tải ảnh") thì ghi đè dòng đó vào ma trận CHÍNH. Dòng nào vẫn
 0 ở ma trận vá thì bỏ qua — giữ nguyên ma trận chính, không ghi đè bằng 0.
 
-BA ĐIỀU KHÔNG BAO GIỜ ĐỘNG TỚI, giống `12_va_duong_dan.py`:
+BỐN ĐIỀU KHÔNG BAO GIỜ ĐỘNG TỚI, giống `12_va_duong_dan.py`:
   * Shape/dtype hai ma trận phải khớp — sai là DỪNG, không đoán.
+  * **Model/pretrained/chiều trong sidecar phải khớp** — xem `kiem_cung_model`.
   * Số dòng ma trận chính không đổi.
   * Dòng ngoài danh sách vá giữ nguyên giá trị cũ tuyệt đối — script tự kiểm.
+
+CHIA VIỆC ENCODE CHO NHIỀU NGƯỜI
+=================================
+
+Quota GPU Kaggle tính theo **tài khoản**, nên 6 người là 6 lần 30 giờ/tuần.
+Chia được, và đây là cách:
+
+  1. Mỗi người một danh sách `--chi-video` RỜI NHAU (không trùng video nào).
+  2. **Mọi người dùng ĐÚNG một `--model` và một `--pretrained`.** Không có
+     ngoại lệ. `kiem_cung_model` dựng lên chính vì chỗ này.
+  3. Mỗi người nộp về `.npy` **kèm file `.json` cùng tên** — thiếu sidecar là
+     mất luôn phép kiểm ở bước 2.
+  4. MỘT người giữ ma trận chính và ghép lần lượt từng bản vá.
+  5. Ghép xong chạy `--kiem-lech-hang` một lần cuối.
 
 Mặc định chỉ XEM TRƯỚC, không ghi. Thêm `--ghi` để ghi thật. Sao lưu bản cũ
 thành `<tên>.truoc_khi_ghep.npy` trước khi ghi đè.
@@ -30,6 +45,59 @@ import shutil
 from pathlib import Path
 
 import numpy as np
+
+
+def doc_sidecar(f_npy: Path) -> dict | None:
+    """Đọc `.json` cạnh ma trận. `None` nếu không có."""
+    canh = f_npy.with_suffix(".json")
+    if not canh.exists():
+        return None
+    try:
+        return json.loads(canh.read_text(encoding="utf-8"))
+    except Exception:
+        return None
+
+
+def kiem_cung_model(chinh: Path, va: Path) -> None:
+    """DỪNG nếu hai ma trận được encode bằng model khác nhau.
+
+    ⚠️ SINH RA VÌ CHIA VIỆC ENCODE CHO NHIỀU NGƯỜI. Quota GPU Kaggle tính theo
+    **tài khoản**, nên cách nhanh nhất là mỗi người encode một phần rồi ghép.
+    Nhưng lúc đó không còn ai nhìn thấy toàn bộ các lệnh đã chạy, và chỉ cần
+    một người gõ thiếu `--pretrained webli` là ma trận ghép ra mang vector của
+    HAI KHÔNG GIAN KHÁC NHAU.
+
+    Kiểm shape và dtype KHÔNG bắt được chuyện đó: hai model cùng số chiều, hoặc
+    cùng model nhưng khác `--image-size`, cho ra ma trận hợp lệ y hệt. Cosine
+    vẫn nằm trong [-1, 1], `--kiem-lech-hang` vẫn đạt (nó chỉ soi các dòng
+    trong cùng một ma trận), và điểm thi tụt mà không ai truy ra được.
+
+    Đây đúng là bẫy A6 ở quy mô nhóm: sai biến thể model làm cosine tụt
+    0,9913 -> 0,9513 mà chỉ in một dòng cảnh báo lẫn trong log.
+    """
+    a, b = doc_sidecar(chinh), doc_sidecar(va)
+    if a is None or b is None:
+        thieu = chinh if a is None else va
+        print(f"⚠️  KHÔNG CÓ sidecar cạnh {thieu.name} — không kiểm được hai ma "
+              f"trận có cùng model không.\n"
+              f"    Ghép vẫn chạy, nhưng nếu hai bên encode bằng model khác "
+              f"nhau thì KHÔNG CÓ GÌ BÁO.\n")
+        return
+
+    lech = [(k, a.get(k), b.get(k)) for k in ("model", "pretrained", "chieu")
+            if a.get(k) is not None and b.get(k) is not None and a[k] != b[k]]
+    if lech:
+        dong = "\n".join(f"     {k:12} chính={x!r}  vá={y!r}" for k, x, y in lech)
+        raise SystemExit(
+            f"\n❌ HAI MA TRẬN KHÔNG CÙNG MODEL — DỪNG, không ghép.\n\n{dong}\n\n"
+            f"   Ghép hai không gian vector khác nhau cho ra một file hợp lệ\n"
+            f"   hoàn toàn mà mọi kết quả truy hồi đều sai, và không có phép\n"
+            f"   kiểm nào phía sau bắt được.\n\n"
+            f"   Encode lại phần vá bằng ĐÚNG cấu hình của ma trận chính:\n"
+            f"     --model {a.get('model')} --pretrained {a.get('pretrained')}\n")
+
+    print(f"model khớp: {a.get('model')} / {a.get('pretrained')} "
+          f"({a.get('chieu')} chiều)\n")
 
 
 def main():
@@ -48,6 +116,8 @@ def main():
         raise SystemExit(f"❌ SHAPE LỆCH: {chinh.shape} vs {va.shape} — DỪNG, không đoán.")
     if chinh.dtype != va.dtype:
         raise SystemExit(f"❌ DTYPE LỆCH: {chinh.dtype} vs {va.dtype} — DỪNG, không đoán.")
+
+    kiem_cung_model(a.chinh, a.va)
 
     # dòng "đã encode thật" trong ma trận vá = có ít nhất một phần tử khác 0
     co_vector_va = np.abs(va).sum(axis=1) > 0
