@@ -138,8 +138,17 @@ Internet **ON**. **Add Input**: `aic2026-index` + 9 dataset ảnh.
 %cd repo
 !pip -q install open_clip_torch pandas pyarrow
 
-# 2. index/ tu Private Dataset (git khong mang theo)
-!mkdir -p index && cp /kaggle/input/aic2026-index/master.parquet index/
+# 2. index/ tu Private Dataset (git khong mang theo).
+#    TIM file chu KHONG doan duong dan: ten thu muc mount trong /kaggle/input
+#    KHONG phai luc nao cung bang slug dataset. Doan cung thi `cp` bao
+#    "No such file or directory" roi moi cell sau do chet day chuyen.
+import glob, shutil, os, pathlib
+print("co trong /kaggle/input:", os.listdir('/kaggle/input'))
+hit = glob.glob('/kaggle/input/**/master.parquet', recursive=True)
+assert hit, "khong thay master.parquet — da Add Input dataset aic2026-index chua?"
+pathlib.Path('index').mkdir(exist_ok=True)
+shutil.copy(hit[0], 'index/master.parquet')
+print("chep tu", hit[0])
 
 # 3. VA DUONG DAN — buoc BAT BUOC, va la buoc de quen nhat.
 #    `kf_path` trong master.parquet la duong dan TUYET DOI cua may dung index
@@ -371,7 +380,11 @@ Accelerator **P100** (hoặc T4). Internet **ON**. Input: `aic2026-index` + 9 da
 !git clone -q -b giai-doan-0 https://github.com/QuocKhanhDev-it/AIC_2026_FirstDance.git repo
 %cd repo
 !pip -q install -U transformers accelerate qwen-vl-utils pandas pyarrow
-!mkdir -p index && cp /kaggle/input/aic2026-index/master.parquet index/
+# chep master.parquet — dung cell TIM FILE o muc A3, dung doan duong dan
+import glob, shutil, pathlib
+pathlib.Path('index').mkdir(exist_ok=True)
+shutil.copy(glob.glob('/kaggle/input/**/master.parquet', recursive=True)[0],
+            'index/master.parquet')
 !python scripts/12_va_duong_dan.py --roots /kaggle/input --ghi
 
 # do toc do THAT truoc, 40 anh
