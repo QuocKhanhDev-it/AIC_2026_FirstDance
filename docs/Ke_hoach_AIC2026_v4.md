@@ -3161,6 +3161,83 @@ còn chỗ.
 > Chưa kiểm được. Không ảnh hưởng kết luận chọn gopt, nhưng ảnh hưởng câu
 > "SigLIP2 có đáng giữ làm kênh thứ ba không".
 
+### A48. Dò tham số RRF(gopt, OCR) — không tham số nào đủ chắc để đổi
+
+Đo 30/08 trên `dev/tap_de_that.jsonl`, 50/52 câu, cùng bộ câu với A47. Ba thứ
+được dò **riêng từng cái**, mốc nền luôn là cấu hình đang chạy.
+
+#### 1. Trọng số gopt : OCR — một chiều bị bác dứt khoát
+
+| tỉ lệ | ±2s | ±15s | hiệu ±2s | T-B-H | |
+| --- | ---: | ---: | ---: | :---: | --- |
+| 1 : 3 | 0,1720 | 0,2120 | −0,1720 | 4-18-28 | ✅ ỔN ĐỊNH **tệ hơn** |
+| 1 : 2 | 0,2320 | 0,2640 | −0,1120 | 4-15-31 | ✅ ỔN ĐỊNH **tệ hơn** |
+| 1 : 1,5 | 0,2600 | 0,3160 | −0,0840 | 3-14-33 | ✅ ỔN ĐỊNH **tệ hơn** |
+| **1 : 1** | **0,3440** | **0,4080** | — | — | mốc |
+| 1 : 0,75 | 0,3560 | 0,4280 | +0,0120 | 6-3-41 | 🟡 YẾU |
+| 1 : 0,5 | 0,3520 | 0,4320 | +0,0080 | 10-5-35 | 🟡 YẾU |
+| 1 : 0,25 | 0,3440 | 0,4200 | −0,0000 | 12-7-31 | ❌ ĐẢO DẤU |
+
+**Tăng trọng số OCR là hỏng chắc chắn** — ba mức đều ✅ ỔN ĐỊNH theo hướng xấu,
+càng tăng càng tệ. Giảm thì *có vẻ* nhỉnh hơn nhưng cả hai mức đều 🟡 YẾU.
+
+Giữ **1 : 1**. `1 : 0,75` là ứng viên duy nhất đáng đo lại khi tập dev lớn hơn —
+điểm thô cao nhất bảng, thắng-thua 6-3 và 9-3, nhưng 41/50 câu không đổi gì nên
+hiệu tuyệt đối quá nhỏ để vượt nhiễu.
+
+#### 2. SigLIP2 làm "gợi ý phụ" trọng số nhỏ — giả thuyết bị bác
+
+Ý tưởng: A47 thấy SigLIP2 làm hại ở trọng số 1:1, nhưng có thể nó vẫn cứu được
+vài ca gopt bỏ sót nếu chỉ cho trọng số nhỏ. Đo trên `RRF(gopt, OCR)` + SigLIP2:
+
+| trọng số SigLIP2 | ±2s | ±15s | T-B-H (±2s) | |
+| ---: | ---: | ---: | :---: | --- |
+| 1,0 | 0,3240 | 0,3840 | 4-10-36 | 🟡 YẾU, tệ hơn |
+| 0,5 | 0,3440 | 0,4080 | 3-2-45 | ⚪ KHÔNG ĐỔI GÌ |
+| 0,33 | 0,3440 | 0,4080 | 3-2-45 | 🟡 YẾU |
+| 0,25 | 0,3400 | 0,4000 | 2-2-46 | 🟡 YẾU |
+| 0,2 | 0,3440 | 0,4040 | 2-2-46 | ❌ ĐẢO DẤU |
+
+**Ở trọng số nhỏ, SigLIP2 không cứu gì cả — nó chỉ không làm gì.** 42–46 trên 50
+câu *không đổi một chút nào*. Không có vùng trọng số nào mà nó vừa đủ nhẹ để
+không hại vừa đủ nặng để có ích.
+
+Kết luận: **bỏ hẳn SigLIP2 khỏi đường chạy**, không phải hạ trọng số nó.
+
+#### 3. Hằng số `k` của RRF — gần như trơ
+
+| k | ±2s | ±15s | T-B-H (±2s) | |
+| ---: | ---: | ---: | :---: | --- |
+| 20 | 0,3440 | 0,4120 | 3-3-44 | 🟡 YẾU |
+| 30 | 0,3440 | 0,4080 | 1-1-48 | ⚪ KHÔNG ĐỔI GÌ |
+| **60** | **0,3440** | **0,4080** | — | mốc |
+| 100 | 0,3440 | 0,4080 | **0-0-50** | ⚪ KHÔNG ĐỔI GÌ |
+| 120 | 0,3440 | 0,4080 | **0-0-50** | ⚪ KHÔNG ĐỔI GÌ |
+| 200 | 0,3480 | 0,4120 | 1-0-49 | 🟡 YẾU |
+
+`k = 100` và `k = 120` cho **0-0-50** — không một câu nào đổi thứ hạng.
+
+Điều đó tự nó nói một chuyện: hai kênh **hiếm khi tranh chấp**. `k` chỉ có việc
+làm khi hai kênh đề cử cùng một ứng viên ở hai thứ hạng rất khác nhau; ở đây
+OCR đóng góp quá ít ứng viên chen được vào vùng gopt đã xếp. Cũng khớp với việc
+`RRF(gopt, OCR)` chỉ hơn `gopt` một mình +0,0280 (🟡 YẾU).
+
+#### Kết luận chung
+
+**Không đổi gì.** Giữ `RRF(gopt, OCR)`, trọng số 1:1, k=60. Ba trục tham số đã
+dò hết và không trục nào còn dư địa đáng kể — nghĩa là **muốn tiến tiếp thì phải
+thêm TÍN HIỆU MỚI, không phải chỉnh cách trộn tín hiệu cũ**.
+
+Ứng viên tín hiệu mới, theo thứ tự đáng làm:
+
+1. **Kênh 5 (caption)** — kênh văn bản dày, mô tả *quan hệ trong cảnh*, đúng chỗ
+   A8.4 nói không kênh nào phủ. Notebook sẵn sàng, chưa ai chạy.
+2. **Mở rộng truy vấn bằng LLM** — viết lại câu hỏi thành nhiều biến thể rồi
+   hợp nhất. Không cần dữ liệu mới, chỉ cần một lượt gọi mỗi câu.
+
+> ⚠️ Và nhớ A47: trần top-100 của `gopt` trần là **80%**, của `RRF(gopt, OCR)`
+> chỉ **74%**. Kênh mới nào cũng nên nhận ứng viên từ gopt trần rồi mới hợp nhất.
+
 ## PHẦN B — QUYẾT ĐỊNH HẠ TẦNG
 
 ### B1. Không dùng Supabase / Postgres / Milvus / Elasticsearch — ĐÃ KIỂM CHỨNG
