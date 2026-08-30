@@ -164,15 +164,19 @@ Chốt này rẻ — dừng ở giây thứ vài chục thay vì sau 7,49 GB.
 chạy **vẫn ra P100**. Settings của trình soạn thuộc về *phiên nháp*, không phải
 lượt chạy do API khởi động.
 
-Hai đường để lượt chạy thật sự dùng T4:
+**Không có đường nào qua API.** Đã thử `--accelerator nvidiaTeslaT4`: lệnh
+chạy trót lọt, báo *"Kernel version 3 successfully pushed"*, và lượt chạy **vẫn
+ra P100**. Cờ đó bị bỏ qua âm thầm — không cảnh báo, không lỗi. SDK cũng không
+lộ danh sách giá trị hợp lệ để tra.
 
-```powershell
-.venv\Scripts\kaggle.exe kernels push -p kaggle_upload\aic2026-encode ^
-    --accelerator nvidiaTeslaT4
-```
+Nên đường duy nhất chắc chắn là **chạy từ trình soạn**:
 
-hoặc bấm **Save Version → Save & Run All** ngay trong trình soạn, nơi Settings
-có hiệu lực.
+1. Mở https://www.kaggle.com/code/duyanhdz2412/aic2026-encode
+2. **Settings → Accelerator → GPU T4 x2**
+3. **Save Version → Save & Run All**
+
+`kernels push` chỉ dùng để **cập nhật mã**, đừng dùng để khởi động lượt chạy
+thật — nó luôn lấy GPU mặc định.
 
 Internet **ON**. **Add Input**: `aic2026-index` + 9 dataset ảnh.
 
