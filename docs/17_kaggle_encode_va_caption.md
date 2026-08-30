@@ -38,12 +38,33 @@ Nên mọi thứ chạy trên Kaggle lúc này **chỉ phủ 55% kho**. Hệ qu�
 * RRF thì **không sao**: hợp nhất chỉ cộng thêm bằng chứng, không lấy đi. L26
   vẫn được kênh SigLIP2 cũ phục vụ như hiện nay.
 
-L26 lên sau thì vá riêng, không chạy lại toàn kho:
+### Làm TUẦN TỰ được — đó là thiết kế sẵn, không phải đường vòng
+
+Không cần chờ đủ dataset. `08_encode.py` **luôn ghi đủ 177.321 dòng**; dòng nào
+chưa có ảnh thì để vector 0 (cosine 0 với mọi thứ = không bao giờ được truy hồi).
+Nên một ma trận encode dở vẫn là **file hợp lệ, dùng ngay được** với `dense.py`.
+
+Có thêm nhóm nào thì encode riêng nhóm đó rồi ghép — cách này đã chạy thật một
+lần rồi, `clip_siglip2.json` còn ghi `"ghep_them": ["clip_siglip2_L26d_va.npy"]`:
 
 ```powershell
-.venv\Scripts\python.exe scripts\08_encode.py --chi-video ds_L26.txt --out index\clip_gopt_L26.npy
-.venv\Scripts\python.exe scripts\18_ghep_ma_tran.py ...
+.venv\Scripts\python.exe scripts\08_encode.py --model ViT-gopt-16-SigLIP2-384 ^
+    --pretrained webli --chi-video ds_L26.txt --out index\clip_gopt_L26.npy
+
+.venv\Scripts\python.exe scripts\18_ghep_ma_tran.py ^
+    --chinh index\clip_gopt.npy --va index\clip_gopt_L26.npy --ghi
 ```
+
+`18_ghep_ma_tran.py` chỉ ghi đè những dòng **khác 0** ở ma trận vá, không bao giờ
+lấy số 0 đè lên vector thật. Shape/dtype lệch là dừng, không đoán.
+
+> ⚠️ **Đừng vá bằng cách chạy lại đúng lệnh cũ trên cùng `--out`.**
+> `08_encode.py` đánh dấu dòng thiếu ảnh là **"đã xong"**, nên lượt sau bỏ qua
+> chúng và không vá được gì — mà cũng không báo lỗi. Phải đi đường
+> `--chi-video` + ghép.
+
+Việc này cũng chính là cách chia một lượt encode dài thành nhiều phiên Kaggle
+dưới 12 giờ: mỗi phiên một `--chi-video`, ghép ở máy local.
 
 ---
 
@@ -148,6 +169,53 @@ Tải `clip_gopt.npy` **và `clip_gopt.json` cạnh nó** về `index/`.
 > ⚠️ **KHÔNG tải `master.parquet` từ Kaggle về.** File đó đã bị bước A2.3 vá
 > thành đường dẫn `/kaggle/input/...`. Đè nó lên máy local là mọi thứ đọc ảnh
 > chết hàng loạt. Chỉ tải `.npy` và `.json`.
+
+## A4b. ⚠️ Cache truy vấn: PHẢI sinh lại, và là một FILE RIÊNG
+
+Đây là bước dễ quên nhất trong cả tài liệu, vì nó không nằm trong việc "mã hoá
+ảnh" mà lại chặn hoàn toàn việc dùng ma trận mới.
+
+`index/truy_van.npz` chứa vector truy vấn mã hoá bằng **tháp văn bản của
+SO400M**. Model mới có tháp văn bản khác **và số chiều khác**:
+
+| model | chiều |
+| --- | ---: |
+| `ViT-SO400M-14-SigLIP2-378` (đang dùng) | 1152 |
+| `ViT-gopt-16-SigLIP2-384` | **1536** |
+| `ViT-L-16-SigLIP2-384` | 1024 |
+
+Không có cách nào dùng cache cũ với ma trận mới — vector 1152 chiều không nhân
+được với ma trận 1536 chiều.
+
+**Tin tốt: chỗ này KHÔNG hỏng im lặng.** `KenhAnhCache.__init__` so số chiều và
+dừng hẳn với thông báo *"Sai cặp cache/ma trận"*. Nhưng đừng để nó bắt — sinh
+cache **ngay trong cùng notebook** với bước A4:
+
+```python
+!python scripts/25_ma_hoa_truy_van.py --matrix clip_gopt.npy \
+    --ra index/truy_van_gopt.npz --de de_p2 --tap-dev --fp16
+!cp index/truy_van_gopt.npz /kaggle/working/
+```
+
+`--matrix clip_gopt.npy` là đủ: script đọc tên model và số chiều từ **sidecar
+`clip_gopt.json`** mà `08_encode.py` vừa ghi, không cần khai lại tay.
+
+**Cùng notebook, không phải notebook khác** — model ~4 GB đã tải và nằm sẵn ở đó.
+Tách ra là tải lại lần nữa, tốn quota cho đúng một việc chỉ mất vài phút.
+
+Về máy thì **giữ cả hai file cache**, đừng đè:
+
+```text
+index/truy_van.npz        <- đi với clip_siglip2.npy   (1152)
+index/truy_van_gopt.npz   <- đi với clip_gopt.npy      (1536)
+```
+
+RRF hai ma trận nghĩa là **chạy cả hai kênh**, nên cần cả hai cache cùng lúc.
+
+> `25_ma_hoa_truy_van.py` bỏ `model.visual` trước khi mã hoá nên chỉ cần tháp
+> văn bản. Về lý thuyết máy 7,7 GB có thể kham `--fp16`, nhưng ngưỡng RAM cho
+> 1536 chiều là **~10 GB (ước, chưa đo)** — đừng thử ở máy chính, chốt đó sinh
+> ra vì nạp model đã làm đứng máy hai lần.
 
 ## A5. Nghiệm thu
 

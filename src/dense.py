@@ -46,7 +46,11 @@ PRETRAINED_MAC_DINH = "openai"
 
 # RAM tối thiểu (GB) cần CÒN TRỐNG để nạp model, tra theo số chiều ma trận.
 # Số chiều là proxy tốt cho cỡ model: 512 = ViT-B/32, 1152 = SO400M.
-RAM_CAN = {512: 2.0, 768: 3.0, 1024: 5.0, 1152: 6.5}
+# 1536 = ViT-gopt-16-SigLIP2-384, ~1,1 tỷ tham số — GẤP GẦN BA LẦN SO400M. Con
+# số 10,0 là ƯỚC theo số tham số, chưa đo. Không có dòng này thì 1536 rơi vào
+# `RAM_CAN_MAC_DINH` (6,5 — vốn là ngưỡng của SO400M), tức là chốt chống treo
+# máy lại cho qua đúng model nặng nhất.
+RAM_CAN = {512: 2.0, 768: 3.0, 1024: 5.0, 1152: 6.5, 1536: 10.0}
 RAM_CAN_MAC_DINH = 6.5
 
 
