@@ -154,8 +154,25 @@ Lý do bản đầu khuyên P100 vẫn đúng phần nó nói (`08_encode.py` ch
 GPU nên GPU thứ hai của T4 x2 nằm không) — nhưng một GPU chạy được thắng một
 GPU nhanh hơn mà không chạy.
 
-Notebook nay co **cell chot GPU chay truoc khi tai trong so**: no doc
-`torch.cuda.get_arch_list()` va dung han neu sm cua may khong nam trong do.
+Notebook có **cell chốt GPU chạy trước khi tải trọng số**: nó đọc
+`torch.cuda.get_arch_list()` và dừng hẳn nếu `sm` của máy không nằm trong đó.
+Chốt này rẻ — dừng ở giây thứ vài chục thay vì sau 7,49 GB.
+
+### ⚠️ Đổi Accelerator trong Settings KHÔNG áp cho lượt chạy do `push`
+
+Đã đo: đổi Settings sang **T4 x2** trong trình soạn, rồi `kernels push` — lượt
+chạy **vẫn ra P100**. Settings của trình soạn thuộc về *phiên nháp*, không phải
+lượt chạy do API khởi động.
+
+Hai đường để lượt chạy thật sự dùng T4:
+
+```powershell
+.venv\Scripts\kaggle.exe kernels push -p kaggle_upload\aic2026-encode ^
+    --accelerator nvidiaTeslaT4
+```
+
+hoặc bấm **Save Version → Save & Run All** ngay trong trình soạn, nơi Settings
+có hiệu lực.
 
 Internet **ON**. **Add Input**: `aic2026-index` + 9 dataset ảnh.
 
