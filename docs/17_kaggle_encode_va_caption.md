@@ -389,6 +389,25 @@ Nghiệm thu đúng là **đếm file sinh ra**, không phải đọc trạng th
 .venv\Scripts\kaggle.exe kernels output duyanhdz2412/aic2026-encode -p <thu muc>
 ```
 
+### ⚠️ Cell tổng kết đừng bao giờ được phép làm hỏng lượt chạy
+
+Lượt 30/08 encode xong hết, sinh `truy_van_gopt.npz` xong hết — rồi **chết ở
+đúng cell cuối**, cell chỉ để in một bảng cho người xem:
+
+```text
+AxisError: axis 1 is out of bounds for array of dimension 1
+```
+
+`np.abs(a).sum(1)` giả định mọi `.npy` là ma trận 2 chiều. Một file 1 chiều
+lọt vào là ném lỗi, và Kaggle đánh dấu **cả phiên là `ERROR`** dù không mất
+gì cả.
+
+Hậu quả thật không phải mất dữ liệu mà là **đọc nhầm trạng thái**: nhìn
+`ERROR` rồi tưởng phải chạy lại 46 phút encode. Kết quả vẫn nằm nguyên trong
+`/kaggle/working`, tải về được bình thường.
+
+Mọi cell chỉ-để-nhìn phải bọc `try` quanh từng phần tử. Notebook đã sửa.
+
 ### `--kiem-lech-hang` cần thêm hai file
 
 Phép kiểm này đọc `index/clip.npy` (ma trận ViT-B/32 của BTC, 363 MB) và
