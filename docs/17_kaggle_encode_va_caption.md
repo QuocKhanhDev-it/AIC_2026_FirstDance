@@ -8,7 +8,7 @@ Hai việc **không ngang nhau về độ chắc**, và đừng làm cùng lúc:
 | | Việc A — mã hoá model thứ hai | Việc B — sinh caption (kênh 5) |
 | --- | --- | --- |
 | Đã có script chạy được | ✅ `08_encode.py`, đã chạy thật một lần | ⚠️ `14_sinh_caption.py --backend hf`, **chưa chạy lần nào** |
-| Thời gian | **chưa đo** — bậc 0 ở mục A3 cho số thật | 3,6 giờ (tập thử) → **74 giờ** (toàn kho) |
+| Thời gian | **9,4 ảnh/giây** (đo 30/08, T4) → 29 phút/người khi chia 6 | 3,6 giờ (tập thử) → **74 giờ** (toàn kho) |
 | Rủi ro | thấp — ma trận tệ thì xoá file | cao — chưa đo, có thể vô ích |
 | Thứ tự | **làm trước** | chỉ làm sau khi A xong |
 
@@ -308,22 +308,55 @@ Bốn thứ phải đọc trong log bậc 0, **trước khi leo tiếp**:
 `--workers 4`: Kaggle cấp 4 vCPU. Đặt 8 là các tiến trình đọc ảnh giành nhau CPU.
 Tràn VRAM thì hạ `--batch` xuống 16.
 
-### Tính thời gian thật từ ảnh/giây
+### Tốc độ đã đo: **9,4 ảnh/giây** trên Tesla T4
+
+Đo ngày 30/08, `ViT-gopt-16-SigLIP2-384` / `webli`, `--batch 32 --workers 4`,
+trên 25.824 ảnh rồi lặp lại trên 2.326 ảnh (9,3 — khớp).
+
+| phạm vi | ảnh | một người | **chia 6 người** |
+| --- | ---: | ---: | ---: |
+| 9 nhóm đã lên Kaggle | 97.731 | 2,9 giờ | **29 phút** |
+| riêng L26 | 79.590 | 2,4 giờ | **24 phút** |
+| toàn kho | 177.321 | 5,2 giờ | **52 phút** |
+
+Toàn kho tiêu **5,2 giờ GPU** trên 180 giờ quota của 6 tài khoản — tính toán
+không còn là nút thắt. Nút thắt bây giờ là **L26 chưa lên Kaggle**.
+
+Trọng số model **7,49 GB**, tải ~40 giây khi mạng tốt.
+
+Không cần lùi về `ViT-L-16-SigLIP2-384` nữa: ngưỡng đặt ra là dưới 4 ảnh/giây,
+đo được 9,4.
+
+### `--kiem-lech-hang` đã đạt
 
 ```text
-giờ cho phần còn lại = 97.731 / (ảnh mỗi giây) / 3600
+Kiểm 200 cặp keyframe trùng lặp (ngưỡng 0.9)
+  trung vị cos_mới = 0.9961
+  đạt: 200/200 (100.0%)
+✅ HÀNG KHỚP. Ma trận mới dùng được.
 ```
 
-Trọng số model là **7,49 GB** (đo ở lượt tải 30/08), tải mất ~40 giây.
+`cos_mới` thấp hơn `cos_cũ` ở từng cặp là **bình thường và đáng mừng** —
+model mạnh hơn thì phân biệt được hai khung gần giống nhau, chứ không phải
+lệch hàng. Lệch hàng làm cosine rơi về mức ngẫu nhiên 0,3–0,7, không phải
+0,96.
 
-Chưa có số đo tốc độ encode trên phần cứng Kaggle — model này
-~1,1 tỷ tham số, **gấp gần ba lần** SO400M (đo được 23,9 ảnh/giây trên máy dựng
-index, GPU khác). Đừng suy ra từ con số đó.
+### Cảnh báo HF Hub — là CẢNH BÁO, không phải lỗi
 
-Ra dưới ~4 ảnh/giây thì tổng vượt 7 giờ. Lúc đó cân nhắc
-**`ViT-L-16-SigLIP2-384`** (1024 chiều, nhẹ hơn nhiều) — vẫn là model thứ hai
-độc lập, vẫn hiểu tiếng Việt, và một ma trận chạy xong đáng giá hơn một ma trận
-chạy dở.
+```text
+Warning: You are sending unauthenticated requests to the HF Hub.
+```
+
+Cả hai lượt 30/08 đều tải xong bình thường với dòng này. **Một người thì
+không sao.** Nhưng 6 người cùng tải 7,49 GB trong một buổi thì rất dễ có
+người ăn `429 Too Many Requests` — đúng lúc chia việc bắt đầu chạy.
+
+Hai đường phòng trước:
+
+* **Đặt `HF_TOKEN`** — *Add-ons → Secrets*, rồi trong notebook:
+  `os.environ['HF_TOKEN'] = UserSecretsClient().get_secret("HF_TOKEN")`
+* **Bỏ HF khỏi đường chạy** — tải model một lần, đẩy thành Private Dataset,
+  cả nhóm mount. Còn tiết kiệm ~40 giây mỗi phiên.
 
 ### ⚠️ `!lenh` hỏng KHÔNG làm dừng notebook — Kaggle vẫn báo COMPLETE
 
