@@ -85,8 +85,19 @@ Rồi tạo dataset (đặt `isPrivate: true` như tài liệu 16 mục 4):
 .venv\Scripts\kaggle.exe datasets create -p kaggle_upload\aic2026-index
 ```
 
-Chỉ 3,5 MB. **Chỉ `master.parquet`** — đừng chép `clip*.npy` lên (390 MB, không
-việc nào ở đây cần tới ma trận cũ).
+Dataset này chứa **ba** file:
+
+| file | MB | dùng cho |
+| --- | ---: | --- |
+| `master.parquet` | 3,5 | mọi thứ |
+| `clip.npy` | 363 | `--kiem-lech-hang` |
+| `trung_lap.parquet` | 1,8 | `--kiem-lech-hang` |
+
+Đừng chép `clip_siglip2.npy` lên (390 MB) — không việc nào ở đây cần tới nó.
+
+> **Tên thư mục mount:** đo được ở lượt chạy 30/08, Kaggle mount tại
+> `/kaggle/input/datasets/<user>/<slug>/`, **không** phải `/kaggle/input/<slug>/`.
+> Đó là lý do mọi cell đều `glob` tìm file thay vì ghép đường dẫn.
 
 ---
 
@@ -122,11 +133,29 @@ nên hỏng ở bậc nào thì mất đúng bậc đó.
 Bậc 0 và 1 **vứt đi được** — chúng chỉ để soát. Từ bậc 2 trở đi mới tích lũy
 vào ma trận thật.
 
-### Chọn Accelerator: **P100**, không phải T4 x2
+### Chọn Accelerator: **T4**, KHÔNG được chọn P100
 
-`08_encode.py` chạy trên **một GPU** (`cuda:0`), không chia việc cho GPU thứ hai.
-Chọn T4 x2 là để không một nửa phần cứng nằm không mà vẫn tính đủ quota.
-P100 nhanh hơn một T4 đơn ở fp16 cho model cỡ này.
+Đây là kết luận từ lượt chạy thật 30/08, **ngược với bản đầu của tài liệu này**.
+
+P100 là compute capability **sm_60**. PyTorch cài trên Kaggle chỉ build cho
+**sm_70 trở lên**:
+
+```text
+Tesla P100-PCIE-16GB with CUDA capability sm_60 is not compatible with the
+current PyTorch installation.
+The current PyTorch install supports sm_70 sm_75 sm_80 sm_86 sm_90 sm_100 sm_120
+```
+
+Rồi chết ở `torch.AcceleratorError: CUDA error: no kernel image is available for
+execution on the device` — **sau khi đã tải xong 7,49 GB trọng số**. T4 là
+sm_75, chạy được.
+
+Lý do bản đầu khuyên P100 vẫn đúng phần nó nói (`08_encode.py` chạy trên một
+GPU nên GPU thứ hai của T4 x2 nằm không) — nhưng một GPU chạy được thắng một
+GPU nhanh hơn mà không chạy.
+
+Notebook nay co **cell chot GPU chay truoc khi tai trong so**: no doc
+`torch.cuda.get_arch_list()` va dung han neu sm cua may khong nam trong do.
 
 Internet **ON**. **Add Input**: `aic2026-index` + 9 dataset ảnh.
 
@@ -222,7 +251,9 @@ Tràn VRAM thì hạ `--batch` xuống 16.
 giờ cho phần còn lại = 97.731 / (ảnh mỗi giây) / 3600
 ```
 
-Chưa có số đo cho `ViT-gopt-16-SigLIP2-384` trên phần cứng Kaggle — model này
+Trọng số model là **7,49 GB** (đo ở lượt tải 30/08), tải mất ~40 giây.
+
+Chưa có số đo tốc độ encode trên phần cứng Kaggle — model này
 ~1,1 tỷ tham số, **gấp gần ba lần** SO400M (đo được 23,9 ảnh/giây trên máy dựng
 index, GPU khác). Đừng suy ra từ con số đó.
 
@@ -230,6 +261,44 @@ Ra dưới ~4 ảnh/giây thì tổng vượt 7 giờ. Lúc đó cân nhắc
 **`ViT-L-16-SigLIP2-384`** (1024 chiều, nhẹ hơn nhiều) — vẫn là model thứ hai
 độc lập, vẫn hiểu tiếng Việt, và một ma trận chạy xong đáng giá hơn một ma trận
 chạy dở.
+
+### ⚠️ `!lenh` hỏng KHÔNG làm dừng notebook — Kaggle vẫn báo COMPLETE
+
+Bẫy nguy hiểm nhất của cả tài liệu này, và nó đã cắn thật ngay lượt chạy đầu.
+
+Cell `!python scripts/...` mà script thoát với mã khác 0 thì **cell vẫn tính là
+chạy xong**, các cell sau chạy tiếp, và cả phiên được đánh dấu **`COMPLETE`**.
+Lượt 30/08 "thành công" trong khi **mọi bước encode đều chết** — không có file
+`.npy` nào được sinh ra, mà `kernels status` vẫn trả về `COMPLETE`.
+
+Nên đừng bao giờ đọc trạng thái phiên để biết có thành công không. Notebook giờ
+gói mọi lệnh trong `chay()`:
+
+```python
+import subprocess
+
+def chay(lenh):
+    print("$", lenh, flush=True)
+    p = subprocess.run(lenh, shell=True, text=True,
+                       stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    print(p.stdout)
+    if p.returncode != 0:
+        raise RuntimeError(f"ma thoat {p.returncode}: {lenh}")
+    return p.stdout
+```
+
+Nghiệm thu đúng là **đếm file sinh ra**, không phải đọc trạng thái:
+
+```powershell
+.venv\Scripts\kaggle.exe kernels output duyanhdz2412/aic2026-encode -p <thu muc>
+```
+
+### `--kiem-lech-hang` cần thêm hai file
+
+Phép kiểm này đọc `index/clip.npy` (ma trận ViT-B/32 của BTC, 363 MB) và
+`index/trung_lap.parquet`. Cả hai đã được thêm vào dataset `aic2026-index`.
+Thiếu chúng thì phép kiểm chết với `FileNotFoundError` — và vì bẫy ở trên,
+notebook vẫn chạy tiếp như không có gì.
 
 ## A4. Bậc 1 trở đi — encode theo nhóm rồi ghép
 
