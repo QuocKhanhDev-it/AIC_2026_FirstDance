@@ -122,7 +122,7 @@ nên hỏng ở bậc nào thì mất đúng bậc đó.
 
 | bậc | phạm vi | ảnh | cộng dồn | mục đích |
 | ---: | --- | ---: | ---: | --- |
-| **0** | 100 video phân tầng | ~4.000 | — | bắt sai model / sai đường dẫn / lệch hàng |
+| **0** | `--videos 10` (1 video mỗi nhóm) | 2.634 | — | bắt sai model / sai đường dẫn / lệch hàng |
 | **1** | L23 | 2.326 | 2.326 | chạy trọn vòng, kể cả tải về + ghép + đo |
 | **2** | L27, L24 | 11.695 | 14.021 | đo tốc độ thật ở quy mô có nghĩa |
 | **3** | L21, L30, L22 | 24.811 | 38.832 | |
@@ -244,9 +244,21 @@ assert n > 90_000, "duong dan chua va duoc — dataset anh chua mount xong?"
 
 Rồi bậc 0:
 
+> ⚠️ **`--videos 100` KHÔNG phải phép thử nhỏ.** Nó chọn 10 video mỗi nhóm L và
+> encode **trọn vẹn mọi keyframe** của chúng — đo được **25.824 ảnh**, tức **26%
+> toàn bộ công việc**. Dùng `--videos 10` cho bậc 0:
+>
+> | `--videos` | ảnh thật | keyframe trùng lặp cho `--kiem-lech-hang` |
+> | ---: | ---: | ---: |
+> | **10** | **2.634** | **253** |
+> | 20 | 5.242 | 437 |
+> | 100 | 25.824 | 2.396 |
+>
+> `--kiem-lech-hang` lấy mẫu `--so-mau 200`, nên 253 là đủ. Không cần nhiều hơn.
+
 ```python
 !python scripts/08_encode.py --model ViT-gopt-16-SigLIP2-384 --pretrained webli \
-    --videos 100 --workers 4 --batch 32 --out /kaggle/working/thu.npy
+    --videos 10 --workers 4 --batch 32 --out /kaggle/working/thu.npy
 
 # CHOT AN TOAN cai san trong script: kiem lech hang.
 # Lech hang la loi nguy hiem nhat o day — moi vector ve sai anh, cosine van
