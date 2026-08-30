@@ -3029,6 +3029,83 @@ câu sai trong đó mà không ai biết là câu nào. Mỗi câu mang nhãn `d
 ⚠️ 3 câu TRAKE chưa đo được — cache truy vấn sinh trước bản vá A44 nên thiếu
 chuỗi của `trake-DE2-21`.
 
+
+---
+
+### A46 — Trần của MỌI cách xếp lại là **63%**, và tác tử VLM chưa vượt được mốc nền
+
+Dựng `src/tac_tu.py`: vòng lặp có công cụ, gửi keyframe cho Gemini xem và hỏi
+"khung này khớp câu hỏi tới đâu", rồi xếp lại 100 dòng. Đây là bước định thay
+người soát tay — thứ đã kéo bài nộp đợt 2 lên 11,6.
+
+#### Đo TRẦN trước khi đo tác tử
+
+Xếp lại chỉ hoán vị bể có sẵn. Nên câu đầu tiên phải hỏi là: **video đúng có
+nằm trong 100 dòng không?** Đo trên 30 gói đợt 2:
+
+| | |
+| --- | ---: |
+| video đúng CÓ trong top-100 | **19/30 = 63%** |
+| trong đó ở hạng 1 | 6 |
+| trong top-5 | 7 |
+| trong top-20 | 12 |
+| hạng trung vị | 8 |
+
+**11/30 gói không cách nào cứu bằng xếp lại** — tác tử giỏi mấy cũng vô ích.
+Đây là trần cứng, và nó khớp với điều rút ra từ bài nộp đội 14.800 điểm: chỗ mất
+điểm là **truy hồi cấp video**, không phải hậu xử lý.
+
+Số còn lại cũng đáng chú ý: 13/19 gói có video đúng trong bể nhưng **không ở
+hạng 1** — rải tới hạng 38, 65, 70, 84, 87, 96. Đó mới là phần xếp lại ăn được.
+
+#### Tác tử: hai lỗi thiết kế, đo mới thấy
+
+Bản đầu chỉ soi **18 dòng đầu** rồi sắp thuần theo điểm VLM. Đo trên 4 gói:
+
+| gói | video đúng | hạng trước | hạng sau |
+| --- | --- | ---: | ---: |
+| `p2-10` | L26_V120 | 6 | **8** ❌ |
+| `p2-12` | L26_V192 | 10 | **23** ❌ |
+
+Tệ đi cả hai gói đo được. Truy nguyên ra hai lỗi:
+
+1. **Chỉ soi 18 dòng đầu** — mà video đúng hay nằm ở hạng 38–96, tức tác tử
+   không bao giờ *nhìn thấy* đúng những gói nó có ích nhất. Sửa: dày ở đầu rồi
+   rải đều hết 100 dòng.
+2. **Ứng viên chưa được soi cũng nhận 0,0** rồi bị đẩy xuống dưới mọi dương tính
+   giả. *Chưa soi không phải bằng chứng là sai.* Sửa: chỉ điểm ≥ 0,8 mới được
+   nhấc lên, còn lại giữ nguyên thứ tự kênh.
+
+Sau khi sửa cả hai:
+
+| gói | hạng trước | hạng sau |
+| --- | ---: | ---: |
+| `p2-10` | 6 | 7 ❌ |
+| `p2-12` | 10 | 10 ⚪ |
+
+Ca thảm hoạ đã hết (10→23 thành 10→10), nhưng **vẫn không dương**. Nguyên nhân
+còn lại: VLM chấm *"trông hợp lý"* chứ không chấm *"đúng cảnh này"* — nó cho
+`p2-10` điểm **1,00** cho một video nấu ăn khác cùng chủ đề, đủ để hất ứng viên
+đúng ở hạng 6 xuống 7.
+
+#### Cờ `do_chac` đang NÓI DỐI
+
+`p2-1` và `p2-11` có đáp án **ngoài top-100** — không cứu được. Tác tử vẫn báo
+`do_chac = chac` cho `p2-1` vì tìm được một khung điểm 0,80. Người soát tin cờ
+đó sẽ bỏ qua đúng gói cần mở nhất.
+
+#### Kết luận
+
+* **Không bật tác tử.** `src/tac_tu.py` giữ lại làm công cụ và làm nền để đo
+  tiếp, mặc định không nằm trong đường ống.
+* Việc đáng làm là **kéo 63% lên**, không phải xếp lại tinh vi hơn. Đúng thứ
+  ngày 2–4 của kế hoạch đợt 3 nhắm tới.
+* Trước khi tin tác tử lần sau: cờ `do_chac` phải được hiệu chỉnh trên gói **đã
+  biết đáp án ngoài bể**, nếu không nó chỉ đo mức tự tin của VLM.
+
+⚠️ `n = 4 gói, 2 gói đo được`. Không đủ để kết luận mạnh — nhưng cũng không có
+lý do nào để bật một thứ chưa bao giờ đo được dương.
+
 ---
 
 ## PHẦN B — QUYẾT ĐỊNH HẠ TẦNG
