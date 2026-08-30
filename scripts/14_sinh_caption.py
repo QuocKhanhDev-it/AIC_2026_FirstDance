@@ -152,6 +152,14 @@ def chon_row(master: pd.DataFrame, chon: str) -> pd.DataFrame:
                  if c.loai == "TRAKE" else c.row_id_dung)
             vid |= {master.video_id.iloc[r] for r in p}
         return m[m.video_id.isin(vid)]
+    if chon.startswith("video:"):
+        # Danh sách video_id, mỗi dòng một id — cùng định dạng
+        # `08_encode.py --chi-video`, để chia việc caption y hệt chia việc
+        # encode (`scripts/47_chia_viec_encode.py`).
+        vids = [v.strip() for v in
+                Path(chon.split(":", 1)[1]).read_text("utf-8").splitlines()
+                if v.strip()]
+        return m[m.video_id.isin(vids)]
     if chon.startswith("tap:"):
         # Cùng phép chọn với `08_encode.py --theo-tap-dev`: TRỌN VẸN mọi video
         # mà tập đó đụng tới, không phải vài ảnh quanh đáp án. Bể ứng viên hẹp
@@ -164,7 +172,7 @@ def chon_row(master: pd.DataFrame, chon: str) -> pd.DataFrame:
             rid += [x for b in r for x in b] if isinstance(r[0], list) else r
         return m[m.video_id.isin(set(master.video_id.iloc[rid]))]
     raise SystemExit(f"--chon không hiểu: {chon!r}. "
-                     f"Dùng: co-anh | tap-dev | tap:<file.jsonl> | nhom:L21,L22")
+                     f"Dùng: co-anh | tap-dev | tap:<f.jsonl> | video:<f.txt> | nhom:L21,L22")
 
 
 def doc_log(f: Path) -> list[dict]:
@@ -433,7 +441,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--index", default=GOC / "index", type=Path)
     ap.add_argument("--chon", default="tap-dev",
-                    help="co-anh | tap-dev | tap:<file.jsonl> | nhom:L21,L22")
+                    help="co-anh | tap-dev | tap:<f.jsonl> | video:<f.txt> | nhom:L21,L22")
     ap.add_argument("--backend", default="ollama",
                     choices=("ollama", "gemini", "hf"),
                     help="ollama = nguồn chính (free, local, không trần). "
