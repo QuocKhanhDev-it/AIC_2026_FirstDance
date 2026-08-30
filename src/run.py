@@ -735,9 +735,10 @@ def main():
     ap.add_argument("--de", required=True, type=Path, help="thư mục chứa query-*.txt")
     ap.add_argument("--ra", default="submission", type=Path)
     ap.add_argument("--index", default=GOC / "index", type=Path)
-    ap.add_argument("--matrix", default="clip_siglip2.npy",
-                    help="ma trận kênh 1. SigLIP2 đo được 0,3258; "
-                         "clip.npy chỉ 0,0000 trên tiếng Việt (A10/A17)")
+    ap.add_argument("--matrix", default="clip_gopt.npy",
+                    help="ma trận kênh 1. gopt 0,3160 trên đề thật, SigLIP2 "
+                         "chỉ 0,1400 — hơn 2,3 lần (A47). clip.npy 0,0000 "
+                         "trên tiếng Việt (A10). Đi kèm truy_van_gopt.npz")
     ap.add_argument("--k", type=int, default=TOI_DA_DONG)
     ap.add_argument("--cache", default=None, metavar="FILE.npz",
                     help="vector truy vấn đã mã hoá sẵn — chạy kênh 1 mà "

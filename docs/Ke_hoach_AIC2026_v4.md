@@ -3108,6 +3108,59 @@ lý do nào để bật một thứ chưa bao giờ đo được dương.
 
 ---
 
+### A47. Ma trận thứ hai `ViT-gopt-16-SigLIP2-384` — thắng đậm, và lật ngược vai trò của SigLIP2
+
+Đo 30/08 trên `dev/tap_de_that.jsonl` (**50/52 câu**; loại `trake-DE2-21` và
+`trake-DE2-08` vì thiếu trong cache SigLIP2 — loại khỏi **cả hai** bên).
+`clip_gopt.npy` phủ đủ 177.321 dòng, `dense.be_chung()` xác nhận bể chung
+**177.321/177.321** nên không có hiệu ứng lệch độ phủ.
+
+| cấu hình | ±2s | ±15s |
+| --- | ---: | ---: |
+| SigLIP2 một mình | 0,1400 | 0,1800 |
+| **gopt một mình** | **0,3160** | **0,3920** |
+| RRF(SigLIP2, OCR) — mặc định cũ | 0,2080 | 0,2520 |
+| RRF(gopt, SigLIP2) | 0,2880 | 0,3320 |
+| RRF(gopt, SigLIP2, OCR) | 0,3240 | 0,3840 |
+| **RRF(gopt, OCR)** | **0,3440** | **0,4080** |
+
+**Một mình gopt đã hơn cả cấu hình RRF cũ.** Hơn SigLIP2 một mình **2,3 lần**
+— khoảng cách lớn hơn nhiều so với mong đợi từ một model cùng họ.
+
+So theo cặp với mặc định cũ `RRF(SigLIP2, OCR)`:
+
+| | hiệu ±2s | T-B-H | hiệu ±15s | T-B-H | |
+| --- | ---: | :---: | ---: | :---: | --- |
+| gopt một mình | +0,1080 | 17-8-25 | +0,1400 | 25-8-17 | ✅ ỔN ĐỊNH |
+| RRF(gopt, SigLIP2, OCR) | +0,1160 | 15-3-32 | +0,1320 | 19-3-28 | ✅ ỔN ĐỊNH |
+| **RRF(gopt, OCR)** | **+0,1360** | 15-2-33 | **+0,1560** | 20-3-27 | ✅ ỔN ĐỊNH |
+
+**SigLIP2 giờ là kênh làm hại, không phải kênh bổ sung.** Đổi mốc nền sang
+`RRF(gopt, OCR)` rồi đo lại: thêm SigLIP2 vào cho **−0,0200 / −0,0240**,
+thắng-thua-hoà **4-10-36** ở cả hai mức. Cùng dấu, nhất quán, nhưng **🟡 YẾU** —
+chưa vượt nhiễu, nên chưa được tuyên bố là chắc. Ghi lại để đo tiếp khi có
+thêm câu.
+
+Vai trò đảo hẳn so với A45: ở đó SigLIP2 là kênh chính và OCR là kênh vượt lên
+bất ngờ. Giờ **gopt là kênh chính**, OCR vẫn bổ sung có lãi, còn SigLIP2 không
+còn chỗ.
+
+**Đã đổi mặc định `src/run.py --matrix` thành `clip_gopt.npy`** (đi kèm
+`index/truy_van_gopt.npz`).
+
+> ⚠️ **Vẫn chưa đo trọng số RRF.** Cả bảng trên dùng 1:1. A45 cho thấy trọng số
+> đổi kết quả đáng kể, nên đây là việc tiếp theo — và phải đổi MỘT thứ mỗi lần,
+> đúng như đã làm ở đây.
+
+> **Điều chưa giải thích được.** Vì sao hai model cùng họ SigLIP2, cùng dữ liệu
+> `webli`, lại chênh 2,3 lần? gopt lớn hơn (~1,1 tỷ so với 400 triệu tham số) và
+> vào ảnh ở 384px thay vì 378px, nhưng ngần ấy không đủ giải thích. Một khả năng
+> đáng nghi: `clip_siglip2.npy` được dựng trên máy khác, và sidecar của nó từng
+> ghi `pretrained` là đường dẫn `.safetensors` cục bộ (A17) — nếu lúc dựng đã
+> nạp nhầm biến thể thì SigLIP2 yếu vì lý do kỹ thuật chứ không phải vì model.
+> Chưa kiểm được. Không ảnh hưởng kết luận chọn gopt, nhưng ảnh hưởng câu
+> "SigLIP2 có đáng giữ làm kênh thứ ba không".
+
 ## PHẦN B — QUYẾT ĐỊNH HẠ TẦNG
 
 ### B1. Không dùng Supabase / Postgres / Milvus / Elasticsearch — ĐÃ KIỂM CHỨNG
