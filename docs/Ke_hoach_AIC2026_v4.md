@@ -3238,6 +3238,46 @@ thêm TÍN HIỆU MỚI, không phải chỉnh cách trộn tín hiệu cũ**.
 > ⚠️ Và nhớ A47: trần top-100 của `gopt` trần là **80%**, của `RRF(gopt, OCR)`
 > chỉ **74%**. Kênh mới nào cũng nên nhận ứng viên từ gopt trần rồi mới hợp nhất.
 
+### A49. Mã hoá truy vấn: **69 chuỗi/giây** — bước chặn ngày thi đã hết chặn
+
+Đo 31/08 trên Tesla T4, `--lo 64`, cả hai model:
+
+| model | chuỗi | chuỗi/giây | thời gian |
+| --- | ---: | ---: | ---: |
+| `ViT-gopt-16-SigLIP2-384` | 1.158 | **69** | 17 giây |
+| `ViT-SO400M-14-SigLIP2-378` | 1.158 | **68** | 17 giây |
+
+Trước khi vá, `25_ma_hoa_truy_van.py` mã hoá **từng câu một trên CPU** — không có
+`.to(device)` nào, và `tok([c])` mỗi vòng lặp. Bật GPU cũng vô ích. Với tháp văn
+bản của gopt, 1.158 chuỗi mất hàng chục phút trong khi GPU nằm không.
+
+Viết vậy là đúng lúc script ra đời: nó sinh ra cho máy 7,7 GB **không có GPU**,
+nơi lựa chọn duy nhất là CPU. Chỉ khi kho có model lớn hơn và chạy trên Kaggle
+thì cái mặc định đó mới thành nút thắt.
+
+#### Vì sao con số này quan trọng hơn nó trông
+
+Lúc thi, **mã hoá đề mới là bước chặn DUY NHẤT** giữa lúc nhận đề và lúc chạy
+được kênh 1. Ma trận ảnh, `master.parquet`, chỉ mục BM25 — tất cả đã tính sẵn.
+
+| việc | chuỗi | thời gian |
+| --- | ---: | ---: |
+| đề sơ tuyển đợt 2 (30 gói) | 71 | **1,0 giây** |
+| giả sử đợt 3 gấp đôi | 150 | 2,2 giây |
+| cả tập dev 323 câu | 1.158 | 17 giây |
+
+**Mã hoá đề không còn là việc chậm.** Chỗ chậm duy nhất còn lại là **tải 7,49 GB
+trọng số** (~40 giây khi mạng tốt), và nó chỉ xảy ra khi phiên Kaggle mới khởi
+động.
+
+> **Hệ quả cho quy trình thi:** mở sẵn một phiên Kaggle **trước giờ thi** với
+> model đã nạp. Nhận đề → dán → chạy một cell → vài giây có `.npz`. Không phải
+> chờ tải model dưới áp lực thời gian.
+
+> ⚠️ Một chi tiết dễ sai khi gộp lô: chuẩn hoá L2 phải theo **từng dòng**
+> (`axis=1`). Chuẩn hoá cả khối là chia nhầm chuẩn của cả lô vào từng vector —
+> file vẫn hợp lệ, cosine vẫn trong [−1, 1], và **không có gì báo**.
+
 ## PHẦN B — QUYẾT ĐỊNH HẠ TẦNG
 
 ### B1. Không dùng Supabase / Postgres / Milvus / Elasticsearch — ĐÃ KIỂM CHỨNG
