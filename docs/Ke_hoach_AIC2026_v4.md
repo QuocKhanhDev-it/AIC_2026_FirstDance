@@ -3463,6 +3463,64 @@ Trên đúng loại câu sẽ gặp trong phòng thi, bỏ kênh 3 là **mất �
 > Không kết luận từ bảng 323 câu. Nó không phải "nhiều dữ liệu hơn nên đáng tin
 > hơn" — nó là **một câu hỏi khác**, hỏi về loại câu ta không đi thi.
 
+### A53. Kênh 6 — nhúng OCR/ASR bằng tháp văn bản gopt — **KHÔNG CHẠY**. Bỏ.
+
+Ý tưởng: kênh 3 dùng BM25 nên khớp **mặt chữ** — truy vấn "xe cứu thương" mà
+bản tin viết "xe cấp cứu" thì điểm bằng 0. Nhúng cùng văn bản đó vào không gian
+gopt 1536 chiều thì hai cách gọi nằm gần nhau, lại còn chung không gian với ảnh.
+
+Đã dựng xong: 462.085 đoạn ≤ 60 token từ 176.009 tài liệu (2,63 đoạn/tài liệu),
+gộp theo `row_id` bằng max. Đo trên 52 câu đề thật, mốc là cấu hình `run.py`
+sau A52:
+
+| cấu hình | ±2s | ±15s | hiệu ±2s | T-B-H | |
+| --- | ---: | ---: | ---: | :---: | :---: |
+| ảnh + kênh 3 (0,5) — *mốc* | 0,5173 | 0,6096 | — | — | |
+| + kênh 6 (0,25) | 0,5163 | 0,6067 | −0,0010 | 1-1-50 | 🟡 |
+| + kênh 6 (0,5) | 0,5125 | 0,6067 | −0,0048 | 1-3-48 | 🟡 |
+| + kênh 6 (1,0) | 0,4269 | 0,5337 | −0,0904 | 2-24-26 | ✅ |
+| kênh 6 THAY kênh 3 | 0,4740 | 0,5702 | −0,0433 | 1-11-40 | ✅ |
+| **chỉ kênh 6** *(chẩn đoán)* | **0,0490** | 0,1000 | −0,4683 | 1-36-15 | ✅ |
+| chỉ kênh 1 *(chẩn đoán)* | 0,4779 | 0,5712 | −0,0394 | 1-8-43 | ✅ |
+
+#### Dòng quan trọng nhất là dòng chẩn đoán
+
+**0,0490.** Kênh 6 đứng một mình gần như không truy hồi được gì. Mọi con số hợp
+nhất phía trên chỉ là kênh 1 đội lốt — thêm kênh 6 vào không "hơi có lãi", nó
+đang pha nhiễu vào một danh sách tốt, và trọng số càng lớn càng lộ (w=1 mất
+−0,0904 ✅).
+
+Không có dòng "chỉ kênh 6" thì bảng này đọc ra "kênh 6 trung tính, để đó cũng
+được" — sai hoàn toàn. **Kênh nào cũng phải có một dòng đứng một mình.**
+
+#### Đã loại trừ khả năng lệch file trước khi kết luận
+
+Kết quả xấu vì ý tưởng sai và kết quả xấu vì ghép nhầm hàng trông y hệt nhau:
+
+    tập row_id khớp đúng tập tài liệu có chữ     ✅
+    thứ tự sinh giữ nguyên thứ tự bảng            ✅
+    tương quan (số đoạn) vs (độ dài văn bản)      0,9553
+
+File đúng. Kênh sai.
+
+#### Vì sao sai — đã ghi sẵn trong docstring lúc dựng
+
+SigLIP2 huấn luyện để khớp **ảnh ↔ chữ**, không phải **chữ ↔ chữ**. Đem vector
+truy vấn so với vector tài liệu là dùng model ngoài phân bố huấn luyện; hai
+loại vector nằm hai cụm khác nhau (modality gap), nên khoảng cách giữa chúng
+gần như không mang thông tin. Nghi ngờ này đã viết ra TRƯỚC khi đo — và phép đo
+xác nhận. Chi phí để biết: một lượt Kaggle ~40 phút.
+
+#### Chốt
+
+`run.py` **không** bật kênh 6. Giữ `src/van_ban_dense.py` và
+`index/van_ban_gopt/` (1,32 GB) vì chúng vẫn đúng và có thể dùng lại nếu sau
+này có model text–text thật (Vietnamese SBERT chẳng hạn) — lúc đó chỉ cần thay
+ma trận, mã truy hồi không phải sửa.
+
+> Muốn sửa cái yếu của BM25 (khớp mặt chữ) thì phải dùng model biết so **chữ
+> với chữ**. Dùng tháp văn bản của một model ảnh–chữ là giải sai bài.
+
 ## PHẦN B — QUYẾT ĐỊNH HẠ TẦNG
 
 ### B1. Không dùng Supabase / Postgres / Milvus / Elasticsearch — ĐÃ KIỂM CHỨNG
