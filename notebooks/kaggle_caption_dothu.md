@@ -19,8 +19,10 @@ import subprocess, json, pathlib, shutil, glob, os, time, re
 def chay(lenh, im=False):
     p = subprocess.run(lenh, shell=True, text=True,
                        stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-    if not im:
-        print(p.stdout[-3000:])
+    # LUON in khi hong: `im=True` tung nuot mat traceback that va chi con
+    # "ma thoat 1", khong doan duoc gi tu do.
+    if not im or p.returncode != 0:
+        print(p.stdout[-4000:])
     if p.returncode != 0:
         raise RuntimeError(f"ma thoat {p.returncode}: {lenh}")
     return p.stdout
@@ -28,7 +30,15 @@ def chay(lenh, im=False):
 chay("rm -rf /tmp/repo && git clone -q -b giai-doan-0 "
      "https://github.com/QuocKhanhDev-it/AIC_2026_FirstDance.git /tmp/repo")
 %cd /tmp/repo
-chay("pip -q install transformers accelerate pillow pandas pyarrow")
+# `qwen_vl_utils` la BAT BUOC — 14_sinh_caption.py import no. Va phai -U
+# transformers: ban co san tren Kaggle co the chua co Qwen2_5_VL, ma pip khong
+# nang cap neu goi ten tran (yeu cau da "thoa man").
+chay("pip -q install -U 'transformers>=4.51' accelerate qwen-vl-utils "
+     "pillow pandas pyarrow")
+import transformers
+print("transformers", transformers.__version__)
+from transformers import Qwen2_5_VLForConditionalGeneration   # hong som neu thieu
+import qwen_vl_utils
 
 import torch
 assert torch.cuda.is_available(), "Settings > Accelerator > GPU T4"
