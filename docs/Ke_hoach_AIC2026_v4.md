@@ -3521,6 +3521,97 @@ ma trận, mã truy hồi không phải sửa.
 > Muốn sửa cái yếu của BM25 (khớp mặt chữ) thì phải dùng model biết so **chữ
 > với chữ**. Dùng tháp văn bản của một model ảnh–chữ là giải sai bài.
 
+### A54. Khoảng trống giữa điểm thật và trần "xếp lại hoàn hảo": **33 điểm phần trăm**
+
+Trước khi đầu tư vào reranker (món đắt: chấm lại ~100 cặp ảnh–truy vấn mỗi
+câu), phải biết nó có chỗ để thắng không. Chỗ đó đo được chính xác:
+
+    TRẦN  = đáp án nằm ĐÂU ĐÓ trong bể  ->  xếp lại hoàn hảo cho 1,0
+    THẬT  = điểm BTC hiện tại
+    TRỐNG = TRẦN − THẬT
+
+`scripts/60_do_khoang_trong_rerank.py`, 52 câu đề thật, cấu hình `run.py` sau
+A52, dung sai ±2s:
+
+| bể | R@1 | R@20 | R@100 | THẬT | TRẦN | TRỐNG | câu ngoài bể |
+| ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| 100 | 0,2041 | 0,6122 | 0,7551 | 0,5173 | 0,7500 | +0,2327 | 12/49 |
+| 300 | 0,1837 | 0,6122 | 0,7755 | 0,5202 | 0,8269 | +0,3067 | 8/49 |
+| **1000** | 0,2245 | 0,6122 | 0,7959 | **0,5317** | **0,8654** | **+0,3337** | **6/49** |
+
+Ở ±15s: trần **0,9231**, chỉ 3/49 câu ngoài bể.
+
+**Ba điều đọc ra:**
+
+1. **Xếp lại là trục lãi nhất.** 33 điểm phần trăm nằm sẵn trong bể. Cả A51 +
+   A52 cộng lại mới được +0,08 — khoảng trống này gấp bốn lần.
+2. **Nới bể gần như miễn phí và tự nó có lãi nhỏ** (0,5173 → 0,5317): RRF có
+   thêm chỗ để hai kênh đồng thuận. Số câu vô vọng giảm **12 → 6**. Bài nộp
+   vẫn 100 dòng — giới hạn của BTC là số DÒNG NỘP, không phải cỡ bể.
+3. **R@20 đứng yên 0,6122 ở cả ba cỡ bể.** Nới bể chỉ cứu câu nằm sâu, không
+   kéo thêm câu nào vào top-20. Hai việc tách bạch: nới bể lo phần đuôi, xếp
+   lại lo phần đầu.
+
+**6 câu vẫn ngoài top-1000/177.321.** Với chúng mọi hậu xử lý đều vô nghĩa —
+đó là phần duy nhất một model mới có thể cứu, và nó chỉ đáng tối đa 12% số câu.
+
+### A55. Ba cách xếp lại **không cần model** — đo cả ba, **bác cả ba**
+
+Nếu 33 điểm phần trăm lấy được bằng tín hiệu sẵn có thì khỏi cần VLM. Đo thử
+ba tín hiệu đang bị vứt đi, trên bể 300, mốc là `run.py` sau A52.
+
+#### 1. Gom khung trùng cảnh theo thời gian (`61_`)
+
+| gom trong | ±2s | ±15s | |
+| --- | ---: | ---: | :---: |
+| *không gom (mốc)* | 0,5202 | 0,5952 | |
+| 5s | 0,5077 | 0,5990 | ❌ |
+| 15s | 0,4731 | **0,6212** | ❌ |
+| 60s | 0,4231 | 0,5798 | ✅ TỆ HƠN |
+| mỗi video 1 dòng | 0,3385 | 0,4298 | ✅ TỆ HƠN |
+
+Đảo dấu đúng như dự đoán ghi trước khi chạy: người đại diện được giữ nằm
+NGOÀI cửa sổ hẹp còn kẻ bị bỏ nằm TRONG. Cửa sổ BTC là ẩn số (4s–5 phút), nên
+kết luận phụ thuộc nó thì không dùng được, dù con số ±15s trông đẹp.
+
+**Chẩn đoán tiền đề — và đây mới là phần đáng nhớ.** Ý này chép từ một nhóm
+khác, tiền đề của họ là "top-15 thường có 6–7 khung cùng một cảnh". Đo trên hệ
+của ta:
+
+    top-20: 10,2/20 video RIÊNG BIỆT
+            1,2 khung trùng cảnh trong 2s | 2,8 trong 5s | 5,9 trong 15s
+
+Bể của ta **không vón cục**. Ý đó chữa một bệnh kênh 1 của ta không mắc — họ
+dùng model yếu hơn nên bể của họ dồn cục hơn nhiều. Chép giải pháp mà không
+chép chẩn đoán là cách nhanh nhất để chữa nhầm bệnh.
+
+#### 2. Đồng thuận mệnh đề và 3. ủng hộ theo video (`62_`)
+
+| cấu hình | ±2s | hiệu | T-B-H | |
+| --- | ---: | ---: | :---: | :---: |
+| *mốc* | 0,5202 | — | | |
+| đồng thuận mệnh đề w=0,1 | 0,5202 | +0,0000 | 1-1-50 | 🟡 |
+| đồng thuận mệnh đề w=0,5 | 0,5038 | −0,0163 | 2-7-43 | ✅ TỆ HƠN |
+| **ủng hộ video w=0,25** | **0,5279** | **+0,0077** | 5-2-45 | 🟡 |
+| ủng hộ video w=1 | 0,5240 | +0,0038 | 6-3-43 | 🟡 |
+| cả hai | 0,5279 | +0,0077 | 5-2-45 | ❌ |
+
+Tốt nhất là +0,0077 với ngưỡng nhiễu 0,0245 — **bằng 2,3% của khoảng trống**.
+
+Đồng thuận mệnh đề còn LÀM HẠI ở trọng số cao. Lý do là mặt trái của chính
+A51: ứng viên trúng nhiều mệnh đề thường là khung *chung chung* khớp mờ với
+nhiều mệnh đề dễ, không phải khung đặc trưng khớp đúng một mệnh đề khó.
+
+#### Kết luận có giá trị nhất của cả cụm A54–A55
+
+**Khoảng trống 33 điểm KHÔNG lấy được bằng cách sắp xếp lại thông tin đã có.**
+Ba tín hiệu miễn phí, sáu mức trọng số, tổng cộng lấy được ~0. Muốn lấp nó thì
+phải đưa **thông tin MỚI** vào — tức là thật sự nhìn lại bức ảnh (VLM rerank)
+hoặc mô tả nó bằng chữ (caption, kênh 5). Không có đường tắt.
+
+> Giá trị của A55 nằm ở chỗ nó rẻ và nó ĐÓNG một hướng. Ba ý nghe đều hợp lý,
+> một ý còn chép từ đội mạnh hơn — và cả ba đều không sống nổi phép đo.
+
 ## PHẦN B — QUYẾT ĐỊNH HẠ TẦNG
 
 ### B1. Không dùng Supabase / Postgres / Milvus / Elasticsearch — ĐÃ KIỂM CHỨNG
