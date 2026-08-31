@@ -3545,15 +3545,42 @@ A52, dung sai ±2s:
 
 1. **Xếp lại là trục lãi nhất.** 33 điểm phần trăm nằm sẵn trong bể. Cả A51 +
    A52 cộng lại mới được +0,08 — khoảng trống này gấp bốn lần.
-2. **Nới bể gần như miễn phí và tự nó có lãi nhỏ** (0,5173 → 0,5317): RRF có
-   thêm chỗ để hai kênh đồng thuận. Số câu vô vọng giảm **12 → 6**. Bài nộp
-   vẫn 100 dòng — giới hạn của BTC là số DÒNG NỘP, không phải cỡ bể.
+2. **Nới bể nâng TRẦN, nhưng KHÔNG nâng điểm thật** (xem đính chính dưới).
+   Số câu vô vọng giảm **12 → 6**. Bài nộp vẫn 100 dòng — giới hạn của BTC là
+   số DÒNG NỘP, không phải cỡ bể, nên bể lớn là chỗ hợp lệ cho reranker soi.
 3. **R@20 đứng yên 0,6122 ở cả ba cỡ bể.** Nới bể chỉ cứu câu nằm sâu, không
    kéo thêm câu nào vào top-20. Hai việc tách bạch: nới bể lo phần đuôi, xếp
    lại lo phần đầu.
 
 **6 câu vẫn ngoài top-1000/177.321.** Với chúng mọi hậu xử lý đều vô nghĩa —
 đó là phần duy nhất một model mới có thể cứu, và nó chỉ đáng tối đa 12% số câu.
+
+#### Đính chính (`scripts/65_do_co_be.py`)
+
+Bảng trên là ba lần chạy RIÊNG, và tôi đã đọc chênh lệch giữa chúng như một
+khoản lãi: *"nới bể tự nó có lãi nhỏ, 0,5173 → 0,5317"*. **Sai** — chưa so theo
+cặp thì chưa được nói thế. Đo lại đúng cách, mốc là bể 100:
+
+| bể | ±2s | ±15s | hiệu ±2s | T-B-H | |
+| ---: | ---: | ---: | ---: | :---: | :---: |
+| 100 — *mốc* | 0,5173 | 0,6096 | — | — | |
+| 200 | 0,5163 | 0,6029 | −0,0010 | 2-2-48 | 🟡 |
+| 300 | 0,5202 | 0,5952 | +0,0029 | 3-2-47 | ❌ |
+| 600 | 0,5240 | 0,6029 | +0,0067 | 4-2-46 | ❌ |
+| 1000 | 0,5317 | 0,6067 | +0,0144 | 6-2-44 | ❌ |
+
+Ở ±2s bể lớn hơn thật, ở ±15s thì kém đi — **đảo dấu ở mọi cỡ đáng kể**. Cửa sổ
+chấm của BTC là ẩn số (4s–5 phút), nên kết luận phụ thuộc nó thì không dùng
+được. `run.py` **giữ bể 100**.
+
+Vì sao đảo dấu: bể lớn kéo vào những khung mà cả hai kênh đều xếp rất sâu. Ở
+cửa hẹp chúng thỉnh thoảng đúng và ăn điểm; ở cửa rộng thì những khung *gần
+đúng* của bể nhỏ vốn đã được tính đúng rồi, nên thứ mới thêm chỉ chen lên trước
+chúng. Cùng một thay đổi, hai cửa sổ, hai dấu.
+
+> Bài học lặp lại lần thứ ba trong dự án: **chênh lệch giữa hai bảng chạy riêng
+> KHÔNG phải một phép đo.** Chỉ so theo cặp trên cùng bộ câu mới nói được điều
+> gì — và ở đây nó lật ngược một câu đã kịp vào tài liệu.
 
 ### A55. Ba cách xếp lại **không cần model** — đo cả ba, **bác cả ba**
 
