@@ -185,7 +185,7 @@ def tach_truy_van(cau: str, tran_tu: int = TRAN_TOKEN) -> list[str]:
 # ------------------------------------------------------------------ các kênh
 
 def quet_anh(index: Path, matrix: str, de: dict, k: int, mmap=True,
-            giu_kenh: bool = False, cache=None):
+            giu_kenh: bool = False, cache=None, rrf_menh_de: bool = True):
     """Chạy kênh ảnh cho MỌI truy vấn rồi giải phóng model.
 
     TRAKE cần một danh sách riêng cho từng sự kiện con, nên giá trị trả về là
@@ -227,16 +227,38 @@ def quet_anh(index: Path, matrix: str, de: dict, k: int, mmap=True,
         print(f"  kênh 1: {matrix} {kenh.mat.shape} "
               f"{kenh.model_tag}/{kenh.pretrained}")
 
+    def hoi(noi_dung: str, sl: int):
+        """Một truy vấn -> danh sách ứng viên, hợp nhất các mệnh đề bằng RRF.
+
+        ⚠️ HỢP NHẤT THEO HẠNG, KHÔNG PHẢI MAX COSINE (A51).
+
+        `KenhAnh.tim` nhận cả danh sách và lấy **điểm cosine cao nhất** trên
+        từng keyframe qua các mệnh đề. Nghe hợp lý, nhưng cosine của hai mệnh
+        đề KHÁC NHAU không so được với nhau: "một người phụ nữ" khớp mờ với
+        hàng nghìn khung ở cos cao, còn "biển hiệu màu tím ghi BỆNH VIỆN" khớp
+        đúng một khung ở cos thấp hơn. Max cosine để **mệnh đề dễ nuốt mệnh đề
+        đặc trưng**.
+
+        Xếp theo hạng thì mỗi mệnh đề có tiếng nói ngang nhau — cùng lý do
+        repo này hợp nhất KÊNH bằng RRF chứ không cộng điểm (xem `schema.py`).
+
+        Đo trên 52 câu đề thật, so với chính `tim()` max-cosine:
+        cùng kênh 3 thì +0,0721 / +0,0971 ✅ ỔN ĐỊNH.
+        """
+        md = tach_truy_van(noi_dung)
+        if len(md) == 1 or not rrf_menh_de:
+            return kenh.tim(md, k=sl)
+        return hop_nhat([kenh.tim(m, k=sl) for m in md])[:sl]
+
     ra = {}
     for ten, noi_dung in de.items():
         if loai_cua(ten) == "trake":
-            ra[ten] = [kenh.tim(tach_truy_van(sk), k=k)
-                       for sk in tach_su_kien(noi_dung)]
+            ra[ten] = [hoi(sk, k) for sk in tach_su_kien(noi_dung)]
         else:
             # Xin GAP DOI: hai row_id khac nhau co the ra cung mot dong nop
             # (A5.7 — 614 keyframe trung frame_idx), nen bo trung xong phai con
             # du de bu cho tron 100.
-            ra[ten] = kenh.tim(tach_truy_van(noi_dung), k=k * 2)
+            ra[ten] = hoi(noi_dung, k * 2)
     master = kenh.master
     if giu_kenh:
         return ra, master, kenh
@@ -763,6 +785,11 @@ def main():
                     help="cộng thêm kênh 2 vào RRF. Kênh 2 được 0,0000 ở ±2s "
                          "(A12) nên mặc định BỎ — cộng vào là pha loãng (A14.2)")
     ap.set_defaults(bo_metadata=True)
+    ap.add_argument("--khong-rrf-menh-de", dest="rrf_menh_de",
+                    action="store_false",
+                    help="quay lại gộp mệnh đề bằng MAX COSINE. A51 đo trên 52 "
+                         "câu đề thật: RRF hạng + kênh 3 hơn max-cosine + kênh 3 "
+                         "+0,0721/+0,0971 ✅ ỔN ĐỊNH. Chỉ tắt để tái lập số cũ")
     ap.add_argument("--trong-so-phu", type=float, default=0.75,
                     help="trọng số kênh phụ trong RRF. MẶC ĐỊNH 0,75 (A50). "
                          "Trên 52 câu đề THẬT, 1:0,75 hơn gopt trần +0,0471 "
@@ -831,9 +858,11 @@ def main():
         kq1, master = quet_objects(a.index, de, a.k)
     elif giu_kenh:
         kq1, master, kenh1_obj = quet_anh(a.index, a.matrix, de, a.k,
+                                          rrf_menh_de=a.rrf_menh_de,
                                           giu_kenh=True, cache=a.cache)
     else:
-        kq1, master = quet_anh(a.index, a.matrix, de, a.k, cache=a.cache)
+        kq1, master = quet_anh(a.index, a.matrix, de, a.k, cache=a.cache,
+                               rrf_menh_de=a.rrf_menh_de)
     phu = (quet_van_ban(master, de, a.k, a.index, a.bo_metadata)
            if a.hop_nhat else {})
 

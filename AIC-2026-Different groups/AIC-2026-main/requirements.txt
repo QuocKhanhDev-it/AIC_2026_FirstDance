@@ -1,0 +1,33 @@
+# Web Framework & Server
+fastapi>=0.110.0
+uvicorn>=0.28.0
+pydantic>=2.0.0
+
+# Vector Search & Database
+faiss-cpu>=1.8.0
+numpy>=1.26.0
+pandas>=2.0.0
+
+# Multimodal & Vision Models
+torch>=2.0.0
+torchvision>=0.15.0
+open_clip_torch>=2.24.0
+transformers>=4.40.0
+sentence-transformers>=3.0.0
+pillow>=10.0.0
+opencv-python>=4.9.0
+ftfy>=6.0.0
+regex
+tqdm
+
+# LLM & VQA
+google-genai>=1.0.0
+python-dotenv>=1.0.0
+
+# Audio & Speech Recognition (ASR)
+openai-whisper
+imageio-ffmpeg
+
+# OCR
+paddlepaddle>=3.0.0b2
+paddleocr>=3.0.0

@@ -3338,6 +3338,67 @@ với cấu hình đo ra nó.
 > theo định nghĩa `ON DINH`, nhưng đây là ca sát ranh nhất từng nhận. Có thêm câu
 > đề thật thì đo lại.
 
+### A51. Hợp nhất mệnh đề bằng **RRF hạng**, không phải max cosine — và A47–A50 đo sai cấu hình
+
+#### Trước hết: một lỗi phương pháp của chính các phép đo A47–A50
+
+Tháp văn bản SigLIP2 có `context_length = 64`. Đo bằng chính tokenizer trên đề
+thật:
+
+| | token |
+| --- | ---: |
+| cả câu nguyên | trung vị **64** — chạm trần, **12/20 câu bị cắt cụt** |
+| từng mệnh đề | trung vị 34, max 47 |
+
+`run.py` biết điều đó nên gọi `tach_truy_van()` trước (A19/A20). Nhưng các
+script đo A47–A50 truyền thẳng `c.cau_hoi` — **đo một cấu hình `run.py` không
+dùng**, với truy vấn mất phần đuôi.
+
+    cả câu (cái A47-A50 đo)     0,3125 / 0,3913
+    mệnh đề, max cosine (thật)  0,4375 / 0,4981     +0,1250 ✅ ỔN ĐỊNH
+
+So sánh *giữa các cấu hình* vẫn công bằng vì đều cắt như nhau, nên kết luận
+tương đối của A47–A50 (gopt thắng SigLIP2; kênh 3 có lãi trên đề thật) vẫn
+đứng. Nhưng **mọi điểm tuyệt đối đã ghi đều thấp hơn thực tế**, và trọng số
+`0,75` của A50 được chọn dưới điều kiện sai — cần đo lại.
+
+#### Cải tiến thật: RRF hạng giữa các mệnh đề
+
+`KenhAnh.tim` nhận danh sách mệnh đề và lấy **max cosine** trên từng keyframe.
+Nghe hợp lý, nhưng cosine của hai mệnh đề KHÁC NHAU không so được với nhau:
+*"một người phụ nữ"* khớp mờ với hàng nghìn khung ở cos cao, còn *"biển hiệu
+màu tím ghi BỆNH VIỆN"* khớp đúng một khung ở cos thấp hơn. Max cosine để
+**mệnh đề dễ nuốt mệnh đề đặc trưng**.
+
+Đây đúng lý do repo hợp nhất KÊNH bằng RRF chứ không cộng điểm (`schema.py`) —
+chỉ là chưa ai áp cùng lý lẽ đó cho các mệnh đề trong một truy vấn.
+
+Đo trên 52 câu đề thật, mốc nền là cấu hình `run.py` đang chạy:
+
+| cấu hình | ±2s | ±15s | hiệu ±2s | T-B-H | |
+| --- | ---: | ---: | ---: | :---: | --- |
+| mệnh đề max cosine — *mốc* | 0,4375 | 0,4981 | — | — | |
+| mệnh đề **RRF hạng** | 0,4779 | 0,5712 | +0,0404 | 15-13-24 | 🟡 |
+| max cosine + kênh 3 | 0,4644 | 0,5317 | +0,0269 | 9-9-34 | 🟡 |
+| **RRF hạng + kênh 3** | **0,5096** | **0,5952** | **+0,0721** | 18-9-25 | **✅ ỔN ĐỊNH** |
+| RRF hạng + cả câu + kênh 3 | 0,4875 | 0,5683 | +0,0500 | 15-11-26 | 🟡 |
+
+**Chỉ tổ hợp cả hai mới vượt nhiễu.** Từng thứ riêng lẻ đều 🟡 — đây là ca hiếm
+mà hai thay đổi nhỏ cộng lại mới đủ, và nếu đo lần lượt từng cái thì đã bỏ qua
+cả hai.
+
+Cũng đáng ghi: **thêm cả câu nguyên vào RRF làm TỆ ĐI** (0,4875 so với 0,5096).
+Câu nguyên bị cắt ở token 64 nên nó là một truy vấn *hỏng*; đưa vào hợp nhất
+chỉ kéo xuống. Cắt cụt không chỉ vô ích — nó có hại.
+
+#### Đã đổi
+
+`src/run.py` hợp nhất mệnh đề bằng RRF (`--khong-rrf-menh-de` để dựng lại hành
+vi cũ). Điểm cấu hình mặc định trên đề thật: **0,4375 → 0,5096**.
+
+> **Việc còn lại:** dò lại trọng số kênh 3 dưới cách đưa truy vấn ĐÚNG. A50
+> chọn 0,75 khi truy vấn còn bị cắt cụt, nên con số đó không còn nền.
+
 ## PHẦN B — QUYẾT ĐỊNH HẠ TẦNG
 
 ### B1. Không dùng Supabase / Postgres / Milvus / Elasticsearch — ĐÃ KIỂM CHỨNG

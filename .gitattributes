@@ -1,0 +1,21 @@
+# Chuẩn hoá kiểu xuống dòng về LF trong kho.
+#
+# VÌ SAO CÓ FILE NÀY: `pathlib.write_text()` trên Windows mặc định đổi mọi
+# `\n` thành `\r\n`. Sửa một file LF bằng script Python là **lật kiểu xuống
+# dòng cả file** — `git diff` báo 1000 dòng thêm / 971 xoá cho một thay đổi
+# 30 dòng, và thay đổi thật chìm nghỉm trong đó.
+#
+# Đã cắn thật (31/08) với `src/run.py`. Không hỏng gì về chức năng, nhưng làm
+# commit không đọc được — mà commit là thứ cả nhóm dùng để biết ai đổi gì.
+#
+# Cách khác cho script: `p.write_text(s, encoding="utf-8", newline="\n")`.
+* text=auto eol=lf
+
+# File nhị phân: đừng đụng vào.
+*.npy   binary
+*.npz   binary
+*.parquet binary
+*.jpg   binary
+*.png   binary
+*.zip   binary
+*.mp4   binary
