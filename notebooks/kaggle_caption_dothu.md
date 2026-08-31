@@ -43,11 +43,15 @@ for ten in ("master.parquet",):
 
 # Ảnh: script đọc theo `kf_path` trong master, vốn là đường dẫn máy khác.
 # `12_va_duong_dan.py` vá lại theo thư mục ảnh có trên máy NÀY.
-anh = sorted({str(pathlib.Path(p).parent.parent)
-              for p in glob.glob("/kaggle/input/**/L*_V*/*.jpg", recursive=True)})
+#
+# ⚠️ Cờ là `--roots` (nhận NHIỀU nơi), KHÔNG phải `--goc`. Và thiếu `--ghi`
+# thì nó chỉ XEM TRƯỚC rồi thoát — bảng cái không đổi, caption sau đó không
+# tìm thấy ảnh nào. Đưa thẳng `/kaggle/input`: nó tự quét đệ quy tìm mọi thư
+# mục tên `L\d\d_V\d+` có ảnh, nên gắn bao nhiêu dataset ảnh cũng nhận hết.
+anh = glob.glob("/kaggle/input/**/L*_V*/*.jpg", recursive=True)
 assert anh, "khong thay anh keyframe trong /kaggle/input"
-print("thu muc anh:", anh[:3])
-chay(f"python scripts/12_va_duong_dan.py --goc '{anh[0]}'")
+print(f"{len(anh):,} anh keyframe")
+chay("python scripts/12_va_duong_dan.py --roots /kaggle/input --ghi")
 
 # ── ba cấu hình, cùng 40 ảnh, chỉ đổi MỘT thứ mỗi lần so với dòng trên ──
 CAU_HINH = [
@@ -59,7 +63,8 @@ N, KHO = 40, 177_321
 bang = []
 for ten, co in CAU_HINH:
     t0 = time.perf_counter()
-    out = chay(f"python scripts/14_sinh_caption.py --backend hf --chon tat-ca "
+    # `co-anh` = mọi dòng CÓ ẢNH ở máy này. Không có `tat-ca`.
+    out = chay(f"python scripts/14_sinh_caption.py --backend hf --chon co-anh "
                f"--n {N} {co} --batch 8", im=True)
     giay = (time.perf_counter() - t0) / N
     bang.append((ten, giay))
