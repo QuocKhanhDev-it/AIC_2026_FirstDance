@@ -159,7 +159,10 @@ def main():
     for f in tep:
         loai = {"kis": "KIS", "qa": "QA", "trake": "TRAKE"}[R.loai_cua(f.stem)]
         noi = f.read_text("utf-8").strip()
-        cid = f"{R.loai_cua(f.stem)}-TT-{f.stem.replace('query-', '')}"
+        # `query-p1-16-trake` -> `trake-TT-p1-16`. Bỏ cả tiền tố lẫn đuôi
+        # loại, không thì id thành `trake-TT-p1-16-trake`.
+        goc = f.stem.replace("query-", "").rsplit("-", 1)[0]
+        cid = f"{R.loai_cua(f.stem)}-TT-{goc}"
         muc = R.tach_su_kien(noi) if loai == "TRAKE" else [noi]
 
         khoa, than = [], []
