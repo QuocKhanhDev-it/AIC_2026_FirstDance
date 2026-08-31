@@ -763,10 +763,12 @@ def main():
                     help="cộng thêm kênh 2 vào RRF. Kênh 2 được 0,0000 ở ±2s "
                          "(A12) nên mặc định BỎ — cộng vào là pha loãng (A14.2)")
     ap.set_defaults(bo_metadata=True)
-    ap.add_argument("--trong-so-phu", type=float, default=1.0,
-                    help="trọng số kênh phụ trong RRF. MẶC ĐỊNH 1,0. A45 đo "
-                         "trên đề thật: hiệu tăng ĐƠN ĐIỆU theo trọng số "
-                         "(0,1→+0,0041 ... 1,0→+0,0694). Hạ xuống là mất lãi")
+    ap.add_argument("--trong-so-phu", type=float, default=0.75,
+                    help="trọng số kênh phụ trong RRF. MẶC ĐỊNH 0,75 (A50). "
+                         "Trên 52 câu đề THẬT, 1:0,75 hơn gopt trần +0,0471 "
+                         "✅ ỔN ĐỊNH, còn 1:1 chỉ +0,0346 🟡. A45 từng đo hiệu "
+                         "tăng đơn điệu tới 1,0 — nhưng đó là với kênh 1 cũ "
+                         "(SigLIP2). Đổi kênh 1 sang gopt thì tối ưu dịch xuống")
     ap.add_argument("--hop-nhat-chi-cau-ngan", action="store_true",
                     help="CHỈ áp RRF cho câu <=1 mệnh đề. ⚠️ A45 BÁC cờ này: "
                          "đo trên 49 câu đề THẬT (trung vị 62 từ, 2,29 mệnh "

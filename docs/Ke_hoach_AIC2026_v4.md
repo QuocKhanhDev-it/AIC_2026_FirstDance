@@ -3278,6 +3278,66 @@ trọng số** (~40 giây khi mạng tốt), và nó chỉ xảy ra khi phiên K
 > (`axis=1`). Chuẩn hoá cả khối là chia nhầm chuẩn của cả lô vào từng vector —
 > file vẫn hợp lệ, cosine vẫn trong [−1, 1], và **không có gì báo**.
 
+### A50. Hai tập dev nói ngược nhau — và câu tự soạn **không thay được đề thật**, kể cả khi khớp phân bố
+
+Sau khi sinh lại cache cho 323 câu, đo lại A47 và ra kết quả **trái ngược**:
+
+| `RRF(gopt, OCR)` so với `gopt` trần | hiệu ±2s | T-B-H | |
+| --- | ---: | :---: | --- |
+| trên `tap_de_that` (50 câu) | **+0,0280** | 11-10-29 | 🟡 |
+| trên `tap_dev` (323 câu) | **−0,0248** | 49-115-159 | ✅ ỔN ĐỊNH |
+
+Cả hai không thể cùng đúng. Và **không chọn được bằng cách nhìn hai bảng**: chúng
+khác nhau ở HAI thứ cùng lúc — cỡ mẫu (50 so với 323) và nguồn câu hỏi. Đúng cái
+lỗi "đổi hai thứ rồi quy công cho nhầm cái".
+
+#### Phép phân xử: chia theo NGUỒN, đo riêng (`scripts/54_do_theo_nguon_cau.py`)
+
+Mốc nền `gopt` trần, cùng ba cấu hình, trên từng nhóm:
+
+| nhóm | số câu | `RRF 1:1` | | `RRF 1:0,75` | |
+| --- | ---: | ---: | --- | ---: | --- |
+| **đề thật** | 52 | +0,0346 | 🟡 | **+0,0471** | **✅ ỔN ĐỊNH** |
+| mới sát đề thật | 63 | −0,0175 | 🟡 | −0,0016 | 🟡 |
+| tự soạn cũ | 208 | −0,0419 | ✅ **tệ hơn** | −0,0224 | ✅ **tệ hơn** |
+
+**Bảng 323 câu bị 208 câu tự soạn cũ chi phối.** Trên đúng thứ đem đi thi, thêm
+kênh 3 vẫn có lãi — và ở trọng số 0,75 thì lãi đó **vượt nhiễu**.
+
+#### Phát hiện đắt hơn: khớp phân bố KHÔNG đủ để thay đề thật
+
+63 câu soạn ngày 30/08 được viết **cố ý khớp phân bố đề thật** — 72 từ / 2,80
+mệnh đề, so với đề thật 62 từ / 2,33. Đó chính là điều A43 đặt ra để sửa lỗi
+"câu tự soạn quá ngắn".
+
+Nhưng chúng **cư xử như câu tự soạn, không như đề thật**: OCR làm hại (−0,0175),
+cùng dấu với nhóm tự soạn cũ và ngược dấu với đề thật.
+
+Nghĩa là thứ làm đề thật khác biệt **không phải độ dài câu**. Giả thuyết đáng
+tin nhất: câu tự soạn được viết **trong lúc nhìn keyframe**, nên đương nhiên tả
+đúng những gì nhìn thấy — kênh ảnh tìm ra dễ, kênh văn bản thành thừa. Đề thật
+do BTC viết với ý đồ khác, và ở đó tín hiệu văn bản độc lập mới có chỗ.
+
+> ⚠️ **Hệ quả cho cách soạn tập dev.** Đếm từ và đếm mệnh đề là thứ *đo được*
+> nên dễ nhắm tới, nhưng nó không phải thứ *quan trọng*. Câu tự soạn dùng để đo
+> **phủ** (nhóm L nào, loại câu nào) thì tốt; dùng để **quyết định cấu hình** thì
+> không thay được đề thật. Mọi quyết định bật/tắt từ nay đọc trên
+> `tap_de_that.jsonl`, và ghi rõ số đó ra khi báo cáo.
+
+#### Đã đổi
+
+`src/run.py --trong-so-phu` mặc định **1,0 → 0,75**.
+
+A45 từng đo hiệu tăng **đơn điệu** tới trọng số 1,0 và kết luận "hạ xuống là mất
+lãi". Điều đó vẫn đúng — **với kênh 1 cũ**. Đổi kênh 1 sang gopt thì kênh ảnh
+mạnh hơn hẳn, và điểm tối ưu của kênh phụ dịch xuống. Một hằng số đúng luôn gắn
+với cấu hình đo ra nó.
+
+> **Còn mở:** trên 52 câu, `1:0,75` vượt nhiễu ở ±2s (ngưỡng 0,0467, hiệu 0,0471)
+> nhưng sát ngưỡng ở ±15s (0,0487 so với 0,0462). Cùng dấu, một mức vượt — đủ
+> theo định nghĩa `ON DINH`, nhưng đây là ca sát ranh nhất từng nhận. Có thêm câu
+> đề thật thì đo lại.
+
 ## PHẦN B — QUYẾT ĐỊNH HẠ TẦNG
 
 ### B1. Không dùng Supabase / Postgres / Milvus / Elasticsearch — ĐÃ KIỂM CHỨNG
