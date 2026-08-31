@@ -105,3 +105,6 @@ kaggle_upload/
 # ---- goi VQA ----
 # Anh keyframe cua BTC, thu nho lai van la anh cua BTC. Repo public.
 vqa/
+
+# Ma nguon cua doi khac — KHONG commit len repo cong khai
+AIC-2026-Different groups/
