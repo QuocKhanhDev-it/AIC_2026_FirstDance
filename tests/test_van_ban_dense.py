@@ -118,3 +118,57 @@ def test_vec_va_row_id_lech_thi_dung(kho, tmp_path):
              ghi_chu=json.dumps({"model": "gopt"}))
     with pytest.raises(SystemExit, match="file hỏng"):
         KenhVanBanDense(str(kho), xau, kho / "cache.npz")
+
+
+def test_doc_duoc_npz_da_bi_giai_nen(kho, tmp_path):
+    """Kaggle -> Drive -> máy thành viên hay bung `.npz` thành thư mục.
+
+    Bắt cả nhóm nén lại 1,3 GB chỉ để `np.load` vui lòng là phí công. Quan
+    trọng hơn: dạng thư mục cho `mmap`, nên ma trận nằm trên đĩa thay vì
+    chiếm RAM — máy 7,7 GB đã treo cứng một lần vì chuyện này.
+    """
+    z = np.load(kho / "van_ban.npz")
+    thu_muc = tmp_path / "van_ban_gopt"
+    thu_muc.mkdir()
+    for t in ("vec", "row_id", "ghi_chu"):
+        np.save(thu_muc / f"{t}.npy", z[t])
+
+    goc = KenhVanBanDense(str(kho), kho / "van_ban.npz", kho / "cache.npz")
+    moi = KenhVanBanDense(str(kho), thu_muc, kho / "cache.npz")
+    assert [c.row_id for c in moi.tim("tìm cái này", k=3)] == \
+           [c.row_id for c in goc.tim("tìm cái này", k=3)]
+    # `.npz` không tồn tại nhưng thư mục cùng tên thì có -> vẫn phải mở được
+    assert KenhVanBanDense(str(kho), tmp_path / "van_ban_gopt.npz",
+                           kho / "cache.npz").tim("tìm cái này", k=1)
+
+
+def test_khong_nap_ca_ma_tran_vao_ram(kho, tmp_path):
+    """Chốt chống hồi quy: `vec` phải còn là mmap sau khi dựng kênh.
+
+    `np.asarray(z["vec"], dtype=np.float16)` trông vô hại nhưng sao chép cả
+    1,32 GB vào RAM, đúng thứ dạng thư mục sinh ra để tránh.
+    """
+    z = np.load(kho / "van_ban.npz")
+    thu_muc = tmp_path / "van_ban_gopt"
+    thu_muc.mkdir()
+    for t in ("vec", "row_id", "ghi_chu"):
+        np.save(thu_muc / f"{t}.npy", z[t])
+    k = KenhVanBanDense(str(kho), thu_muc, kho / "cache.npz")
+    assert isinstance(k.vec, np.memmap)
+
+
+def test_gop_max_dung_khi_row_id_khong_sap_xep(kho, tmp_path):
+    """`reduceat` chỉ đúng nếu nhóm được sắp trước. Đoạn của cùng một row_id
+    KHÔNG nhất thiết nằm cạnh nhau trong file."""
+    q = _chuan(np.eye(CHIEU)[0])
+    doan = _chuan(np.array([np.eye(CHIEU)[0],      # row 2 — khớp hoàn toàn
+                            np.eye(CHIEU)[1],      # row 0
+                            np.eye(CHIEU)[2],      # row 2 — kém
+                            np.eye(CHIEU)[3]]))    # row 1
+    f = tmp_path / "xao_tron.npz"
+    np.savez(f, vec=doan.astype(np.float16),
+             row_id=np.array([2, 0, 2, 1], dtype=np.int64),
+             ghi_chu=json.dumps({"model": "gopt", "chieu": CHIEU}))
+    k = KenhVanBanDense(str(kho), f, kho / "cache.npz")
+    kq = k.tim("tìm cái này", k=3)
+    assert kq[0].row_id == 2 and kq[0].score == pytest.approx(1.0, abs=0.01)
