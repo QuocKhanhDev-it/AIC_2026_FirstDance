@@ -67,29 +67,81 @@ def chon_dong(bang: pd.DataFrame, master: pd.DataFrame, chon: str) -> pd.DataFra
     raise SystemExit(f"--chon không hiểu: {chon!r}. Dùng: tat-ca | tap:<f.jsonl>")
 
 
-def chia_doan(van: str, tok, tran: int) -> list[str]:
-    """Cắt một tài liệu thành các đoạn vừa `tran` token.
+def dem_token(chuoi: list[str], tok, lo: int = 8192) -> list[int]:
+    """Đếm token nội dung của từng chuỗi, theo LÔ.
 
-    Cắt theo TỪ chứ không theo ký tự: cắt giữa từ thì đoạn nào cũng bắt đầu
-    bằng một mảnh vô nghĩa, và tokenizer 256k của SigLIP2 sẽ tách nó thành
-    những token hiếm — nhiễu thuần.
+    `tok` trả tensor [n, context_length] đã đệm 0. Đếm ô khác 0 rồi trừ phần
+    chung của mọi chuỗi (token mở/đóng) để ra token NỘI DUNG — nhờ vậy cộng
+    token của các từ lại mới có nghĩa.
     """
-    tu = van.split()
-    if not tu:
-        return []
-    doan, hien = [], []
-    for t in tu:
-        thu = hien + [t]
-        # `tok` trả tensor [1, context_length] đã đệm; đếm token KHÁC đệm
-        n = int((tok([" ".join(thu)])[0] != 0).sum())
-        if n > tran and hien:
+    rong = int((tok([""])[0] != 0).sum())
+    ra = []
+    for i in range(0, len(chuoi), lo):
+        m = tok(chuoi[i:i + lo])
+        ra += [max(1, int(x) - rong) for x in (m != 0).sum(1)]
+    return ra
+
+
+def chia_doan_hang_loat(cac_van: list[str], tok, tran: int,
+                        moi_lan_in: int = 20000) -> list[list[str]]:
+    """Cắt N tài liệu thành các đoạn ≤ `tran` token. Trả về N danh sách đoạn.
+
+    ⚠️ VÌ SAO HÀM NÀY TỒN TẠI — MỘT SỰ CỐ THẬT
+
+    Bản đầu gọi tokenizer MỘT LẦN CHO MỖI TỪ, mà mỗi lần lại token hoá cả đoạn
+    đang dồn. Cả kho là ~17 triệu lượt gọi tokenizer, chạy tuần tự trên CPU,
+    trong khi GPU nằm không. Một máy Kaggle chạy **4 tiếng vẫn chưa qua nổi
+    bước chia đoạn** — và vì bước này không in gì cho tới lúc xong, nhìn log
+    không biết nó đang làm gì hay đã treo.
+
+    Cách ở đây: token hoá **mỗi TỪ DUY NHẤT một lần** theo lô, rồi cộng dồn.
+    Kho ~176k tài liệu chỉ còn vài trăm nghìn từ duy nhất — nhanh hơn hàng
+    trăm lần, và phần lớn thời gian trả về cho GPU, chỗ đáng tiêu.
+
+    Cộng token của từng từ là ƯỚC THỪA: đứng riêng, một từ hay bị thêm token
+    mở đầu mà khi ghép vào câu thì không có. Ước thừa là hướng AN TOÀN (đoạn
+    ngắn hơn trần chứ không dài hơn), nhưng vẫn phải soát lại bằng tokenizer
+    thật — `soat_tran()` làm việc đó.
+    """
+    tu_duy_nhat = sorted({t for v in cac_van for t in v.split()})
+    print(f"  {len(tu_duy_nhat):,} từ duy nhất — token hoá một lần", flush=True)
+    dem = dict(zip(tu_duy_nhat, dem_token(tu_duy_nhat, tok)))
+
+    ra = []
+    for i, van in enumerate(cac_van):
+        tu = van.split()
+        doan, hien, n = [], [], 0
+        for t in tu:
+            c = dem[t]
+            if hien and n + c > tran:
+                doan.append(" ".join(hien))
+                hien, n = [t], c
+            else:
+                hien.append(t)
+                n += c
+        if hien:
             doan.append(" ".join(hien))
-            hien = [t]
-        else:
-            hien = thu
-    if hien:
-        doan.append(" ".join(hien))
-    return doan
+        ra.append(doan)
+        if moi_lan_in and (i + 1) % moi_lan_in == 0:
+            print(f"  chia đoạn {i + 1:,}/{len(cac_van):,}", flush=True)
+    return ra
+
+
+def soat_tran(doan: list[str], tok, tran_cung: int = 64,
+              lo: int = 8192) -> list[int]:
+    """Trả chỉ số các đoạn CHẠM trần cứng của tháp văn bản.
+
+    Ước thừa ở `chia_doan_hang_loat` đáng ra không cho phép chuyện này, nhưng
+    "đáng ra" không phải là phép đo. Đoạn bị cắt cụt không ném lỗi — nó chỉ
+    lặng lẽ mất phần đuôi, đúng loại hỏng mà A51 đã cắn một lần.
+    """
+    xau = []
+    for i in range(0, len(doan), lo):
+        m = tok(doan[i:i + lo])
+        for j, x in enumerate((m != 0).sum(1)):
+            if int(x) >= tran_cung:
+                xau.append(i + j)
+    return xau
 
 
 def main():
@@ -145,13 +197,27 @@ def main():
     print(f"  thiết bị: {thiet_bi}")
 
     print("chia đoạn…")
+    t_chia = time.perf_counter()
+    van = [str(x) for x in d["text"]]
+    rid = [int(x) for x in d["row_id"]]
+    nhom = chia_doan_hang_loat(van, tok, a.tran_token)
+
     doan, chu = [], []          # chu[i] = row_id của đoạn i
-    for r in d.itertuples(index=False):
-        for x in chia_doan(str(r.text), tok, a.tran_token):
-            doan.append(x)
-            chu.append(int(r.row_id))
+    for r, ds in zip(rid, nhom):
+        doan += ds
+        chu += [r] * len(ds)
     print(f"  {len(doan):,} đoạn từ {len(d):,} tài liệu "
-          f"({len(doan) / len(d):.2f} đoạn/tài liệu)")
+          f"({len(doan) / len(d):.2f} đoạn/tài liệu) "
+          f"— {time.perf_counter() - t_chia:.0f} giây")
+
+    xau = soat_tran(doan, tok)
+    if xau:
+        # Không tự sửa: cắt cụt làm kênh yếu đi mà không báo, nên dừng để người
+        # ta hạ `--tran-token` chứ đừng ghi ra một file trông hợp lệ.
+        raise SystemExit(
+            f"❌ {len(xau):,}/{len(doan):,} đoạn chạm trần 64 token, ví dụ "
+            f"{doan[xau[0]][:80]!r}\n   Hạ --tran-token (đang {a.tran_token}).")
+    print("  ✅ không đoạn nào chạm trần 64 token")
 
     ra, t0 = [], time.perf_counter()
     with torch.no_grad():
