@@ -266,6 +266,9 @@ def main():
     ap.add_argument("--no-cum", action="store_true", help="nở cụm trùng lặp rồi ghi đè")
     ap.add_argument("--gop", nargs="+", default=None,
                     help="gộp nhiều file .jsonl của các thành viên vào --file")
+    ap.add_argument("--cho-nho-di", action="store_true",
+                    help="cho phép tập dev nhỏ đi sau khi gộp (bỏ bớt câu hỏng). "
+                         "Mặc định DỪNG — quên kể tập cũ là xoá sạch tập dev")
     ap.add_argument("--tach-test", action="store_true",
                     help="tách tập test giữ kín ra dev/tap_test.jsonl. "
                          "CHỈ CHẠY MỘT LẦN")
@@ -303,8 +306,28 @@ def main():
             for x in loi:
                 print("   ", x)
             raise SystemExit(1)
+
+        # ⚠️ `gop()` DỰNG LẠI tập dev từ đúng những file được liệt kê — nó
+        # KHÔNG cộng thêm vào tập đang có. Gõ `--gop <file mới>` mà quên kể cả
+        # `tap_dev.jsonl` là **xoá sạch tập dev**, và nó chỉ hiện ra ở một con
+        # số nhỏ đi trong dòng "Gộp N file -> M câu".
+        #
+        # Đã cắn thật (30/08): gộp 63 câu mới, tập dev từ 260 tụt còn 63. May
+        # là `tap_dev.jsonl` nằm trong git nên khôi phục được — nhưng chỉ vì
+        # nó ở trong git, không phải vì có gì chặn.
+        cu = len(doc(a.file)) if Path(a.file).exists() else 0
+        if cu and len(cau) < cu and not a.cho_nho_di:
+            raise SystemExit(
+                f"\n❌ TẬP DEV SẼ NHỎ ĐI: {cu} -> {len(cau)} câu. DỪNG, không ghi.\n\n"
+                f"   `--gop` dựng lại tập dev từ ĐÚNG những file bạn liệt kê,\n"
+                f"   không cộng thêm vào tập đang có. Thêm câu mới thì phải kể\n"
+                f"   cả tập cũ:\n\n"
+                f"       python src/tap_dev.py --gop {a.file} <file mới>.jsonl\n\n"
+                f"   Cố ý làm nhỏ đi (bỏ bớt câu hỏng) thì thêm `--cho-nho-di`.\n")
+
         ghi(cau, a.file)
-        print(f"Gộp {len(a.gop)} file -> {len(cau)} câu -> {a.file}\n")
+        print(f"Gộp {len(a.gop)} file -> {len(cau)} câu -> {a.file}"
+              + (f"  (trước: {cu})" if cu else "") + "\n")
 
     cau = doc(a.file)
     if not cau:

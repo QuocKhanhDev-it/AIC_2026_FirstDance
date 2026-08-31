@@ -71,15 +71,27 @@ def main():
     ap.add_argument("--ca-kho", action="store_true",
                     help="chia cả 177.321 dòng, kể cả video CHƯA có ảnh ở máy "
                          "này (dùng khi lập kế hoạch cho lúc L26 đã lên)")
+    ap.add_argument("--nhom", default=None, metavar="L26[,L25]",
+                    help="chỉ chia trong những nhóm L này. Dùng khi một nhóm "
+                         "lên Kaggle SAU khi cả nhóm đã chia xong phần còn "
+                         "lại — chia lại từ đầu sẽ xáo trộn phần đã giao, "
+                         "còn ai đã encode xong lại phải làm lại từ đầu.")
     ap.add_argument("--ra", type=Path, default=GOC / "chia_viec")
     ap.add_argument("--ghi", action="store_true",
                     help="ghi thật (mặc định chỉ xem trước)")
     a = ap.parse_args()
 
     master = pd.read_parquet(a.index / "master.parquet")
+    if a.nhom:
+        nh = {x.strip().upper() for x in a.nhom.split(",")}
+        master = master[master.video_id.str[:3].isin(nh)]
+        if master.empty:
+            raise SystemExit(f"❌ Không có video nào thuộc {sorted(nh)}")
     phan, tai = chia(master, a.nguoi, chi_co_anh=not a.ca_kho)
 
     nguon = "cả kho" if a.ca_kho else "chỉ video CÓ ẢNH ở máy này"
+    if a.nhom:
+        nguon = f"nhóm {a.nhom.upper()}, " + nguon
     print(f"Chia {sum(tai):,} ảnh ({nguon}) cho {a.nguoi} người\n")
     print(f"{'phần':>6}  {'video':>6}  {'ảnh':>9}  nhóm L")
     print("-" * 62)

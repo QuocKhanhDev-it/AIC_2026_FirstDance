@@ -3108,6 +3108,297 @@ lý do nào để bật một thứ chưa bao giờ đo được dương.
 
 ---
 
+### A47. Ma trận thứ hai `ViT-gopt-16-SigLIP2-384` — thắng đậm, và lật ngược vai trò của SigLIP2
+
+Đo 30/08 trên `dev/tap_de_that.jsonl` (**50/52 câu**; loại `trake-DE2-21` và
+`trake-DE2-08` vì thiếu trong cache SigLIP2 — loại khỏi **cả hai** bên).
+`clip_gopt.npy` phủ đủ 177.321 dòng, `dense.be_chung()` xác nhận bể chung
+**177.321/177.321** nên không có hiệu ứng lệch độ phủ.
+
+| cấu hình | ±2s | ±15s |
+| --- | ---: | ---: |
+| SigLIP2 một mình | 0,1400 | 0,1800 |
+| **gopt một mình** | **0,3160** | **0,3920** |
+| RRF(SigLIP2, OCR) — mặc định cũ | 0,2080 | 0,2520 |
+| RRF(gopt, SigLIP2) | 0,2880 | 0,3320 |
+| RRF(gopt, SigLIP2, OCR) | 0,3240 | 0,3840 |
+| **RRF(gopt, OCR)** | **0,3440** | **0,4080** |
+
+**Một mình gopt đã hơn cả cấu hình RRF cũ.** Hơn SigLIP2 một mình **2,3 lần**
+— khoảng cách lớn hơn nhiều so với mong đợi từ một model cùng họ.
+
+So theo cặp với mặc định cũ `RRF(SigLIP2, OCR)`:
+
+| | hiệu ±2s | T-B-H | hiệu ±15s | T-B-H | |
+| --- | ---: | :---: | ---: | :---: | --- |
+| gopt một mình | +0,1080 | 17-8-25 | +0,1400 | 25-8-17 | ✅ ỔN ĐỊNH |
+| RRF(gopt, SigLIP2, OCR) | +0,1160 | 15-3-32 | +0,1320 | 19-3-28 | ✅ ỔN ĐỊNH |
+| **RRF(gopt, OCR)** | **+0,1360** | 15-2-33 | **+0,1560** | 20-3-27 | ✅ ỔN ĐỊNH |
+
+**SigLIP2 giờ là kênh làm hại, không phải kênh bổ sung.** Đổi mốc nền sang
+`RRF(gopt, OCR)` rồi đo lại: thêm SigLIP2 vào cho **−0,0200 / −0,0240**,
+thắng-thua-hoà **4-10-36** ở cả hai mức. Cùng dấu, nhất quán, nhưng **🟡 YẾU** —
+chưa vượt nhiễu, nên chưa được tuyên bố là chắc. Ghi lại để đo tiếp khi có
+thêm câu.
+
+Vai trò đảo hẳn so với A45: ở đó SigLIP2 là kênh chính và OCR là kênh vượt lên
+bất ngờ. Giờ **gopt là kênh chính**, OCR vẫn bổ sung có lãi, còn SigLIP2 không
+còn chỗ.
+
+**Đã đổi mặc định `src/run.py --matrix` thành `clip_gopt.npy`** (đi kèm
+`index/truy_van_gopt.npz`).
+
+> ⚠️ **Vẫn chưa đo trọng số RRF.** Cả bảng trên dùng 1:1. A45 cho thấy trọng số
+> đổi kết quả đáng kể, nên đây là việc tiếp theo — và phải đổi MỘT thứ mỗi lần,
+> đúng như đã làm ở đây.
+
+> **Điều chưa giải thích được.** Vì sao hai model cùng họ SigLIP2, cùng dữ liệu
+> `webli`, lại chênh 2,3 lần? gopt lớn hơn (~1,1 tỷ so với 400 triệu tham số) và
+> vào ảnh ở 384px thay vì 378px, nhưng ngần ấy không đủ giải thích. Một khả năng
+> đáng nghi: `clip_siglip2.npy` được dựng trên máy khác, và sidecar của nó từng
+> ghi `pretrained` là đường dẫn `.safetensors` cục bộ (A17) — nếu lúc dựng đã
+> nạp nhầm biến thể thì SigLIP2 yếu vì lý do kỹ thuật chứ không phải vì model.
+> Chưa kiểm được. Không ảnh hưởng kết luận chọn gopt, nhưng ảnh hưởng câu
+> "SigLIP2 có đáng giữ làm kênh thứ ba không".
+
+### A48. Dò tham số RRF(gopt, OCR) — không tham số nào đủ chắc để đổi
+
+Đo 30/08 trên `dev/tap_de_that.jsonl`, 50/52 câu, cùng bộ câu với A47. Ba thứ
+được dò **riêng từng cái**, mốc nền luôn là cấu hình đang chạy.
+
+#### 1. Trọng số gopt : OCR — một chiều bị bác dứt khoát
+
+| tỉ lệ | ±2s | ±15s | hiệu ±2s | T-B-H | |
+| --- | ---: | ---: | ---: | :---: | --- |
+| 1 : 3 | 0,1720 | 0,2120 | −0,1720 | 4-18-28 | ✅ ỔN ĐỊNH **tệ hơn** |
+| 1 : 2 | 0,2320 | 0,2640 | −0,1120 | 4-15-31 | ✅ ỔN ĐỊNH **tệ hơn** |
+| 1 : 1,5 | 0,2600 | 0,3160 | −0,0840 | 3-14-33 | ✅ ỔN ĐỊNH **tệ hơn** |
+| **1 : 1** | **0,3440** | **0,4080** | — | — | mốc |
+| 1 : 0,75 | 0,3560 | 0,4280 | +0,0120 | 6-3-41 | 🟡 YẾU |
+| 1 : 0,5 | 0,3520 | 0,4320 | +0,0080 | 10-5-35 | 🟡 YẾU |
+| 1 : 0,25 | 0,3440 | 0,4200 | −0,0000 | 12-7-31 | ❌ ĐẢO DẤU |
+
+**Tăng trọng số OCR là hỏng chắc chắn** — ba mức đều ✅ ỔN ĐỊNH theo hướng xấu,
+càng tăng càng tệ. Giảm thì *có vẻ* nhỉnh hơn nhưng cả hai mức đều 🟡 YẾU.
+
+Giữ **1 : 1**. `1 : 0,75` là ứng viên duy nhất đáng đo lại khi tập dev lớn hơn —
+điểm thô cao nhất bảng, thắng-thua 6-3 và 9-3, nhưng 41/50 câu không đổi gì nên
+hiệu tuyệt đối quá nhỏ để vượt nhiễu.
+
+#### 2. SigLIP2 làm "gợi ý phụ" trọng số nhỏ — giả thuyết bị bác
+
+Ý tưởng: A47 thấy SigLIP2 làm hại ở trọng số 1:1, nhưng có thể nó vẫn cứu được
+vài ca gopt bỏ sót nếu chỉ cho trọng số nhỏ. Đo trên `RRF(gopt, OCR)` + SigLIP2:
+
+| trọng số SigLIP2 | ±2s | ±15s | T-B-H (±2s) | |
+| ---: | ---: | ---: | :---: | --- |
+| 1,0 | 0,3240 | 0,3840 | 4-10-36 | 🟡 YẾU, tệ hơn |
+| 0,5 | 0,3440 | 0,4080 | 3-2-45 | ⚪ KHÔNG ĐỔI GÌ |
+| 0,33 | 0,3440 | 0,4080 | 3-2-45 | 🟡 YẾU |
+| 0,25 | 0,3400 | 0,4000 | 2-2-46 | 🟡 YẾU |
+| 0,2 | 0,3440 | 0,4040 | 2-2-46 | ❌ ĐẢO DẤU |
+
+**Ở trọng số nhỏ, SigLIP2 không cứu gì cả — nó chỉ không làm gì.** 42–46 trên 50
+câu *không đổi một chút nào*. Không có vùng trọng số nào mà nó vừa đủ nhẹ để
+không hại vừa đủ nặng để có ích.
+
+Kết luận: **bỏ hẳn SigLIP2 khỏi đường chạy**, không phải hạ trọng số nó.
+
+#### 3. Hằng số `k` của RRF — gần như trơ
+
+| k | ±2s | ±15s | T-B-H (±2s) | |
+| ---: | ---: | ---: | :---: | --- |
+| 20 | 0,3440 | 0,4120 | 3-3-44 | 🟡 YẾU |
+| 30 | 0,3440 | 0,4080 | 1-1-48 | ⚪ KHÔNG ĐỔI GÌ |
+| **60** | **0,3440** | **0,4080** | — | mốc |
+| 100 | 0,3440 | 0,4080 | **0-0-50** | ⚪ KHÔNG ĐỔI GÌ |
+| 120 | 0,3440 | 0,4080 | **0-0-50** | ⚪ KHÔNG ĐỔI GÌ |
+| 200 | 0,3480 | 0,4120 | 1-0-49 | 🟡 YẾU |
+
+`k = 100` và `k = 120` cho **0-0-50** — không một câu nào đổi thứ hạng.
+
+Điều đó tự nó nói một chuyện: hai kênh **hiếm khi tranh chấp**. `k` chỉ có việc
+làm khi hai kênh đề cử cùng một ứng viên ở hai thứ hạng rất khác nhau; ở đây
+OCR đóng góp quá ít ứng viên chen được vào vùng gopt đã xếp. Cũng khớp với việc
+`RRF(gopt, OCR)` chỉ hơn `gopt` một mình +0,0280 (🟡 YẾU).
+
+#### Kết luận chung
+
+**Không đổi gì.** Giữ `RRF(gopt, OCR)`, trọng số 1:1, k=60. Ba trục tham số đã
+dò hết và không trục nào còn dư địa đáng kể — nghĩa là **muốn tiến tiếp thì phải
+thêm TÍN HIỆU MỚI, không phải chỉnh cách trộn tín hiệu cũ**.
+
+Ứng viên tín hiệu mới, theo thứ tự đáng làm:
+
+1. **Kênh 5 (caption)** — kênh văn bản dày, mô tả *quan hệ trong cảnh*, đúng chỗ
+   A8.4 nói không kênh nào phủ. Notebook sẵn sàng, chưa ai chạy.
+2. **Mở rộng truy vấn bằng LLM** — viết lại câu hỏi thành nhiều biến thể rồi
+   hợp nhất. Không cần dữ liệu mới, chỉ cần một lượt gọi mỗi câu.
+
+> ⚠️ Và nhớ A47: trần top-100 của `gopt` trần là **80%**, của `RRF(gopt, OCR)`
+> chỉ **74%**. Kênh mới nào cũng nên nhận ứng viên từ gopt trần rồi mới hợp nhất.
+
+### A49. Mã hoá truy vấn: **69 chuỗi/giây** — bước chặn ngày thi đã hết chặn
+
+Đo 31/08 trên Tesla T4, `--lo 64`, cả hai model:
+
+| model | chuỗi | chuỗi/giây | thời gian |
+| --- | ---: | ---: | ---: |
+| `ViT-gopt-16-SigLIP2-384` | 1.158 | **69** | 17 giây |
+| `ViT-SO400M-14-SigLIP2-378` | 1.158 | **68** | 17 giây |
+
+Trước khi vá, `25_ma_hoa_truy_van.py` mã hoá **từng câu một trên CPU** — không có
+`.to(device)` nào, và `tok([c])` mỗi vòng lặp. Bật GPU cũng vô ích. Với tháp văn
+bản của gopt, 1.158 chuỗi mất hàng chục phút trong khi GPU nằm không.
+
+Viết vậy là đúng lúc script ra đời: nó sinh ra cho máy 7,7 GB **không có GPU**,
+nơi lựa chọn duy nhất là CPU. Chỉ khi kho có model lớn hơn và chạy trên Kaggle
+thì cái mặc định đó mới thành nút thắt.
+
+#### Vì sao con số này quan trọng hơn nó trông
+
+Lúc thi, **mã hoá đề mới là bước chặn DUY NHẤT** giữa lúc nhận đề và lúc chạy
+được kênh 1. Ma trận ảnh, `master.parquet`, chỉ mục BM25 — tất cả đã tính sẵn.
+
+| việc | chuỗi | thời gian |
+| --- | ---: | ---: |
+| đề sơ tuyển đợt 2 (30 gói) | 71 | **1,0 giây** |
+| giả sử đợt 3 gấp đôi | 150 | 2,2 giây |
+| cả tập dev 323 câu | 1.158 | 17 giây |
+
+**Mã hoá đề không còn là việc chậm.** Chỗ chậm duy nhất còn lại là **tải 7,49 GB
+trọng số** (~40 giây khi mạng tốt), và nó chỉ xảy ra khi phiên Kaggle mới khởi
+động.
+
+> **Hệ quả cho quy trình thi:** mở sẵn một phiên Kaggle **trước giờ thi** với
+> model đã nạp. Nhận đề → dán → chạy một cell → vài giây có `.npz`. Không phải
+> chờ tải model dưới áp lực thời gian.
+
+> ⚠️ Một chi tiết dễ sai khi gộp lô: chuẩn hoá L2 phải theo **từng dòng**
+> (`axis=1`). Chuẩn hoá cả khối là chia nhầm chuẩn của cả lô vào từng vector —
+> file vẫn hợp lệ, cosine vẫn trong [−1, 1], và **không có gì báo**.
+
+### A50. Hai tập dev nói ngược nhau — và câu tự soạn **không thay được đề thật**, kể cả khi khớp phân bố
+
+Sau khi sinh lại cache cho 323 câu, đo lại A47 và ra kết quả **trái ngược**:
+
+| `RRF(gopt, OCR)` so với `gopt` trần | hiệu ±2s | T-B-H | |
+| --- | ---: | :---: | --- |
+| trên `tap_de_that` (50 câu) | **+0,0280** | 11-10-29 | 🟡 |
+| trên `tap_dev` (323 câu) | **−0,0248** | 49-115-159 | ✅ ỔN ĐỊNH |
+
+Cả hai không thể cùng đúng. Và **không chọn được bằng cách nhìn hai bảng**: chúng
+khác nhau ở HAI thứ cùng lúc — cỡ mẫu (50 so với 323) và nguồn câu hỏi. Đúng cái
+lỗi "đổi hai thứ rồi quy công cho nhầm cái".
+
+#### Phép phân xử: chia theo NGUỒN, đo riêng (`scripts/54_do_theo_nguon_cau.py`)
+
+Mốc nền `gopt` trần, cùng ba cấu hình, trên từng nhóm:
+
+| nhóm | số câu | `RRF 1:1` | | `RRF 1:0,75` | |
+| --- | ---: | ---: | --- | ---: | --- |
+| **đề thật** | 52 | +0,0346 | 🟡 | **+0,0471** | **✅ ỔN ĐỊNH** |
+| mới sát đề thật | 63 | −0,0175 | 🟡 | −0,0016 | 🟡 |
+| tự soạn cũ | 208 | −0,0419 | ✅ **tệ hơn** | −0,0224 | ✅ **tệ hơn** |
+
+**Bảng 323 câu bị 208 câu tự soạn cũ chi phối.** Trên đúng thứ đem đi thi, thêm
+kênh 3 vẫn có lãi — và ở trọng số 0,75 thì lãi đó **vượt nhiễu**.
+
+#### Phát hiện đắt hơn: khớp phân bố KHÔNG đủ để thay đề thật
+
+63 câu soạn ngày 30/08 được viết **cố ý khớp phân bố đề thật** — 72 từ / 2,80
+mệnh đề, so với đề thật 62 từ / 2,33. Đó chính là điều A43 đặt ra để sửa lỗi
+"câu tự soạn quá ngắn".
+
+Nhưng chúng **cư xử như câu tự soạn, không như đề thật**: OCR làm hại (−0,0175),
+cùng dấu với nhóm tự soạn cũ và ngược dấu với đề thật.
+
+Nghĩa là thứ làm đề thật khác biệt **không phải độ dài câu**. Giả thuyết đáng
+tin nhất: câu tự soạn được viết **trong lúc nhìn keyframe**, nên đương nhiên tả
+đúng những gì nhìn thấy — kênh ảnh tìm ra dễ, kênh văn bản thành thừa. Đề thật
+do BTC viết với ý đồ khác, và ở đó tín hiệu văn bản độc lập mới có chỗ.
+
+> ⚠️ **Hệ quả cho cách soạn tập dev.** Đếm từ và đếm mệnh đề là thứ *đo được*
+> nên dễ nhắm tới, nhưng nó không phải thứ *quan trọng*. Câu tự soạn dùng để đo
+> **phủ** (nhóm L nào, loại câu nào) thì tốt; dùng để **quyết định cấu hình** thì
+> không thay được đề thật. Mọi quyết định bật/tắt từ nay đọc trên
+> `tap_de_that.jsonl`, và ghi rõ số đó ra khi báo cáo.
+
+#### Đã đổi
+
+`src/run.py --trong-so-phu` mặc định **1,0 → 0,75**.
+
+A45 từng đo hiệu tăng **đơn điệu** tới trọng số 1,0 và kết luận "hạ xuống là mất
+lãi". Điều đó vẫn đúng — **với kênh 1 cũ**. Đổi kênh 1 sang gopt thì kênh ảnh
+mạnh hơn hẳn, và điểm tối ưu của kênh phụ dịch xuống. Một hằng số đúng luôn gắn
+với cấu hình đo ra nó.
+
+> **Còn mở:** trên 52 câu, `1:0,75` vượt nhiễu ở ±2s (ngưỡng 0,0467, hiệu 0,0471)
+> nhưng sát ngưỡng ở ±15s (0,0487 so với 0,0462). Cùng dấu, một mức vượt — đủ
+> theo định nghĩa `ON DINH`, nhưng đây là ca sát ranh nhất từng nhận. Có thêm câu
+> đề thật thì đo lại.
+
+### A51. Hợp nhất mệnh đề bằng **RRF hạng**, không phải max cosine — và A47–A50 đo sai cấu hình
+
+#### Trước hết: một lỗi phương pháp của chính các phép đo A47–A50
+
+Tháp văn bản SigLIP2 có `context_length = 64`. Đo bằng chính tokenizer trên đề
+thật:
+
+| | token |
+| --- | ---: |
+| cả câu nguyên | trung vị **64** — chạm trần, **12/20 câu bị cắt cụt** |
+| từng mệnh đề | trung vị 34, max 47 |
+
+`run.py` biết điều đó nên gọi `tach_truy_van()` trước (A19/A20). Nhưng các
+script đo A47–A50 truyền thẳng `c.cau_hoi` — **đo một cấu hình `run.py` không
+dùng**, với truy vấn mất phần đuôi.
+
+    cả câu (cái A47-A50 đo)     0,3125 / 0,3913
+    mệnh đề, max cosine (thật)  0,4375 / 0,4981     +0,1250 ✅ ỔN ĐỊNH
+
+So sánh *giữa các cấu hình* vẫn công bằng vì đều cắt như nhau, nên kết luận
+tương đối của A47–A50 (gopt thắng SigLIP2; kênh 3 có lãi trên đề thật) vẫn
+đứng. Nhưng **mọi điểm tuyệt đối đã ghi đều thấp hơn thực tế**, và trọng số
+`0,75` của A50 được chọn dưới điều kiện sai — cần đo lại.
+
+#### Cải tiến thật: RRF hạng giữa các mệnh đề
+
+`KenhAnh.tim` nhận danh sách mệnh đề và lấy **max cosine** trên từng keyframe.
+Nghe hợp lý, nhưng cosine của hai mệnh đề KHÁC NHAU không so được với nhau:
+*"một người phụ nữ"* khớp mờ với hàng nghìn khung ở cos cao, còn *"biển hiệu
+màu tím ghi BỆNH VIỆN"* khớp đúng một khung ở cos thấp hơn. Max cosine để
+**mệnh đề dễ nuốt mệnh đề đặc trưng**.
+
+Đây đúng lý do repo hợp nhất KÊNH bằng RRF chứ không cộng điểm (`schema.py`) —
+chỉ là chưa ai áp cùng lý lẽ đó cho các mệnh đề trong một truy vấn.
+
+Đo trên 52 câu đề thật, mốc nền là cấu hình `run.py` đang chạy:
+
+| cấu hình | ±2s | ±15s | hiệu ±2s | T-B-H | |
+| --- | ---: | ---: | ---: | :---: | --- |
+| mệnh đề max cosine — *mốc* | 0,4375 | 0,4981 | — | — | |
+| mệnh đề **RRF hạng** | 0,4779 | 0,5712 | +0,0404 | 15-13-24 | 🟡 |
+| max cosine + kênh 3 | 0,4644 | 0,5317 | +0,0269 | 9-9-34 | 🟡 |
+| **RRF hạng + kênh 3** | **0,5096** | **0,5952** | **+0,0721** | 18-9-25 | **✅ ỔN ĐỊNH** |
+| RRF hạng + cả câu + kênh 3 | 0,4875 | 0,5683 | +0,0500 | 15-11-26 | 🟡 |
+
+**Chỉ tổ hợp cả hai mới vượt nhiễu.** Từng thứ riêng lẻ đều 🟡 — đây là ca hiếm
+mà hai thay đổi nhỏ cộng lại mới đủ, và nếu đo lần lượt từng cái thì đã bỏ qua
+cả hai.
+
+Cũng đáng ghi: **thêm cả câu nguyên vào RRF làm TỆ ĐI** (0,4875 so với 0,5096).
+Câu nguyên bị cắt ở token 64 nên nó là một truy vấn *hỏng*; đưa vào hợp nhất
+chỉ kéo xuống. Cắt cụt không chỉ vô ích — nó có hại.
+
+#### Đã đổi
+
+`src/run.py` hợp nhất mệnh đề bằng RRF (`--khong-rrf-menh-de` để dựng lại hành
+vi cũ). Điểm cấu hình mặc định trên đề thật: **0,4375 → 0,5096**.
+
+> **Việc còn lại:** dò lại trọng số kênh 3 dưới cách đưa truy vấn ĐÚNG. A50
+> chọn 0,75 khi truy vấn còn bị cắt cụt, nên con số đó không còn nền.
+
 ## PHẦN B — QUYẾT ĐỊNH HẠ TẦNG
 
 ### B1. Không dùng Supabase / Postgres / Milvus / Elasticsearch — ĐÃ KIỂM CHỨNG

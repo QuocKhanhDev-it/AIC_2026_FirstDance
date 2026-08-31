@@ -56,6 +56,7 @@ import pandas as pd
 GOC = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(GOC / "src"))
 
+import anh as ANH                                      # noqa: E402
 import run as R                                        # noqa: E402
 from bm25 import KenhVanBan                            # noqa: E402
 from objects import KenhObjects                        # noqa: E402
@@ -267,6 +268,7 @@ class Handler(BaseHTTPRequestHandler):
                 "so_video": int(k.master.video_id.nunique()),
                 "so_khung": int(len(k.master)),
                 "so_co_anh": int(k.master.kf_path.notna().sum()),
+                **{"anh": ANH.thong_ke(k.master)},
                 "kenh": list(k.kenh),
                 "ghi_chu": k.ghi_chu,
                 "bo_de": de,
@@ -274,10 +276,22 @@ class Handler(BaseHTTPRequestHandler):
 
         if u.path == "/api/anh":
             r = int(q.get("row_id", [0])[0])
-            p = k.kf_path[r]
-            if pd.isna(p):
-                return self._json({"loi": "máy này không có ảnh cho khung đó"}, 404)
-            return self._file(Path(p))
+            p, nho = ANH.tim(k.kf_path[r], k.vid[r], k.kf_n[r])
+            if p is None:
+                return self._json(
+                    {"loi": "máy này không có ảnh cho khung đó. Sinh bản thu "
+                            "nhỏ bằng scripts/49_sinh_anh_nho.py"}, 404)
+            # Nói cho giao diện biết đang xem bản nào: bản thu nhỏ 256px đủ để
+            # NHẬN RA cảnh nhưng KHÔNG đọc được chữ nhỏ, mà phần lớn câu Q&A
+            # đề thật lại là câu đọc chữ.
+            self.send_response(200)
+            self.send_header("X-Ban-Nho", "1" if nho else "0")
+            ct = mimetypes.guess_type(str(p))[0] or "application/octet-stream"
+            d = p.read_bytes()
+            self.send_header("Content-Type", ct)
+            self.send_header("Content-Length", str(len(d)))
+            self.end_headers()
+            return self.wfile.write(d)
 
         if u.path == "/api/lan_can":
             r = int(q.get("row_id", [0])[0])

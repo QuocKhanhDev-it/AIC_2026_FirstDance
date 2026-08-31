@@ -41,6 +41,7 @@ dụng, dù vẫn không đủ để chạy `KenhAnh` bình thường.
 import argparse
 import json
 import sys
+import time
 from pathlib import Path
 
 import numpy as np
@@ -92,7 +93,8 @@ def thu_thap(de_dir: Path | None, lay_tap_dev: bool, them: list) -> list[str]:
     return sach
 
 
-def ma_hoa(cac_cau: list, matrix: str, index: Path, fp16: bool) -> tuple:
+def ma_hoa(cac_cau: list, matrix: str, index: Path, fp16: bool,
+           lo: int = 64) -> tuple:
     """Trả `(ma trận vector đã chuẩn hoá L2, ghi chú)`."""
     canh = index / (Path(matrix).stem + ".json")
     gc = json.loads(canh.read_text("utf-8")) if canh.exists() else {}
@@ -164,16 +166,39 @@ def ma_hoa(cac_cau: list, matrix: str, index: Path, fp16: bool) -> tuple:
     if fp16:
         model.float()          # tính ở fp32 trên CPU; RAM đỉnh vẫn giảm nhờ nạp fp16
 
+    # DÙNG GPU KHI CÓ, VÀ GỘP LÔ.
+    #
+    # Bản đầu mã hoá TỪNG CÂU MỘT trên CPU. Đúng cho máy 7,7 GB không GPU —
+    # nơi script này sinh ra — nhưng trên Kaggle với tháp văn bản của gopt thì
+    # ~1.100 chuỗi mất hàng chục phút, mà GPU đang nằm không.
+    #
+    # ⚠️ Đây KHÔNG phải tối ưu vặt. Lúc thi, mã hoá đề mới là **bước chặn duy
+    # nhất** giữa lúc nhận đề và lúc chạy được kênh 1 — mọi thứ khác đã tính
+    # sẵn. 30 phút cho bước đó là không chấp nhận được.
+    thiet_bi = "cuda" if torch.cuda.is_available() else "cpu"
+    model = model.to(thiet_bi)
+    print(f"  thiết bị: {thiet_bi}"
+          + (f" ({torch.cuda.get_device_name(0)})" if thiet_bi == "cuda" else "")
+          + f" | {len(cac_cau):,} chuỗi, lô {lo}")
+
     tok = open_clip.get_tokenizer(model_tag)
     ra = []
+    t0 = time.perf_counter()
     with torch.no_grad():
-        for i, c in enumerate(cac_cau, 1):
-            v = model.encode_text(tok([c]))[0].numpy().astype(np.float32)
-            ra.append(v / (np.linalg.norm(v) + 1e-9))
-            if i % 25 == 0 or i == len(cac_cau):
-                print(f"  {i}/{len(cac_cau)}")
-    return np.vstack(ra), {"model": model_tag, "pretrained": pretrained,
-                           "matrix": matrix, "chieu": int(ra[0].shape[0])}
+        for i in range(0, len(cac_cau), lo):
+            phan = cac_cau[i:i + lo]
+            v = model.encode_text(tok(phan).to(thiet_bi))
+            v = v.float().cpu().numpy()
+            # Chuẩn hoá L2 theo TỪNG DÒNG. Gộp lô rồi chuẩn hoá cả khối là
+            # chia nhầm chuẩn của cả lô vào từng vector.
+            ra.append(v / (np.linalg.norm(v, axis=1, keepdims=True) + 1e-9))
+            xong = min(i + lo, len(cac_cau))
+            giay = time.perf_counter() - t0
+            print(f"  {xong}/{len(cac_cau)}  {xong / giay:.0f} chuỗi/giây",
+                  flush=True)
+    vec = np.vstack(ra).astype(np.float32)
+    return vec, {"model": model_tag, "pretrained": pretrained,
+                 "matrix": matrix, "chieu": int(vec.shape[1])}
 
 
 def main():
@@ -185,6 +210,8 @@ def main():
     ap.add_argument("--matrix", default="clip_siglip2.npy")
     ap.add_argument("--ra", default=None, type=Path,
                     help="mặc định index/truy_van.npz")
+    ap.add_argument("--lo", type=int, default=64,
+                    help="số chuỗi mỗi lô. Hạ xuống nếu tràn VRAM")
     ap.add_argument("--fp16", action="store_true",
                     help="nạp trọng số fp16 để giảm RAM đỉnh")
     ap.add_argument("--bo-qua-ram", action="store_true",
@@ -213,7 +240,7 @@ def main():
         print("Cache đã đủ — không phải nạp model.")
         return
 
-    vec, ghi_chu = ma_hoa(can, a.matrix, a.index, a.fp16)
+    vec, ghi_chu = ma_hoa(can, a.matrix, a.index, a.fp16, a.lo)
     for c, v in zip(can, vec):
         cu[c] = v
 

@@ -152,6 +152,14 @@ def chon_row(master: pd.DataFrame, chon: str) -> pd.DataFrame:
                  if c.loai == "TRAKE" else c.row_id_dung)
             vid |= {master.video_id.iloc[r] for r in p}
         return m[m.video_id.isin(vid)]
+    if chon.startswith("video:"):
+        # Danh sách video_id, mỗi dòng một id — cùng định dạng
+        # `08_encode.py --chi-video`, để chia việc caption y hệt chia việc
+        # encode (`scripts/47_chia_viec_encode.py`).
+        vids = [v.strip() for v in
+                Path(chon.split(":", 1)[1]).read_text("utf-8").splitlines()
+                if v.strip()]
+        return m[m.video_id.isin(vids)]
     if chon.startswith("tap:"):
         # Cùng phép chọn với `08_encode.py --theo-tap-dev`: TRỌN VẸN mọi video
         # mà tập đó đụng tới, không phải vài ảnh quanh đáp án. Bể ứng viên hẹp
@@ -164,7 +172,7 @@ def chon_row(master: pd.DataFrame, chon: str) -> pd.DataFrame:
             rid += [x for b in r for x in b] if isinstance(r[0], list) else r
         return m[m.video_id.isin(set(master.video_id.iloc[rid]))]
     raise SystemExit(f"--chon không hiểu: {chon!r}. "
-                     f"Dùng: co-anh | tap-dev | tap:<file.jsonl> | nhom:L21,L22")
+                     f"Dùng: co-anh | tap-dev | tap:<f.jsonl> | video:<f.txt> | nhom:L21,L22")
 
 
 def doc_log(f: Path) -> list[dict]:
@@ -433,7 +441,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--index", default=GOC / "index", type=Path)
     ap.add_argument("--chon", default="tap-dev",
-                    help="co-anh | tap-dev | tap:<file.jsonl> | nhom:L21,L22")
+                    help="co-anh | tap-dev | tap:<f.jsonl> | video:<f.txt> | nhom:L21,L22")
     ap.add_argument("--backend", default="ollama",
                     choices=("ollama", "gemini", "hf"),
                     help="ollama = nguồn chính (free, local, không trần). "
@@ -551,6 +559,53 @@ def main():
     bien(log, par)
 
 
+def soat_ro_dap_an(rid: set, index: Path) -> None:
+    """Cảnh báo khi tập ảnh đã caption dồn vào ĐÚNG khung đáp án tập dev.
+
+    ⚠️ ĐÂY LÀ LOẠI HỎNG KHÔNG LÀM SAI DỮ LIỆU, CHỈ LÀM VÔ NGHĨA PHÉP ĐO.
+
+    BM25 chỉ xếp hạng những tài liệu **tồn tại**. Ảnh chưa có caption thì không
+    có tài liệu nào, nên kênh 5 không bao giờ trả về nó. Caption riêng khung
+    đáp án là dựng một bể ứng viên mà đáp án chiếm phần lớn — kênh sẽ tìm ra
+    đáp án vì nó gần như là thứ DUY NHẤT có mặt, không phải vì caption tả đúng.
+
+    Đo được (30/08) trên `caption.jsonl` đầu tiên: 191/347 ảnh (**55%**) là
+    khung đáp án, mật độ trong từng video chỉ 0,3–10%. Nếu chấm kênh 5 trên
+    file đó thì điểm sẽ rất đẹp và không nói lên bất cứ điều gì.
+
+    Cách đúng là quét **TRỌN VẸN** các video liên quan — chính là điều
+    `--chon tap:<file>` và `--chon tap-dev` làm.
+    """
+    import glob as _glob
+    dap_an = set()
+    for f in _glob.glob(str(Path("dev") / "tap_*.jsonl")):
+        for dong in Path(f).read_text("utf-8").splitlines():
+            if not dong.strip():
+                continue
+            try:
+                r = json.loads(dong)["row_id_dung"]
+            except (KeyError, json.JSONDecodeError):
+                continue
+            dap_an |= set([x for b in r for x in b] if isinstance(r[0], list) else r)
+    if not dap_an or not rid:
+        return
+
+    trung = len(rid & dap_an)
+    ty_le = trung / len(rid)
+    print(f"\nkhung đáp án tập dev trong phần đã caption: "
+          f"{trung:,}/{len(rid):,} ({ty_le * 100:.1f}%)")
+    if ty_le < 0.10:
+        return
+    print(
+        f"\n⚠️  RÒ ĐÁP ÁN VÀO TẬP CAPTION — ĐỪNG CHẤM KÊNH 5 TRÊN FILE NÀY.\n"
+        f"    {ty_le * 100:.0f}% ảnh đã caption là khung đáp án. BM25 chỉ xếp hạng\n"
+        f"    tài liệu CÓ TỒN TẠI, nên kênh 5 sẽ tìm ra đáp án chỉ vì nó gần như\n"
+        f"    là thứ duy nhất có caption — không phải vì caption tả đúng.\n\n"
+        f"    Sửa: quét TRỌN VẸN các video liên quan, đừng chọn quanh đáp án.\n"
+        f"      python scripts/14_sinh_caption.py --chon tap:dev/tap_de_that.jsonl\n"
+        f"    Ảnh đã xong được bỏ qua, không sinh lại.\n")
+
+
 def bien(log: Path, par: Path):
     """`caption.jsonl` -> `caption.parquet`, bỏ trùng, giữ bản cuối."""
     if not log.exists():
@@ -564,6 +619,13 @@ def bien(log: Path, par: Path):
     d.to_parquet(par, index=False)
     print(f"\n{par}: {len(d):,} caption"
           f"  |  trung bình {int(d.caption.str.len().mean())} ký tự")
+
+    n_trung = len(dong) - len(d)
+    if n_trung > 0:
+        print(f"  ({n_trung} dòng trùng row_id đã bỏ, giữ bản cuối)")
+
+    soat_ro_dap_an(set(d.row_id), par.parent)
+
     print("\nDùng ngay:")
     print("    from bm25 import KenhVanBan")
     print("    k5 = KenhVanBan.tu_bang_khung(master, "
