@@ -5,14 +5,24 @@ chúng chưa có trong `index/truy_van_gopt.npz`**. Không có vector thì
 `KenhAnhCache` không chạy được, mà máy 7,7 GB thì không nạp nổi model.
 
 Rẻ tới mức buồn cười: A49 đo **69 chuỗi/giây**, tức **~1 giây GPU**. Toàn bộ
-thời gian là tải model. Gộp chung vào một lượt chạy khác nếu tiện.
+thời gian còn lại là tải model.
 
-Yêu cầu: GPU T4 (P100 không dùng được — sm_60). Add Input: **`aic2026-index`**
-(cần `truy_van_gopt.npz` để gộp vào). Không cần dataset ảnh.
+## Cell này KHÔNG cần cache cũ
+
+Nó sinh một file **riêng** (`truy_van_de_thi_thu.npz`, ~400 KB), rồi máy có
+`index/` gộp vào bằng `scripts/67_gop_cache_truy_van.py`.
+
+Cách kia — đưa cache cũ lên Kaggle rồi `--gop` rồi tải bản gộp về — phải truyền
+file hai lượt cho 63 chuỗi, và mỗi lượt là một cơ hội ghi đè nhầm. **Mất cache
+cũ là mọi script đo đều tắc**, vì máy này không sinh lại được. Cache cũ không
+nên rời khỏi máy.
+
+**Add Input: không cần gì cả.** Không cần ảnh, không cần `aic2026-index`.
+Settings → Accelerator → **GPU T4** (P100 không dùng được — sm_60).
 
 ```python
-# ── Mã hoá truy vấn de_thi_thu, gộp vào cache gopt ───────────────────
-import subprocess, json, pathlib, shutil, glob, os
+# ── Mã hoá truy vấn de_thi_thu ───────────────────────────────────────
+import subprocess, json, pathlib, shutil, os
 
 def chay(lenh):
     p = subprocess.run(lenh, shell=True, text=True,
@@ -30,40 +40,58 @@ import torch
 assert torch.cuda.is_available(), "Settings > Accelerator > GPU T4"
 print("GPU:", torch.cuda.get_device_name(0))
 
+# Sidecar: `25_` doc TEN MODEL va SO CHIEU o day, khong can ma tran 545 MB.
 pathlib.Path("index").mkdir(exist_ok=True)
-hit = glob.glob("/kaggle/input/**/truy_van_gopt.npz", recursive=True)
-assert hit, "khong thay truy_van_gopt.npz — Add Input dataset aic2026-index chua?"
-shutil.copy(hit[0], "index/truy_van_gopt.npz")
-print("cache cu <-", hit[0])
-
-# Sidecar: `25_` đọc TÊN MODEL và SỐ CHIỀU ở đây, không cần ma trận 545 MB.
 json.dump({"model": "ViT-gopt-16-SigLIP2-384", "pretrained": "webli",
            "chieu": 1536}, open("index/clip_gopt.json", "w"))
 
-# --gop = thêm vào cache cũ, không ghi đè. Mất chuỗi cũ là mọi phép đo
-# đang chạy tắc hết, nên đây là cờ bắt buộc.
+# KHONG co --gop: co tinh. File nay dung mot minh, may co index/ moi gop.
 chay("python scripts/25_ma_hoa_truy_van.py --de de_thi_thu "
-     "--matrix clip_gopt.npy --gop --ra index/truy_van_gopt.npz")
+     "--matrix clip_gopt.npy --ra index/truy_van_de_thi_thu.npz")
 
-shutil.copy("index/truy_van_gopt.npz", "/kaggle/working/")
+shutil.copy("index/truy_van_de_thi_thu.npz", "/kaggle/working/")
+
 import numpy as np
-z = np.load("/kaggle/working/truy_van_gopt.npz", allow_pickle=False)
-print(f"\n✅ cache moi: {len(z['cau']):,} chuoi, {z['vec'].shape[1]} chieu")
-print("   (truoc do 1.158 chuoi — phai TANG, khong duoc giam)")
+z = np.load("/kaggle/working/truy_van_de_thi_thu.npz", allow_pickle=False)
+print(f"\n✅ {len(z['cau']):,} chuoi, {z['vec'].shape[1]} chieu")
+print("   ghi chu:", json.loads(str(z["ghi_chu"])))
+assert z["vec"].shape[1] == 1536, "sai so chieu — sai model?"
+print(f"   kich thuoc: {os.path.getsize('/kaggle/working/truy_van_de_thi_thu.npz')/1024:.0f} KB")
 ```
 
 ## Sau khi chạy
 
-Tải `truy_van_gopt.npz` từ tab **Output**, ghi đè `index/truy_van_gopt.npz`,
-rồi trên máy có index:
+Tải `truy_van_de_thi_thu.npz` từ tab **Output** về thư mục `index/`, rồi:
 
 ```powershell
-.venv\Scripts\python.exe scripts\66_soat_de_thi_thu.py
+$env:PYTHONIOENCODING = "utf-8"
+.venv\Scripts\python.exe scripts\67_gop_cache_truy_van.py index\truy_van_de_thi_thu.npz
+.venv\Scripts\python.exe scripts\67_gop_cache_truy_van.py index\truy_van_de_thi_thu.npz --ghi
 ```
 
-Ra `dev/soat_de_thi_thu.html` — mở bằng trình duyệt, bấm chọn ô ảnh đúng, bấm
-**Xuất JSONL**, chép kết quả vào `dev/tap_de_thi_thu.jsonl`.
+Lần đầu chỉ **xem trước** — đọc kỹ rồi mới chạy lần hai với `--ghi`. Phải thấy
+số chuỗi đi từ **1.158 → khoảng 1.221**. Script tự sao lưu bản cũ thành
+`truy_van_gopt.npz.truoc_khi_gop` và tự dừng nếu model hoặc số chiều lệch.
 
-⚠️ Trước khi ghi đè cache cũ, kiểm số chuỗi: phải **tăng** từ 1.158 lên
-khoảng 1.221. Nếu giảm là `--gop` không ăn và bạn vừa mất cache của cả tập dev
-— lúc đó mọi script đo đều tắc.
+Xong thì sang `docs/18_soi_de_thi_thu.md`.
+
+## Nếu muốn đưa cache lên dataset cho cả nhóm
+
+Không bắt buộc cho việc này, nhưng cần nếu người khác cũng phải chạy phép đo.
+`index/truy_van_gopt.npz` chỉ **6,6 MB** nên đừng cập nhật dataset 339 MB —
+tạo một dataset riêng, nhanh hơn nhiều:
+
+```powershell
+mkdir kaggle_cache
+copy index\truy_van_gopt.npz kaggle_cache\
+kaggle datasets init -p kaggle_cache
+# sửa kaggle_cache\dataset-metadata.json: đặt title và id (<user>/aic2026-cache-truy-van)
+kaggle datasets create -p kaggle_cache
+# lần sau chỉ cần:
+kaggle datasets version -p kaggle_cache -m "them 63 chuoi de_thi_thu"
+```
+
+Không có `kaggle` CLI thì làm bằng web: **Create → New Dataset**, kéo file vào.
+
+⚠️ **Đặt Private.** Dataset công khai chứa dữ liệu BTC là chuyện khác hẳn một
+repo mã nguồn công khai.
