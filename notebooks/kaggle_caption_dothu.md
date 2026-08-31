@@ -30,15 +30,25 @@ def chay(lenh, im=False):
 chay("rm -rf /tmp/repo && git clone -q -b giai-doan-0 "
      "https://github.com/QuocKhanhDev-it/AIC_2026_FirstDance.git /tmp/repo")
 %cd /tmp/repo
-# `qwen_vl_utils` la BAT BUOC — 14_sinh_caption.py import no. Va phai -U
-# transformers: ban co san tren Kaggle co the chua co Qwen2_5_VL, ma pip khong
-# nang cap neu goi ten tran (yeu cau da "thoa man").
-chay("pip -q install -U 'transformers>=4.51' accelerate qwen-vl-utils "
-     "pillow pandas pyarrow")
+# ⚠️ KHONG `pip -U` vao moi truong Kaggle. Ban truoc lam vay va pip keo theo
+# pillow 12.3 + pandas 3.0.5, pha vo torchvision co san:
+#     ImportError: cannot import name '_Ink' from 'PIL._typing'
+# Kaggle da co torch/torchvision/pillow/pandas/pyarrow khop nhau san. Chi cai
+# thu CHUA co, va luon `--no-deps` de pip khong dung toi nhung thu khac.
+chay("pip -q install --no-deps qwen-vl-utils")
+
 import transformers
 print("transformers", transformers.__version__)
-from transformers import Qwen2_5_VLForConditionalGeneration   # hong som neu thieu
+try:
+    from transformers import Qwen2_5_VLForConditionalGeneration
+except Exception as e:
+    print("ban transformers nay chua co Qwen2_5_VL:", e)
+    chay("pip -q install --no-deps -U 'transformers>=4.51'")
+    import importlib, transformers
+    importlib.reload(transformers)
+    from transformers import Qwen2_5_VLForConditionalGeneration
 import qwen_vl_utils
+print("✅ du thu vien")
 
 import torch
 assert torch.cuda.is_available(), "Settings > Accelerator > GPU T4"
