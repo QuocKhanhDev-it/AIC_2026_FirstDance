@@ -62,6 +62,8 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[1])
     ap.add_argument("--index", default=GOC / "index", type=Path)
     ap.add_argument("--file", default=GOC / "dev" / "tap_de_that.jsonl", type=Path)
+    ap.add_argument("--moc", type=float, default=MOC,
+                    help="trọng số dùng làm mốc nền để so cặp")
     ap.add_argument("--theo-nguon", action="store_true",
                     help="tách báo cáo theo nguồn câu hỏi (xem 54_)")
     a = ap.parse_args()
@@ -92,10 +94,12 @@ def main():
 
     ten = {w: (f"kênh 3 trọng số {w:<4g}" if w else "BỎ HẲN kênh 3 (w = 0)")
            for w in TRONG_SO}
-    ten[MOC] += "  ← MỐC (run.py)"
+    if a.moc not in ten:
+        ten[a.moc] = f"kênh 3 trọng số {a.moc:<4g}"
+    ten[a.moc] += "  ← MỐC"
 
-    cau_hinh = {ten[MOC]: voi(MOC)}
-    cau_hinh.update({ten[w]: voi(w) for w in TRONG_SO if w != MOC})
+    cau_hinh = {ten[a.moc]: voi(a.moc)}
+    cau_hinh.update({ten[w]: voi(w) for w in TRONG_SO if w != a.moc})
     if not a.theo_nguon:
         print(bao_cao_do_nhay(giu, cau_hinh, master))
         return

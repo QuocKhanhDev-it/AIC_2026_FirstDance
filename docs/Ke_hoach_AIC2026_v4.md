@@ -3399,6 +3399,70 @@ vi cũ). Điểm cấu hình mặc định trên đề thật: **0,4375 → 0,50
 > **Việc còn lại:** dò lại trọng số kênh 3 dưới cách đưa truy vấn ĐÚNG. A50
 > chọn 0,75 khi truy vấn còn bị cắt cụt, nên con số đó không còn nền.
 
+### A52. Trọng số kênh 3: **0,5**, và tập dev 323 câu trả lời sai câu hỏi này
+
+Việc còn lại của A51. `0,75` (A50) được chọn khi script đo còn truyền cả câu
+vào kênh 1 — tức kênh 1 chạy với truy vấn cắt cụt ở token 64. Trọng số là con
+số nói "kênh 3 đáng tin bao nhiêu SO VỚI kênh 1"; làm kênh 1 mạnh lên thì nền
+của tỉ lệ đó đổi. Đo lại bằng `scripts/57_do_lai_trong_so_kenh3.py`, mốc nền là
+cấu hình `run.py` đang chạy sau A51.
+
+#### Hai tập nói ngược nhau — lần thứ hai
+
+| w | đề thật (52) | tập dev (323) |
+| ---: | ---: | ---: |
+| 0 — bỏ hẳn kênh 3 | 0,4779 | **0,5857** |
+| 0,25 | 0,5096 | **0,5899** |
+| 0,5 | **0,5173** | 0,5848 |
+| 0,75 — *mốc* | 0,5096 | 0,5695 |
+| 1,0 | 0,4788 | 0,5338 |
+| 1,5 | 0,3394 | 0,3571 |
+| 2,0 | 0,2865 | 0,2623 |
+
+Trên đề thật, bỏ kênh 3 làm TỆ đi. Trên tập dev, bỏ kênh 3 làm TỐT lên
+(+0,0162 ✅). Ngược dấu, không phải chênh lệch cỡ mẫu.
+
+#### Tách theo nguồn câu (cùng bộ nhớ đệm, chỉ báo cáo là tách)
+
+Hiệu so với mốc 0,75, mức ±2s:
+
+| w | đề thật (52) | mới sát đề (63) | tự soạn cũ (208) |
+| ---: | ---: | ---: | ---: |
+| 0 | **−0,0317** 🟡 | +0,0135 🟡 | **+0,0290 ✅** |
+| 0,25 | −0,0000 ❌ | +0,0111 🟡 | +0,0283 ✅ |
+| 0,5 | **+0,0077** 🟡 | +0,0111 🟡 | +0,0185 ✅ |
+| 1,0 | −0,0308 ✅ | −0,0270 ✅ | −0,0396 ✅ |
+| 1,5 | −0,1702 ✅ | −0,2452 ✅ | −0,2131 ✅ |
+| 2,0 | −0,2231 ✅ | −0,3595 ✅ | −0,3124 ✅ |
+
+Mâu thuẫn là **do nguồn câu hỏi**, đúng như A50 đã gặp: 208 câu tự soạn cũ chi
+phối bảng 323 câu, và với chúng kênh 3 chỉ là nhiễu — câu tự soạn hầu như không
+trích chữ trên màn hình, thứ duy nhất kênh 3 biết đọc.
+
+Đáng ghi thêm: nhóm "mới sát đề thật" — 63 câu cố ý soạn khớp phân bố đề thật —
+xử sự giống nhóm **tự soạn**, không giống đề thật. Củng cố A50: khớp phân bố độ
+dài KHÔNG làm câu tự soạn thay được câu BTC viết.
+
+#### Chốt: 0,5
+
+Hai điều đúng ở **cả ba nhóm**, không nhóm nào phản đối:
+
+* **w ≥ 1 là có hại** — ✅ ỔN ĐỊNH ở cả ba, và tụt rất nhanh (w=2 mất hơn 0,30
+  điểm). Mặc định `1.0` trước A50 nay có bằng chứng chắc là SAI, không chỉ
+  "không lợi".
+* **0,5 hơn 0,75** ở cả ba nhóm.
+
+Còn 0 hay 0,5 thì hai nguồn câu muốn hai hướng. Đo thẳng cặp đó trên đề thật,
+lấy 0,5 làm mốc:
+
+    w = 0 so với w = 0,5     −0,0394 / −0,0385   1-8-43   ✅ ỔN ĐỊNH
+
+Trên đúng loại câu sẽ gặp trong phòng thi, bỏ kênh 3 là **mất điểm chắc chắn**.
+`--trong-so-phu` mặc định **0,75 → 0,5**.
+
+> Không kết luận từ bảng 323 câu. Nó không phải "nhiều dữ liệu hơn nên đáng tin
+> hơn" — nó là **một câu hỏi khác**, hỏi về loại câu ta không đi thi.
+
 ## PHẦN B — QUYẾT ĐỊNH HẠ TẦNG
 
 ### B1. Không dùng Supabase / Postgres / Milvus / Elasticsearch — ĐÃ KIỂM CHỨNG

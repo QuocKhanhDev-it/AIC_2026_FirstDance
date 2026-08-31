@@ -790,12 +790,12 @@ def main():
                     help="quay lại gộp mệnh đề bằng MAX COSINE. A51 đo trên 52 "
                          "câu đề thật: RRF hạng + kênh 3 hơn max-cosine + kênh 3 "
                          "+0,0721/+0,0971 ✅ ỔN ĐỊNH. Chỉ tắt để tái lập số cũ")
-    ap.add_argument("--trong-so-phu", type=float, default=0.75,
-                    help="trọng số kênh phụ trong RRF. MẶC ĐỊNH 0,75 (A50). "
-                         "Trên 52 câu đề THẬT, 1:0,75 hơn gopt trần +0,0471 "
-                         "✅ ỔN ĐỊNH, còn 1:1 chỉ +0,0346 🟡. A45 từng đo hiệu "
-                         "tăng đơn điệu tới 1,0 — nhưng đó là với kênh 1 cũ "
-                         "(SigLIP2). Đổi kênh 1 sang gopt thì tối ưu dịch xuống")
+    ap.add_argument("--trong-so-phu", type=float, default=0.5,
+                    help="trọng số kênh phụ trong RRF. MẶC ĐỊNH 0,5 (A52). "
+                         "0,5 hơn 0,75 ở CẢ BA nhóm câu, không nhóm nào phản "
+                         "đối; và trên đề thật 0,5 hơn BỎ HẲN kênh 3 +0,0394 "
+                         "✅ ỔN ĐỊNH (1-8-43). Từ 1,0 trở lên là có hại ✅ ở cả "
+                         "ba nhóm — 0,75 (A50) chọn khi truy vấn còn bị cắt cụt")
     ap.add_argument("--hop-nhat-chi-cau-ngan", action="store_true",
                     help="CHỈ áp RRF cho câu <=1 mệnh đề. ⚠️ A45 BÁC cờ này: "
                          "đo trên 49 câu đề THẬT (trung vị 62 từ, 2,29 mệnh "
