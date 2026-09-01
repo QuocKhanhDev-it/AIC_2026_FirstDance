@@ -70,6 +70,12 @@ def main():
     ap.add_argument("--file", default=GOC / "dev" / "tap_de_that.jsonl", type=Path)
     ap.add_argument("--van-ban", default=GOC / "index" / "van_ban_gopt", type=Path,
                     help=".npz hoặc thư mục đã bung — cả hai đều đọc được")
+    ap.add_argument("--cache", default=None, type=Path,
+                    help="cache truy vấn CỦA KÊNH 6. Mặc định dùng chung cache "
+                         "gopt — chỉ đúng khi kênh 6 nhúng bằng chính tháp văn "
+                         "bản gopt. Model khác (BGE-M3…) thì BẮT BUỘC truyền "
+                         "cache riêng: khác model là khác không gian vector, "
+                         "dùng nhầm là hỏng câm.")
     ap.add_argument("--theo-nguon", action="store_true")
     a = ap.parse_args()
 
@@ -82,9 +88,10 @@ def main():
         master, pd.read_parquet(a.index / "ocr_asr.parquet"),
         cot="text", ten="ocr_asr")
     k6 = KenhVanBanDense(str(a.index), a.van_ban,
-                         str(a.index / "truy_van_gopt.npz"))
+                         str(a.cache or a.index / "truy_van_gopt.npz"))
     print(f"kênh 6: {k6.vec.shape[0]:,} đoạn / {len(k6._r_duy):,} keyframe "
-          f"| {k6.ghi_chu.get('model')}")
+          f"| {k6.ghi_chu.get('model')} | cache "
+          f"{Path(a.cache).name if a.cache else 'truy_van_gopt.npz'}")
 
     giu = [c for c in cau if not k1.co_du(R.tach_truy_van(c.cau_hoi))]
     if len(giu) < len(cau):

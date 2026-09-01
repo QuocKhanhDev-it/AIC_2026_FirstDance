@@ -3787,6 +3787,60 @@ Hai hướng còn đáng làm trong đợt đó: **nhúng OCR/ASR bằng model t
 (BGE-M3 / multilingual-e5 — sửa đúng nguyên nhân A53) và **định tuyến mệnh đề**
 theo loại (thị giác → kênh 1, chữ trên màn hình → kênh 3).
 
+### A58. Định tuyến mệnh đề vào kênh chuyên trách — thua. Kênh 3 **cần cả câu**.
+
+Ý tưởng: hiện mọi mệnh đề đều đi qua cả kênh 1 lẫn kênh 3. Mệnh đề tả hình ảnh
+thuần chạy qua BM25 chỉ sinh điểm rác; mệnh đề nói về CHỮ TRÊN MÀN HÌNH thì
+tháp ảnh đọc rất kém. Vậy đưa mỗi mệnh đề vào đúng kênh của nó.
+
+Bảng `ocr_asr.parquet` có sẵn `ocr_text` và `asr_text` riêng nên tách được kênh
+3 thành hai. Nhưng "tách kênh" và "định tuyến" là HAI thay đổi, phải đo riêng —
+không có dòng 3 thì cải thiện ở dòng 4 sẽ bị quy nhầm cho định tuyến.
+
+#### Có gì để định tuyến
+
+    mệnh đề: 23 có tín hiệu CHỮ | 2 có tín hiệu LỜI | 94 thị giác thuần
+    câu    : 15/52 có ít nhất một mệnh đề chữ, 2/52 có mệnh đề lời
+
+#### Kết quả: cả ba biến thể đều âm
+
+| cấu hình | ±2s | ±15s | hiệu ±2s | T-B-H | |
+| --- | ---: | ---: | ---: | :---: | :---: |
+| *mốc* | 0,5173 | 0,6096 | — | — | |
+| định tuyến, kênh 3 gộp | 0,4971 | 0,5865 | −0,0202 | 1-4-47 | 🟡 |
+| tách OCR/ASR, KHÔNG tuyến | 0,5096 | 0,5933 | −0,0077 | 1-3-48 | 🟡 |
+| tách OCR/ASR + định tuyến | 0,4817 | 0,5750 | −0,0356 | 2-8-42 | ✅ TỆ HƠN |
+
+Hai thay đổi đều âm, và cộng lại thì âm hơn — không có tương tác cứu vãn nào.
+
+#### Vì sao: kênh 3 thực chất là kênh ASR, và ASR nói về CẢ CÂU
+
+OCR trung vị 22 ký tự, ASR trung vị 475 — kênh 3 chủ yếu đang khớp **lời dẫn**.
+Mà lời dẫn của một bản tin nói về **toàn bộ chủ đề** của cảnh, không riêng phần
+"có chữ". Hạn chế đầu vào của kênh 3 xuống mấy mệnh đề mang từ khoá "biển/chữ/
+ghi" là **vứt đi phần khớp rộng đang có lãi**, đổi lấy một phần khớp hẹp mà OCR
+22 ký tự không đủ sức đỡ.
+
+Tách OCR thành kênh riêng cũng vậy: 22 ký tự trung vị thì quá thưa để đứng một
+mình, mà tách ra là chia đôi trọng số của tín hiệu gộp vốn đang chạy tốt.
+
+> Giả định ngầm của ý tưởng — "mệnh đề nào không nói về chữ thì kênh văn bản
+> không giúp gì" — SAI với dữ liệu này, vì kênh văn bản của ta không đọc chữ
+> trên màn hình là chính, mà nghe lời dẫn.
+
+#### Trạng thái sau đợt này
+
+Tám hướng "xếp lại / định tuyến mà không cần thông tin mới" đã đo (A55 ba,
+A56 hubness, A57 làm mượt, A58 định tuyến, cùng nới bể ở A54 và lọc mệnh đề).
+**Không hướng nào lấy quá 2,3% của khoảng trống 33,4 điểm.**
+
+Hai hướng còn sống, cả hai đều đưa THÔNG TIN MỚI vào:
+
+* **kênh 5 — caption** (Qwen2.5-VL, 2,10 s/ảnh; 6,1 giờ cho 47 video tập đề
+  thật để đo trước khi tiêu 103 giờ cho cả kho)
+* **kênh 6 làm lại bằng BGE-M3** — model text–text thật, sửa đúng nguyên nhân
+  A53 (`notebooks/kaggle_bge_m3.md`)
+
 ## PHẦN B — QUYẾT ĐỊNH HẠ TẦNG
 
 ### B1. Không dùng Supabase / Postgres / Milvus / Elasticsearch — ĐÃ KIỂM CHỨNG
