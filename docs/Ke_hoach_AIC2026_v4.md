@@ -4050,6 +4050,75 @@ là khác biệt giữa một giả định thừa kế và một sự thật đ
 > cả ba thứ ở đây chỉ tốn vài phút CPU vì `objects.parquet` và metadata đã nằm
 > trong `master.parquet` từ lâu.
 
+### A62. Kênh 4 có **hai lỗi công thức chấm** — sửa xong mạnh gấp 2,5 lần, và vẫn chết
+
+A61 kết luận kênh 4 vô dụng (0,0125 đứng một mình). Nhưng A11 đã dạy: **đo trên
+một kênh đang hỏng thì con số nói về cái hỏng, không nói về ý tưởng**. Soi lại
+trước khi đóng hồ sơ.
+
+#### Dữ liệu lành, ánh xạ lành, rút nhãn ĐÚNG
+
+| | |
+| --- | --- |
+| `objects.parquet` | 1.122.384 detection, **95,0%** keyframe có nhãn, 514 nhãn |
+| nhãn mỗi keyframe | trung vị 6, p90 12 |
+| bảng nhãn Việt–Anh | 156 mục, phủ 30% từ vựng nhưng **97,3% số lần xuất hiện** |
+| rút nhãn từ truy vấn | **50/52** câu rút ra ít nhất một nhãn |
+| câu nhắc tới nhãn ĐẶC TRƯNG (IDF≥3) có trên khung đáp án | **26/52** |
+
+Và nhãn đặc trưng thì rất chọn lọc: `Umbrella` chỉ ở **355/168.470** keyframe,
+`Motorcycle` 905, `Whiteboard` 1.443; trung vị của nhãn IDF≥3 là **54 keyframe**.
+
+Vậy mà `kis-DE1-20` ("2 người cầm dù") rút ra ĐÚNG `Umbrella`, khung đáp án CÓ
+`Umbrella`, mà đáp án **không lọt nổi top-100**.
+
+#### Hai lỗi trong `object_score()`
+
+    điểm = Σ (độ tin cậy × IDF) trên MỌI detection khớp
+
+**1. Mỗi DETECTION cộng một lần, không phải mỗi NHÃN.** Khung có 8 người ăn
+8 × IDF(Person); khung có đúng một cái ô hiếm ăn 1 × IDF(Umbrella). Công thức
+đếm SỐ LƯỢNG vật thể, trong khi thứ cần đếm là SỰ CÓ MẶT.
+
+**2. Cộng dồn nên nhãn phổ biến át nhãn hiếm.** Truy vấn trên rút ra
+[Building, Clothing, House, Person, Shirt, Umbrella]; một cảnh phố bất kỳ có đủ
+5 nhãn đầu sẽ vượt khung DUY NHẤT có Umbrella — mà toàn bộ sức phân biệt nằm ở
+đúng cái nhãn ấy.
+
+#### Sửa: mạnh lên thật, nhưng không đủ
+
+| chỉ kênh 4 | ±2s | ±15s |
+| --- | ---: | ---: |
+| công thức hiện tại | 0,0125 | 0,0462 |
+| **gộp detection** | **0,0317** | 0,0423 |
+| lấy MAX thay vì tổng | 0,0231 | 0,0538 |
+| chỉ nhãn IDF≥3 | 0,0308 | 0,0346 |
+| chỉ nhãn hiếm NHẤT | 0,0269 | 0,0538 |
+| *(kênh 1 để so)* | *0,4779* | *0,5712* |
+
+Gấp **2,5 lần** — và vẫn kém kênh 1 **mười lăm lần**. Hợp nhất vào cấu hình
+chính: bản tốt nhất được +0,0038 (1-0-51, 🟡), bản còn lại ⚪ không đổi gì.
+
+#### Vì sao vẫn chết, lần này là lý do thật
+
+Nhãn vật thể nói **CÓ GÌ**, không nói **CẢNH NÀO**. Truy vấn cần chọn 1 trong
+355 khung có Umbrella, mà objects không có gì để chọn: không màu sắc, không
+quan hệ không gian, không hành động. Đếm số lượng thì có, nhưng đúng cái đó lại
+là lỗi 1 ở trên.
+
+Đây là giới hạn của **biểu diễn**, không phải của cài đặt — nên sửa cài đặt chỉ
+đưa 0,0125 lên 0,0317 rồi dừng.
+
+#### Đã làm gì
+
+Không đổi `object_score()` (kênh 4 tắt mặc định, sửa cũng không cứu được), nhưng
+**ghi cả hai lỗi vào docstring của nó** kèm số đo. Người sau định dùng lại kênh
+này sẽ đọc được ngay, thay vì tự đo lại từ đầu.
+
+> Giá trị của A62 không nằm ở việc cứu kênh 4 — nó không cứu được. Nó nằm ở chỗ
+> A25 và A61 từng kết luận "objects yếu" trong khi thật ra đang đo **một công
+> thức sai**. Giờ kết luận vẫn thế, nhưng vì đúng lý do.
+
 ## PHẦN B — QUYẾT ĐỊNH HẠ TẦNG
 
 ### B1. Không dùng Supabase / Postgres / Milvus / Elasticsearch — ĐÃ KIỂM CHỨNG

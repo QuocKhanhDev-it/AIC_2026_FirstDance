@@ -65,6 +65,21 @@ def object_score(row_ids, labels_yeu_cau, channel: dict) -> np.ndarray:
 
     Điểm = tổng (độ tin cậy detection × IDF của nhãn) trên các nhãn được hỏi.
     Keyframe không có nhãn nào trong danh sách -> 0, KHÔNG bị loại.
+
+    ⚠️ CÔNG THỨC NÀY CÓ HAI CHỖ SAI, ĐÃ ĐO (A62). Để nguyên vì kênh 4 tắt mặc
+    định và sửa cũng không cứu được nó — nhưng ai định dùng lại thì phải biết:
+
+    **1. Mỗi DETECTION cộng một lần, không phải mỗi NHÃN.** Khung có 8 người ăn
+    8 × IDF(Person); khung có đúng một cái ô hiếm chỉ ăn 1 × IDF(Umbrella).
+    Đang đếm SỐ LƯỢNG vật thể, trong khi thứ cần đếm là SỰ CÓ MẶT.
+
+    **2. Cộng dồn nên nhãn phổ biến át nhãn hiếm.** Truy vấn "2 người cầm dù"
+    rút ra [Building, Clothing, House, Person, Shirt, Umbrella]; một cảnh phố
+    bất kỳ có đủ 5 nhãn đầu sẽ vượt khung DUY NHẤT có Umbrella — mà Umbrella
+    chỉ ở 355/168.470 keyframe, tức toàn bộ sức phân biệt nằm ở đó.
+
+    Sửa cả hai (gộp detection, chỉ giữ nhãn IDF≥3) nâng kênh từ 0,0125 lên
+    0,0317 — gấp 2,5 lần, mà vẫn kém kênh 1 (0,4779) mười lăm lần. Xem A62.
     """
     o, idf = channel["objects"], channel["idf"]
     row_ids = np.asarray(row_ids)
