@@ -76,12 +76,30 @@ def main():
                          "lên Kaggle SAU khi cả nhóm đã chia xong phần còn "
                          "lại — chia lại từ đầu sẽ xáo trộn phần đã giao, "
                          "còn ai đã encode xong lại phải làm lại từ đầu.")
+    ap.add_argument("--tru", type=Path, default=None, metavar="FILE",
+                    help="bỏ những video ĐÃ LÀM XONG. Nhận .parquet có cột "
+                         "`row_id` (vd `index/caption.parquet`) hoặc .txt mỗi "
+                         "dòng một video_id. Chia lại mà không trừ là bắt ai đó "
+                         "chạy lại hàng giờ GPU cho việc đã có kết quả.")
     ap.add_argument("--ra", type=Path, default=GOC / "chia_viec")
     ap.add_argument("--ghi", action="store_true",
                     help="ghi thật (mặc định chỉ xem trước)")
     a = ap.parse_args()
 
     master = pd.read_parquet(a.index / "master.parquet")
+    if a.tru:
+        if a.tru.suffix == ".parquet":
+            xong = set(master.video_id.iloc[
+                pd.read_parquet(a.tru).row_id.values])
+        else:
+            xong = {x.strip() for x in a.tru.read_text("utf-8").splitlines()
+                    if x.strip()}
+        truoc = master.video_id.nunique()
+        master = master[~master.video_id.isin(xong)]
+        print(f"trừ {truoc - master.video_id.nunique()} video đã xong "
+              f"(theo {a.tru.name})")
+        if master.empty:
+            raise SystemExit("❌ Trừ xong không còn video nào để chia.")
     if a.nhom:
         nh = {x.strip().upper() for x in a.nhom.split(",")}
         master = master[master.video_id.str[:3].isin(nh)]

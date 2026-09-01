@@ -84,15 +84,27 @@ video các khung vẫn cạnh tranh công bằng. Cái A21 cấm là sinh cho RI
 
 ## Cell B — cả kho, chia 12 phần (mỗi phần ~8,6 giờ)
 
-**Chỉ chạy sau khi cell A chứng minh kênh 5 có lãi.**
+Cell A đã chạy: kênh 5 đứng một mình đạt **0,3904** so với 0,6474 của kênh 1
+trong cùng bể — một kênh truy hồi thật sự chạy được (A59). Lãi khi hợp nhất
++0,0106 🟡, dưới ngưỡng nhiễu của 52 câu, nên con số cuối cùng phải đợi tập đề
+thật lên 76 câu. Nhóm đã quyết định cứ sinh cho cả kho.
 
-`chia_caption/phan_1.txt` … `phan_12.txt` đã có sẵn trong repo: 873 video chia
-đều theo thuật toán LPT, lệch **30 ảnh** giữa phần nặng nhất và nhẹ nhất, không
-phần nào trùng nhau. Mỗi phần ~14.780 ảnh × 2,10 s = **8,6 giờ**, an toàn dưới
-trần 12 giờ một phiên.
+`chia_caption/phan_1.txt` … `phan_12.txt`: **826 video, 166.833 ảnh** — đã TRỪ
+47 video mà cell A caption rồi, khỏi ai phải chạy lại 6 giờ cho việc đã có kết
+quả. Chia theo LPT, lệch **30 ảnh** giữa phần nặng nhất và nhẹ nhất, không phần
+nào trùng nhau.
+
+Mỗi phần ~13.900 ảnh × 2,10 s = **8,1 giờ** — an toàn dưới trần 12 giờ một
+phiên. Tổng **97,3 giờ**.
 
 Chia 12 chứ không 6 vì 6 phần là 17,2 giờ/phần — **vượt trần, mất trắng phiên
-đó**. Ai có quota thì nhận 2 phần, chạy hai lượt.
+đó**.
+
+**KHÔNG cần tài khoản mới.** Quota là 30 giờ/tuần mỗi tài khoản, 6 người là 180
+giờ — thừa cho 97,3 giờ. Mỗi người nhận 2 phần, chạy hai lượt, tổng 16,2 giờ,
+vẫn còn dư một nửa quota. (Kaggle cho mỗi người MỘT tài khoản; lập thêm là vi
+phạm điều khoản và có thể mất cả tài khoản lẫn dữ liệu đã tải lên — mà ở đây
+cũng không cần.)
 
 **Mỗi người đổi đúng một dòng: `PHAN = <số của mình>`.**
 
