@@ -3991,6 +3991,65 @@ Ba giới hạn của kết luận này, ghi để người sau khỏi đoán:
 > nhất còn sống là caption (A59) — kênh duy nhất đứng một mình đạt 60% sức của
 > kênh 1.
 
+### A61. Đo lại ba thứ bị bác dưới mốc nền CŨ — **cả ba vẫn bị bác**, và lần này có nền đúng
+
+A12, A14.2, A18 và A25 đều được đo khi kênh 1 còn là CLIP/SigLIP2 và trước A51
+(truy vấn còn cắt cụt ở token 64), phần lớn trên **tập dev tự soạn** — thứ A50
+chứng minh là thổi phồng kênh 1 gấp 2,3 lần. Một kênh phụ bị bác vì "pha loãng
+kênh 1" rất có thể chỉ bị bác vì kênh 1 được chấm quá cao.
+
+Kênh 1 mạnh lên cắt theo **cả hai chiều**, không đoán được: mạnh hơn thì kênh
+phụ càng dễ pha loãng, nhưng RRF cũng có nền tốt hơn nên kênh phụ chỉ cần đúng
+ở vài câu kênh 1 trượt là đã có lãi. Nên đo, trên **đề thật**, mốc là `run.py`
+sau A52.
+
+| cấu hình | ±2s | ±15s | hiệu ±2s | T-B-H | |
+| --- | ---: | ---: | ---: | :---: | :---: |
+| *mốc* | 0,5173 | 0,6096 | — | — | |
+| + kênh 4 objects (0,25) | 0,5135 | 0,6058 | −0,0038 | 0-1-51 | 🟡 |
+| + kênh 4 objects (0,5) | 0,5048 | 0,5913 | −0,0125 | 0-4-48 | ✅ TỆ HƠN |
+| + kênh 2 metadata (0,25) | 0,5173 | 0,6096 | +0,0000 | **0-0-52** | ⚪ |
+| + kênh 2 metadata (0,5) | 0,5212 | 0,6096 | +0,0038 | 1-0-51 | 🟡 |
+| + cả hai (0,25) | 0,5135 | 0,6058 | −0,0038 | 0-1-51 | 🟡 |
+| mỗi video tối đa 3 dòng | 0,4346 | 0,5413 | −0,0827 | 3-11-38 | ✅ TỆ HƠN |
+| mỗi video tối đa 5 dòng | 0,4538 | 0,5760 | −0,0635 | 1-8-43 | ✅ TỆ HƠN |
+| **chỉ kênh 4** *(chẩn đoán)* | **0,0125** | 0,0462 | | | |
+| **chỉ kênh 2** *(chẩn đoán)* | **0,0141** | 0,0218 | | | |
+
+#### Hai dòng chẩn đoán giải thích mọi thứ
+
+**0,0125 và 0,0141**, so với 0,4779 của kênh 1. Trên đề THẬT, hai kênh này gần
+như không truy hồi được gì — kém hơn cả kênh 6 hỏng của A53 (0,0490). Chúng
+không phải "kênh yếu", chúng là **kênh không chạy** với loại truy vấn của BTC.
+
+Vì sao kênh 2 chết: nó là kênh **cấp video**, khớp title + description +
+keywords của cả video. Đề thật hỏi một *khoảnh khắc* — "người phụ nữ áo đỏ đứng
+cạnh xe máy" không có trong tiêu đề bản tin nào cả.
+
+Vì sao kênh 4 chết: nhãn vật thể là danh từ chung ("person", "car"). Mọi khung
+hình đều có người và xe; nhãn không phân biệt được khung NÀO.
+
+Đáng chú ý: kênh 2 ở trọng số 0,25 đổi **đúng 0 câu trên 52** (0-0-52). Ứng
+viên của nó không lọt nổi vào top-100 sau hợp nhất — thêm vào cũng như không.
+
+#### `moi_video` thì tệ hơn hẳn kết luận cũ
+
+A18 chỉ nói "làm tệ đi". Đo lại: **−0,0827 ✅ ỔN ĐỊNH**. Lý do rõ khi đọc cùng
+A55: top-20 đã trải trên 10,2 video khác nhau, nên ràng buộc đa dạng không còn
+gì để đa dạng hoá — nó chỉ còn tác dụng **cắt bỏ** những khung đúng nằm cùng
+video với một khung đúng khác. Với TRAKE thì đó là cắt vào chính đáp án.
+
+#### Giá trị của phép đo này
+
+Không đổi mặc định nào. Nhưng ba kết luận vừa chuyển từ *"bị bác dưới điều kiện
+không còn đúng"* sang *"bị bác dưới điều kiện hiện tại, trên đề thật"* — và đó
+là khác biệt giữa một giả định thừa kế và một sự thật đã kiểm.
+
+> Bài học chung của A61: khi mốc nền đổi lớn, **kết luận cũ không tự động sai,
+> nhưng cũng không tự động đúng**. Rẻ nhất là đo lại những cái có sẵn dữ liệu —
+> cả ba thứ ở đây chỉ tốn vài phút CPU vì `objects.parquet` và metadata đã nằm
+> trong `master.parquet` từ lâu.
+
 ## PHẦN B — QUYẾT ĐỊNH HẠ TẦNG
 
 ### B1. Không dùng Supabase / Postgres / Milvus / Elasticsearch — ĐÃ KIỂM CHỨNG
