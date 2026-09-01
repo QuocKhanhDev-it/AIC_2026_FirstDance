@@ -4119,6 +4119,71 @@ này sẽ đọc được ngay, thay vì tự đo lại từ đầu.
 > A25 và A61 từng kết luận "objects yếu" trong khi thật ra đang đo **một công
 > thức sai**. Giờ kết luận vẫn thế, nhưng vì đúng lý do.
 
+### A63. Khâu **lắp ráp TRAKE** mất hơn NỬA số điểm kênh tìm được
+
+Sau A62, soát tiếp xem còn chỗ nào "sai âm thầm" như công thức objects. Tìm
+thấy một chỗ, và chính docstring trong repo đã cảnh báo mà chưa ai đo:
+
+> *`diem_trake()` chấm KÊNH … Hàm này chấm BÀI NỘP … Kênh tìm ra đủ ba sự kiện
+> nhưng khâu lắp ráp xếp sai vị trí thì `diem_trake()` cho điểm cao còn BTC cho
+> 0. Đó chính là tầng mà `run.dung_trake()` làm, và là **tầng chưa ai đo**.*
+> — `cham_diem.diem_trake_bai_nop`
+
+`cham_diem.cham()` dùng `diem_trake()`. Nghĩa là **mọi con số TRAKE trong repo**
+— kể cả các dòng TRAKE trong A54, A59, A60 — đang đo tầng KÊNH, không phải tầng
+NỘP.
+
+#### Đo cả hai tầng trên 3 câu TRAKE của đề thật
+
+| câu | sự kiện | KÊNH | NỘP | mất |
+| --- | ---: | ---: | ---: | ---: |
+| trake-DE1-16 | 3 | 0,0000 | 0,0000 | 0 |
+| trake-DE2-21 | 4 | 0,5000 | **0,0000** | **−0,5000** |
+| trake-DE2-08 | 4 | 0,5500 | 0,5000 | −0,0500 |
+| **trung bình ±2s** | | **0,3500** | **0,1667** | **−0,1833** |
+| trung bình ±15s | | 0,4833 | 0,2500 | −0,2333 |
+
+**Mất 52% ở ±2s, 48% ở ±15s.** Câu `trake-DE2-21` là ca đúng như docstring dự
+đoán: kênh tìm ra một nửa số sự kiện (0,5000) mà bài nộp được **0**.
+
+Nguyên nhân nằm ở chỗ BTC chấm **theo vị trí**: khung ở vị trí i chỉ được so
+với sự kiện i. Kênh tìm ra khung đúng nhưng `dung_trake()` xếp nó vào vị trí
+khác là mất trắng.
+
+#### Đây là con số lớn nhất còn bỏ ngỏ trong repo
+
+So với những thứ đang tranh nhau vài phần nghìn: caption +0,0106, BGE-M3
++0,0106, VLM rerank +0,0019. Còn ở đây là **0,18 điểm cho mỗi câu TRAKE**.
+
+TRAKE chỉ chiếm 3/52 câu đề thật nên ảnh hưởng lên điểm tổng là ~0,01 — nhưng
+đó là vì tập đo ít câu TRAKE, không phải vì kỳ thi ít câu TRAKE.
+
+#### Vì sao chưa sửa được ngay: 3 câu là quá ít
+
+A39 đã dựng sẵn **bốn tham số** cho đúng tầng này (`dong_hang`, `he_so_phat`,
+`trai_toi_da`, `rai_hep`), mặc định giữ nguyên hành vi cũ vì "chưa thắng trên
+tập dev thì chưa được bật". Dò bốn tham số trên 3 câu là vô nghĩa.
+
+`dev/tap_dev_trake.jsonl` có 14 câu nữa, và **câu tự soạn dùng được ở đây**:
+thứ tự sự kiện và số Frame ID là ràng buộc HÌNH THỨC, không phụ thuộc câu hỏi
+dễ hay khó — khác hẳn việc so kênh, nơi A50/A58 đã cấm dùng câu tự soạn.
+
+Nhưng 14 câu đó **không đo được**: 219/219 chuỗi của chúng chưa có trong
+`truy_van_gopt.npz`.
+
+#### Đã sửa cái làm lộ ra chuyện đó
+
+`scripts/25_ma_hoa_truy_van.py` có `--tap-dev` nhưng nó chỉ đọc
+`dev/tap_dev.jsonl`; các file câu khác không có đường vào. Thêm `--tap <file>`
+(lặp lại được), và gom logic "câu TRAKE phải tách sự kiện RỒI tách mệnh đề" vào
+một chỗ — trước đó nó chỉ có ở nhánh `--tap-dev`.
+
+    python scripts/25_ma_hoa_truy_van.py --tap dev/tap_dev_trake.jsonl \
+        --matrix clip_gopt.npy --ra index/truy_van_trake.npz
+
+219 chuỗi, ~3 giây GPU. Xong thì gộp bằng `67_gop_cache_truy_van.py` rồi chạy
+lại `75_do_lap_rap_trake.py` trên 17 câu — đủ để dò bốn tham số A39.
+
 ## PHẦN B — QUYẾT ĐỊNH HẠ TẦNG
 
 ### B1. Không dùng Supabase / Postgres / Milvus / Elasticsearch — ĐÃ KIỂM CHỨNG

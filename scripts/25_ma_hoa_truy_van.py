@@ -57,13 +57,23 @@ from dense import MODEL_MAC_DINH, PRETRAINED_MAC_DINH  # noqa: E402
 BO_QUA_RAM = [False]
 
 
-def thu_thap(de_dir: Path | None, lay_tap_dev: bool, them: list) -> list[str]:
+def thu_thap(de_dir: Path | None, lay_tap_dev: bool, them: list,
+             tap: list | None = None) -> list[str]:
     """Mọi chuỗi sẽ thật sự được đưa vào `encode_text`, đã bỏ trùng."""
     ra = []
 
     def nap(cau: str):
         ra.append(cau)
         ra.extend(R.tach_truy_van(cau))     # đúng thứ run.py đưa vào encoder
+
+    def nap_cau(c):
+        nap(c.cau_hoi)
+        # Câu TRAKE bị tách sự kiện khi đo, và MỖI sự kiện lại bị tách mệnh đề.
+        # Thiếu tầng này thì cache trông đủ mà `75_do_lap_rap_trake.py` vẫn báo
+        # "thiếu chuỗi" — đã cắn: 14/17 câu TRAKE không đo được.
+        if c.loai == "TRAKE":
+            for sk in R.tach_su_kien(c.cau_hoi):
+                nap(sk)
 
     if de_dir:
         for ten, nd in R.doc_de(de_dir).items():
@@ -75,11 +85,11 @@ def thu_thap(de_dir: Path | None, lay_tap_dev: bool, them: list) -> list[str]:
 
     if lay_tap_dev:
         for c in tap_dev.doc():
-            nap(c.cau_hoi)
-            # câu TRAKE của tập dev cũng bị tách sự kiện khi đo
-            if c.loai == "TRAKE":
-                for sk in R.tach_su_kien(c.cau_hoi):
-                    nap(sk)
+            nap_cau(c)
+
+    for f in (tap or []):
+        for c in tap_dev.doc(f):
+            nap_cau(c)
 
     for x in them:
         nap(x)
@@ -205,6 +215,12 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[1])
     ap.add_argument("--de", type=Path, help="thư mục chứa query-*.txt")
     ap.add_argument("--tap-dev", action="store_true", help="thêm cả tập dev")
+    ap.add_argument("--tap", action="append", default=[], type=Path,
+                    metavar="F.jsonl",
+                    help="thêm một file câu bất kỳ (lặp lại được). Dùng cho "
+                         "tap_dev_trake.jsonl và các file không nằm trong "
+                         "tap_dev.jsonl — thiếu chúng thì phép đo lặng lẽ bỏ "
+                         "câu, không báo lỗi.")
     ap.add_argument("--them", action="append", default=[], metavar="CAU")
     ap.add_argument("--index", default=GOC / "index", type=Path)
     ap.add_argument("--matrix", default="clip_siglip2.npy")
@@ -222,10 +238,11 @@ def main():
 
     BO_QUA_RAM[0] = a.bo_qua_ram
     if not (a.de or a.tap_dev or a.them):
-        raise SystemExit("Chưa chọn nguồn nào: --de, --tap-dev hoặc --them")
+        raise SystemExit("Chưa chọn nguồn nào: --de, --tap-dev, --tap "
+                         "hoặc --them")
 
     ra_file = a.ra or (a.index / "truy_van.npz")
-    cac_cau = thu_thap(a.de, a.tap_dev, a.them)
+    cac_cau = thu_thap(a.de, a.tap_dev, a.them, a.tap)
 
     cu = {}
     if a.gop and ra_file.exists():
