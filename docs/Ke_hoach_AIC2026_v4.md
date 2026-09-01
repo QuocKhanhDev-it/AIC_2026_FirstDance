@@ -3639,6 +3639,154 @@ hoặc mô tả nó bằng chữ (caption, kênh 5). Không có đường tắt.
 > Giá trị của A55 nằm ở chỗ nó rẻ và nó ĐÓNG một hướng. Ba ý nghe đều hợp lý,
 > một ý còn chép từ đội mạnh hơn — và cả ba đều không sống nổi phép đo.
 
+### A56. Chữa **hubness** — hub có thật, nhưng phạt hub làm TỆ ĐI. Bỏ.
+
+A55 đóng ba cách xếp lại bằng tín hiệu sẵn có, nhưng cả ba đều nhìn vào quan hệ
+giữa các ứng viên của CÙNG một truy vấn. Hướng này nhìn thứ khác: **hình học của
+không gian vector**.
+
+Triệu chứng vẫn là con số A54: **R@20 = 0,6122 nhưng R@1 = 0,2041**. Trong không
+gian nhiều chiều, một số điểm thành **"hub"** — gần với *mọi* truy vấn, không
+riêng truy vấn nào. Khung chung chung (người nói trước micro, phông studio) nằm
+gần tâm đám mây nên cosine với truy vấn nào cũng cao vừa phải, chiếm mất hạng
+1–5 và đẩy khung đặc trưng xuống hạng 10–20. Đúng hình dạng R@1 thấp / R@20 cao.
+
+#### Hub CÓ THẬT trong kho này
+
+Quét 177.321 ảnh với bể 1.239 truy vấn đã mã hoá, tính
+`log Σ_q exp(sim(q,i)/τ)` cho từng ảnh:
+
+| τ | min | trung vị | max | chênh |
+| ---: | ---: | ---: | ---: | ---: |
+| 0,01 | 7,78 | 19,36 | 31,52 | **23,74** |
+| 0,02 | 6,26 | 11,83 | 16,80 | 10,54 |
+| 0,05 | 6,36 | 8,51 | 9,52 | 3,17 |
+
+Có những khung được cả bể truy vấn chấm cao hơn khung khác hàng chục bậc độ
+lớn. Chẩn đoán đúng.
+
+#### Nhưng mọi cách chữa đều làm TỆ ĐI
+
+Mốc là `run.py` sau A52, 52 câu đề thật:
+
+| cấu hình | ±2s | hiệu | T-B-H | |
+| --- | ---: | ---: | :---: | :---: |
+| *mốc* | 0,5173 | — | — | |
+| trừ tâm CHỈ phía ảnh | 0,4019 | −0,1154 | 3-17-32 | ✅ TỆ HƠN |
+| trừ tâm CẢ HAI phía | 0,4481 | −0,0692 | 6-14-32 | 🟡 |
+| QB-Norm τ=0,01 | 0,3692 | −0,1481 | 10-21-21 | ✅ TỆ HƠN |
+| QB-Norm τ=0,02 | 0,2202 | −0,2971 | 5-27-20 | ✅ TỆ HƠN |
+| QB-Norm τ=0,05 | 0,1663 | −0,3510 | 4-30-18 | ✅ TỆ HƠN |
+| QB + trừ tâm | 0,3413 | −0,1760 | 9-17-26 | ✅ TỆ HƠN |
+
+**Càng phạt mạnh càng tệ, đơn điệu.** Đó là dấu hiệu của một tín hiệu bị ĐẢO
+CHIỀU, không phải một tham số chưa dò trúng — dò thêm τ là vô ích.
+
+#### Vì sao QB-Norm hỏng ở đây: bể truy vấn KHÔNG trung lập
+
+QB-Norm giả định bể truy vấn là mẫu ĐỘC LẬP với thứ đang tìm. Bể của ta thì
+không: 1.239 chuỗi ấy chính là mệnh đề rút từ những câu hỏi ta đang tìm đáp án,
+và chúng dồn vào một nhóm nhỏ video bản tin. **Khung được cả bể chấm cao thường
+chính là khung đáp án của một câu nào đó trong bể.** QB-Norm phạt đúng thứ cần
+thưởng.
+
+Dựng một bể trung lập thì phải mã hoá hàng nghìn câu bịa — mà bịa câu lại vấp
+đúng A50: câu tự soạn không thay được câu thật. Đường này cụt ở chỗ ta không có
+dữ liệu, không phải ở chỗ ý tưởng sai.
+
+#### Trừ tâm: sai một nửa, sửa lại vẫn thua
+
+Bản đầu chỉ trừ tâm phía ảnh — dịch đám mây ảnh đi mà để đám mây truy vấn đứng
+yên, hai bên lệch nhau. Trừ ở CẢ HAI phía (cách chuẩn) kéo được một nửa thiệt
+hại (−0,1154 → −0,0692) nhưng vẫn âm ở cả hai mức dung sai. Cứu được nửa đường
+không phải là thắng.
+
+#### Kết luận, và giá trị của nó
+
+Đây là hướng tinh vi nhất còn lại trong nhóm "xếp lại mà không cần thông tin
+mới", và **không nhóm nào trong 9 repo đối chiếu đụng tới nó**. Nó thua.
+
+Cộng với A55, kết luận giờ đứng vững hơn hẳn vì đã sống qua một phép thử nghiêm
+túc hơn nhiều:
+
+> **33 điểm phần trăm của A54 chỉ lấy được bằng THÔNG TIN MỚI** — nhìn lại bức
+> ảnh (VLM rerank) hoặc mô tả nó bằng chữ (caption, kênh 5). Không có cách sắp
+> xếp lại nào moi được nó ra.
+
+`index/hubness_gopt.npz` giữ lại (thống kê, 4 MB) phòng khi sau này có bể truy
+vấn độc lập thật.
+
+### A57. Làm mượt vector theo trục thời gian — thua; và keyframe **trùng nhau nhiều hơn tưởng**
+
+Ý tưởng (một mô hình ngoài gợi ý): một sự kiện diễn ra qua nhiều khung liên
+tiếp, nên vector của khung đứng lẻ hay nhiễu vì nhoè chuyển động hoặc góc quay
+chuyển tiếp. Cộng thêm vector hàng xóm rồi chuẩn hoá lại:
+
+    v'(t) = chuẩn_hoá( v(t) + α·v(t−1) + α·v(t+1) + α²·v(t±2) … )
+
+Sức hấp dẫn của nó: **chi phí lúc thi bằng KHÔNG**. Ma trận vẫn 177.321 × 1536,
+chỉ đổi giá trị — khác hẳn mọi hướng còn lại đang chờ.
+
+Và nó KHÔNG phải thứ A55 đã bác: A55 bỏ bớt khung trùng cảnh khỏi *kết quả*;
+cái này không bỏ ai, chỉ cho mỗi vector mang thêm ngữ cảnh. Một cái sửa đầu ra,
+một cái sửa đầu vào.
+
+#### Kết quả: thua, đơn điệu theo cường độ
+
+| cấu hình | ±2s | ±15s | hiệu ±2s | T-B-H | |
+| --- | ---: | ---: | ---: | :---: | :---: |
+| *mốc* | 0,5173 | 0,6096 | — | — | |
+| W=1 α=0,2 | 0,4760 | 0,5577 | −0,0413 | 5-12-35 | 🟡 |
+| W=1 α=0,35 | 0,4683 | 0,5500 | −0,0490 | 8-13-31 | ✅ TỆ HƠN |
+| W=1 α=0,5 | 0,4654 | 0,5500 | −0,0519 | 9-13-30 | 🟡 |
+| W=2 α=0,35 | 0,4538 | 0,5346 | −0,0635 | 8-13-31 | ✅ TỆ HƠN |
+
+Càng mượt càng tệ, và **α nhỏ nhất cũng đã âm** — không có vùng nào để dò tiếp.
+
+#### Giả thuyết của tôi SAI, và cái đúng thú vị hơn
+
+Trước khi chạy tôi đoán: keyframe cách nhau trung vị 2,16 giây nên chắc được
+trích theo CHUYỂN CẢNH, tức hàng xóm vốn đã là cảnh khác, và làm mượt sẽ bôi
+nhoè đúng thứ cần phân biệt.
+
+Đo thật trên 176.448 cặp keyframe liên tiếp cùng video:
+
+| | |
+| --- | ---: |
+| cosine v(t)·v(t+1) trung vị | **0,9031** |
+| cặp có cosine < 0,5 (cảnh khác hẳn) | **0,4%** |
+| cặp có cosine > 0,8 (gần như trùng) | **73,1%** |
+
+Ngược hẳn: hàng xóm **rất giống nhau**, không phải khác nhau.
+
+Nhưng chính vì thế mà làm mượt vô ích **và có hại**. Cộng một vector gần trùng
+vào thì `v'` gần như trùng `v` — chẳng thêm thông tin gì mới. Thứ nó thật sự
+làm là **san phẳng phần dư**, tức những khác biệt nhỏ giữa các khung trong cùng
+một cảnh. Mà với cửa sổ chấm ±2s, đúng phần dư đó là thứ phân biệt khung đáp án
+với hàng xóm của nó. Làm mượt xoá tín hiệu phân biệt để đổi lấy thông tin đã có
+sẵn.
+
+> Cùng một quan sát — "keyframe liên tiếp rất giống nhau" — vừa là lý do ý
+> tưởng này nghe hợp lý, vừa là lý do nó hỏng. Chỉ phép đo mới tách được hai
+> chuyện đó.
+
+#### Ghi thêm cho các gợi ý cùng đợt
+
+Cùng đợt gợi ý này có hai hướng **đã nằm sẵn trong repo**, nêu ra để người sau
+khỏi làm lại:
+
+* **DP cho TRAKE** — `dong_hang_dp()` trong `src/run.py` từ lâu: gom ứng viên
+  theo video, quy hoạch động chọn đúng một khung cho mỗi vị trí sự kiện, ép
+  tăng dần ngặt, nội suy chỗ thiếu. Đã nằm trong điểm hiện tại.
+* **Chỉ mục khái niệm thị giác** — kênh 4 (objects + IDF + bảng nhãn Việt–Anh)
+  đã có và đã đo: A25 kết luận kênh 3 mạnh **gấp 2,8 lần** objects. Nâng cấp bộ
+  gán nhãn (RAM++/Florence-2) là cải tiến một kênh ĐÃ ĐO ĐƯỢC LÀ YẾU, không
+  phải thêm kênh mới.
+
+Hai hướng còn đáng làm trong đợt đó: **nhúng OCR/ASR bằng model text–text thật**
+(BGE-M3 / multilingual-e5 — sửa đúng nguyên nhân A53) và **định tuyến mệnh đề**
+theo loại (thị giác → kênh 1, chữ trên màn hình → kênh 3).
+
 ## PHẦN B — QUYẾT ĐỊNH HẠ TẦNG
 
 ### B1. Không dùng Supabase / Postgres / Milvus / Elasticsearch — ĐÃ KIỂM CHỨNG

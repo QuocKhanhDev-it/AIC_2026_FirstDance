@@ -2,8 +2,12 @@
 
 Mục đích: trả lời **một** câu hỏi trước khi ai đó tiêu 12 giờ phiên Kaggle —
 ở `--diem-anh 256 --so-chu 120`, một ảnh mất bao nhiêu giây, và cả kho mất bao
-lâu? Ở cấu hình cũ (512px / 180 chữ) đo được **2,85 s/ảnh**, tức 140 giờ cho
-177.321 ảnh và **12,9 giờ cho một phần 16.290 ảnh — vượt trần 12 giờ/phiên**.
+lâu?
+
+**ĐÃ ĐO XONG (31/08, T4):** 512px/180 chữ **3,77 s/ảnh**, 256px/180 chữ
+**2,52**, 256px/120 chữ **2,10** — cả kho 103,4 giờ. Con số 2,85 s/ảnh ghi
+trước đó là ƯỚC, và ước thấp hơn thực tế 32%. Cell này giữ lại để tái lập;
+việc sinh caption thật thì xem `kaggle_caption_chay.md`.
 
 ⚠️ Đây là cell ĐO, không phải cell sinh dữ liệu. Nó chạy 3 cấu hình × 40 ảnh
 rồi in bảng. Đừng để nó chạy cả kho.
