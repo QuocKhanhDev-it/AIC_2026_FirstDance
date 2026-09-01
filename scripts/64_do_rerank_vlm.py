@@ -63,30 +63,50 @@ def _chuan(d: dict) -> dict:
     return {k: (v - lo) / (hi - lo) for k, v in d.items()}
 
 
-def thay_han(ds, vlm, dau):
+def _xep_tai_cho(ds, dau, khoa):
+    """Xếp lại CHỈ những ứng viên VLM đã chấm, giữ nguyên vị trí của phần còn lại.
+
+    ⚠️ VÌ SAO KHÔNG SORT CẢ PHẦN ĐẦU. Máy chấm VLM có thể thiếu ảnh của vài
+    video (đo được: 16/52 câu chỉ chấm được một phần, có câu 4/30). Bản đầu
+    cho ứng viên KHÔNG có điểm giá trị `-1e9`, tức **đẩy chúng xuống đáy** —
+    trừng phạt một ứng viên chỉ vì máy chấm không có ảnh của nó. Đó là biến
+    "thiếu ảnh" thành "ảnh sai", và nó lặng lẽ làm hỏng 16/52 câu.
+
+    Luật ở đây: VLM chỉ được đảo thứ tự **những gì nó thật sự nhìn**. Ứng viên
+    không có điểm nằm nguyên chỗ cũ.
+    """
     dau_ds, duoi = ds[:dau], ds[dau:]
-    xep = sorted(dau_ds, key=lambda c: -vlm.get(c.row_id, -1e9))
-    return [_lai(c, 1.0 - i / len(xep)) for i, c in enumerate(xep)] + duoi
+    vi_tri = [i for i, c in enumerate(dau_ds) if c.row_id in khoa]
+    con = sorted((dau_ds[i] for i in vi_tri), key=lambda c: -khoa[c.row_id])
+    ra = list(dau_ds)
+    for i, c in zip(vi_tri, con):
+        ra[i] = _lai(c, khoa[c.row_id])
+    return ra + duoi
+
+
+def thay_han(ds, vlm, dau):
+    return _xep_tai_cho(ds, dau, {c.row_id: vlm[c.row_id]
+                                  for c in ds[:dau] if c.row_id in vlm})
 
 
 def rrf_hang(ds, vlm, dau, w):
-    dau_ds, duoi = ds[:dau], ds[dau:]
-    theo_vlm = sorted(dau_ds, key=lambda c: -vlm.get(c.row_id, -1e9))
+    dau_ds = ds[:dau]
+    cham = [c for c in dau_ds if c.row_id in vlm]
+    theo_vlm = sorted(cham, key=lambda c: -vlm[c.row_id])
     h_vlm = {c.row_id: i + 1 for i, c in enumerate(theo_vlm)}
-    diem = {c.row_id: 1.0 / (K_RRF + i + 1) + w / (K_RRF + h_vlm[c.row_id])
-            for i, c in enumerate(dau_ds)}
-    xep = sorted(dau_ds, key=lambda c: -diem[c.row_id])
-    return [_lai(c, diem[c.row_id]) for c in xep] + duoi
+    h_goc = {c.row_id: i + 1 for i, c in enumerate(dau_ds)}
+    khoa = {c.row_id: 1.0 / (K_RRF + h_goc[c.row_id])
+            + w / (K_RRF + h_vlm[c.row_id]) for c in cham}
+    return _xep_tai_cho(ds, dau, khoa)
 
 
 def nhan(ds, vlm, dau, w, chi_day_len=False):
-    dau_ds, duoi = ds[:dau], ds[dau:]
+    dau_ds = ds[:dau]
     ch = _chuan({c.row_id: vlm[c.row_id] for c in dau_ds if c.row_id in vlm})
-    def he_so(c):
-        v = ch.get(c.row_id, 0.5)
-        return 1.0 + w * (max(v - 0.5, 0.0) * 2 if chi_day_len else v)
-    xep = sorted(dau_ds, key=lambda c: -c.score * he_so(c))
-    return [_lai(c, c.score * he_so(c)) for c in xep] + duoi
+    khoa = {c.row_id: c.score * (1.0 + w * (max(ch[c.row_id] - 0.5, 0.0) * 2
+                                            if chi_day_len else ch[c.row_id]))
+            for c in dau_ds if c.row_id in ch}
+    return _xep_tai_cho(ds, dau, khoa)
 
 
 def main():

@@ -101,3 +101,27 @@ def test_thieu_diem_vlm_thi_khong_no():
     for _, f in CACH:
         ra = f(ds, {0: 1.0})            # chỉ 1/5 ứng viên đầu có điểm
         assert len(ra) == len(ds)
+
+
+def test_thieu_diem_thi_GIU_NGUYEN_CHO(  ):
+    """Máy chấm VLM thiếu ảnh của vài video — đo được 16/52 câu chỉ chấm được
+    một phần, có câu 4/30. Ứng viên KHÔNG có điểm phải nằm nguyên chỗ cũ.
+
+    Bản đầu cho chúng `-1e9` tức đẩy xuống đáy: biến "thiếu ảnh" thành "ảnh
+    sai", lặng lẽ làm hỏng đúng những câu ít điểm nhất.
+    """
+    ds = _ds()
+    vlm = {0: -5.0, 4: 5.0}          # chỉ 2/5 ứng viên đầu được chấm
+    for _, f in CACH:
+        ra = f(ds, vlm)
+        # #1 và #4 hoán chỗ cho nhau (VLM thích #4 hơn #0), còn #1,#2,#3 y nguyên
+        assert [c.row_id for c in ra[1:4]] == [1, 2, 3], \
+            "ứng viên không có điểm VLM bị xê dịch"
+        assert {ra[0].row_id, ra[4].row_id} == {0, 4}
+        assert [c.row_id for c in ra[DAU:]] == [c.row_id for c in ds[DAU:]]
+
+
+def test_khong_cham_cau_nao_thi_giu_nguyen_het():
+    ds = _ds()
+    for _, f in CACH:
+        assert [c.row_id for c in f(ds, {})] == [c.row_id for c in ds]

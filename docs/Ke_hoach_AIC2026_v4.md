@@ -3921,6 +3921,76 @@ Việc còn lại: sinh caption cho cả kho (103,4 giờ, chia 12 phần —
 `notebooks/kaggle_caption_chay.md` cell B) rồi đo lại KHÔNG khoá bể. Chỉ nên
 làm sau khi tập đề thật lên 76 câu, nếu không thì lại ra một con số 🟡 nữa.
 
+### A60. VLM chấm lại top-30 — **có tín hiệu, nhưng không hơn thứ tự sẵn có**
+
+A54 đo khoảng trống 33,4 điểm phần trăm; A55–A58 cho thấy không lấy được bằng
+cách sắp xếp lại thông tin đã có. Đây là phép thử của hướng "đưa thông tin mới"
+đắt nhất: **cho VLM nhìn lại bức ảnh**.
+
+Cách chấm: Qwen2-VL-2B-Instruct, một lượt forward, lấy **hiệu logit giữa "Có"
+và "Không"** cho câu nhắc *"Ảnh này có đúng là cảnh được mô tả không?"*. Không
+sinh chữ — điểm liên tục, nhanh, và không phụ thuộc model có chịu trả lời đúng
+định dạng hay không. 52 câu × top-30 = 1.445 ứng viên (115 ứng viên L30 không
+chấm được vì máy đó thiếu dataset ảnh L30).
+
+| cấu hình | ±2s | ±15s | hiệu ±2s | T-B-H | |
+| --- | ---: | ---: | ---: | :---: | :---: |
+| *mốc: run.py* | 0,5202 | 0,5952 | — | — | |
+| VLM thay hẳn phần đầu | 0,4808 | 0,5692 | −0,0394 | 6-11-35 | 🟡 |
+| RRF hạng, w=0,5 | 0,5183 | 0,6067 | −0,0019 | 3-5-44 | ❌ |
+| RRF hạng, w=1 | 0,5144 | 0,6029 | −0,0058 | 4-7-41 | ❌ |
+| nhân, w=0,5 | 0,5221 | 0,5952 | +0,0019 | 4-5-43 | ❌ |
+| nhân, CHỈ đẩy lên (w=1) | 0,5173 | 0,6077 | −0,0029 | 6-7-39 | ❌ |
+
+**Không cấu hình nào vượt nhiễu, và cái tốt nhất là +0,0019** — bằng 0,6% của
+khoảng trống.
+
+#### Nhưng VLM KHÔNG mù: nó hơn ngẫu nhiên
+
+Trước khi có điểm thật, cùng bộ đo này đã chạy với **điểm bịa ngẫu nhiên** làm
+nhóm đối chứng:
+
+| "thay hẳn phần đầu" | hiệu ±2s |
+| --- | ---: |
+| điểm ngẫu nhiên | −0,0894 |
+| **điểm Qwen2-VL-2B** | **−0,0394** |
+
+VLM hơn ngẫu nhiên khoảng **0,05** — nó thật sự nhìn thấy gì đó. Chỉ là **kém
+hơn thứ tự mà kênh 1 + kênh 3 đã cho sẵn**. Không có nhóm đối chứng ngẫu nhiên
+thì con số −0,0394 đọc ra "VLM vô dụng", sai; nó là "VLM có tín hiệu nhưng yếu
+hơn cái đang có".
+
+Điểm VLM cũng phân biệt được thật: trải trung vị **0,43** giữa ứng viên cao và
+thấp nhất trong mỗi câu, chỉ 1/52 câu dưới 0,1.
+
+#### Một lỗi của bộ đo, sửa TRƯỚC khi chạy
+
+Bản đầu gán `-1e9` cho ứng viên không có điểm VLM, tức **đẩy chúng xuống đáy** —
+biến "máy chấm thiếu ảnh" thành "ảnh sai". Với 115 ứng viên L30 không chấm
+được, nó sẽ lặng lẽ làm hỏng đúng những câu ít điểm nhất (có câu chỉ 4/30).
+
+Đã sửa: **VLM chỉ được đảo thứ tự những gì nó thật sự nhìn**; ứng viên không có
+điểm nằm nguyên chỗ cũ. Hai test chốt lại luật đó.
+
+#### Chốt và giới hạn
+
+Không bật rerank VLM. Cũng **không cần dựng hạ tầng ngày thi** (tunnel Kaggle,
+đồng bộ ảnh, đường lui) — đó là khoản chi lớn nhất mà A54 từng gợi ý, giờ đã
+biết là chưa đáng.
+
+Ba giới hạn của kết luận này, ghi để người sau khỏi đoán:
+
+* **Model 2B là nhỏ.** Qwen2.5-VL-7B có thể khác, nhưng 8 GB VRAM của máy nhóm
+  chỉ đủ bản 4-bit và chậm hơn nhiều lần.
+* **115/1.560 ứng viên (7%) không được chấm** vì thiếu dataset L30. Kết quả này
+  vì thế hơi ĐÁNH GIÁ THẤP VLM — nhưng 7% không lật được +0,0019.
+* **Cách nhắc chỉ có một.** Hiệu logit Có/Không là cách rẻ nhất; hỏi VLM mô tả
+  rồi so chữ là một thí nghiệm khác, đắt hơn nhiều.
+
+> Cộng với A55–A58: **mười hướng đã đo cho khoảng trống 33,4 điểm**, và thứ duy
+> nhất còn sống là caption (A59) — kênh duy nhất đứng một mình đạt 60% sức của
+> kênh 1.
+
 ## PHẦN B — QUYẾT ĐỊNH HẠ TẦNG
 
 ### B1. Không dùng Supabase / Postgres / Milvus / Elasticsearch — ĐÃ KIỂM CHỨNG
