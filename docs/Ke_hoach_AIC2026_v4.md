@@ -3841,6 +3841,86 @@ Hai hướng còn sống, cả hai đều đưa THÔNG TIN MỚI vào:
 * **kênh 6 làm lại bằng BGE-M3** — model text–text thật, sửa đúng nguyên nhân
   A53 (`notebooks/kaggle_bge_m3.md`)
 
+### A59. Hai kênh **thông tin mới** — cùng dương, cùng dưới ngưỡng nhiễu
+
+A55–A58 đóng tám hướng "xếp lại mà không cần thông tin mới", không hướng nào
+lấy quá 2,3% của khoảng trống 33,4 điểm (A54). Đây là hai hướng còn lại, và
+**cả hai đều cho kết quả dương** — lần đầu sau chín phép đo âm liên tiếp.
+
+#### 1. Kênh 6 làm lại bằng **BGE-M3** — chẩn đoán A53 ĐÚNG
+
+A53 bác kênh 6 vì nhúng OCR/ASR bằng tháp văn bản của SigLIP2: model học khớp
+ảnh↔chữ, đem so chữ↔chữ là dùng ngoài phân bố huấn luyện. Thay bằng BGE-M3
+(model text–text thật, đa ngôn ngữ, 1024 chiều, nhận 8192 token nên **không
+phải chia đoạn**: 176.009 tài liệu = 176.009 vector, thay vì 462.085 đoạn):
+
+| cấu hình | ±2s | ±15s | hiệu ±2s | T-B-H | |
+| --- | ---: | ---: | ---: | :---: | :---: |
+| *mốc: ảnh + kênh 3 (0,5)* | 0,5173 | 0,6096 | — | — | |
+| + kênh 6 (0,25) | 0,5250 | 0,6173 | +0,0077 | 3-2-47 | 🟡 |
+| **+ kênh 6 (0,5)** | **0,5279** | **0,6173** | **+0,0106** | 5-5-42 | 🟡 |
+| + kênh 6 (1,0) | 0,4394 | 0,5298 | −0,0779 | 5-26-21 | ✅ TỆ HƠN |
+| kênh 6 THAY kênh 3 | 0,4962 | 0,5817 | −0,0212 | 3-6-43 | 🟡 |
+| **chỉ kênh 6** *(chẩn đoán)* | **0,1462** | 0,1942 | | | |
+| chỉ kênh 1 *(chẩn đoán)* | 0,4779 | 0,5712 | | | |
+
+**Dòng chẩn đoán: 0,0490 (A53) → 0,1462, gấp 3 lần.** Đổi sang model text–text
+thật chữa được phần lớn cái hỏng. Nhưng vẫn kém xa kênh 1, và lãi khi hợp nhất
+chỉ +0,0106 với ngưỡng nhiễu 0,0300.
+
+Chắc chắn: **không thay được kênh 3** (−0,0212), và **trọng số 1,0 có hại**
+(−0,0779 ✅) — cùng hình dạng với mọi kênh phụ khác trong repo này.
+
+#### 2. Kênh 5 — caption bằng Qwen2.5-VL
+
+⚠️ **Phải khoá bể ứng viên để đo.** Caption mới phủ 47 video mà tập đề thật
+đụng tới (10.488 ảnh = 5,9% kho) — cố ý, để biết có đáng 103 giờ GPU cho cả kho
+không. Nhưng dựng BM25 trên đúng ngần ấy thì kênh 5 CHỈ đề xuất được khung từ
+chính những video chứa đáp án; con số sẽ đẹp rực rỡ và vô nghĩa, đúng cơ chế
+A21 (tăng ẢO 0,400 → 0,840). Nên `71_` ép **mọi kênh** chỉ chạy trong 47 video
+đó — tất cả cùng một vũ trụ, so sánh mới công bằng.
+
+**Điểm dưới đây KHÔNG so được với mục khác** (bể chỉ còn 5,9% kho). Chỉ đọc
+hiệu giữa các dòng.
+
+| cấu hình | ±2s | ±15s | hiệu ±2s | T-B-H | |
+| --- | ---: | ---: | ---: | :---: | :---: |
+| *mốc: ảnh + kênh 3, khoá bể* | 0,6606 | 0,7452 | — | — | |
+| + kênh 5 (0,25) | 0,6615 | 0,7580 | +0,0010 | 9-8-35 | 🟡 |
+| **+ kênh 5 (0,5)** | **0,6712** | **0,7808** | **+0,0106** | 11-11-30 | 🟡 |
+| + kênh 5 (1,0) | 0,6500 | 0,7603 | −0,0106 | 10-18-24 | ❌ |
+| kênh 5 THAY kênh 3 | 0,6548 | 0,7538 | −0,0058 | 13-15-24 | ❌ |
+| **chỉ kênh 5** *(chẩn đoán)* | **0,3904** | 0,5154 | | | |
+| chỉ kênh 1 *(chẩn đoán)* | 0,6474 | 0,7426 | | | |
+
+**Dòng chẩn đoán mới là phần đáng giá.** Kênh 5 đứng một mình được **0,3904**
+so với 0,6474 của kênh 1 trong CÙNG bể — tức nó là một kênh truy hồi **thật sự
+chạy được**, khác hẳn kênh 6 (0,1462 so với 0,4779). Caption mang thông tin
+thị giác mà BM25 đọc được.
+
+#### So hai kênh, và điều cần quyết
+
+| | chỉ kênh đó | so với kênh 1 cùng điều kiện | lãi khi hợp nhất |
+| --- | ---: | ---: | ---: |
+| kênh 6 (BGE-M3) | 0,1462 | 31% | +0,0106 🟡 |
+| kênh 5 (caption) | 0,3904 | 60% | +0,0106 🟡 |
+
+Lãi bằng nhau, nhưng **caption là kênh khoẻ hơn hẳn**. Và lãi của caption ở
+±15s là +0,0356 (so với +0,0077 của BGE) — nó cứu những câu lệch xa hơn.
+
+Cả hai đều **dưới ngưỡng nhiễu ở 52 câu**, nên chưa bật cái nào mặc định. Điểm
+đáng tin hơn các dòng 🟡 trước: cùng dấu ở cả hai mức dung sai VÀ ở nhiều mức
+trọng số, không phải thắng nhờ vài câu may.
+
+> **Đây chính là lúc tập dev nhỏ trở thành nút thắt thật sự.** Hai kênh tốn
+> hàng chục giờ GPU để dựng, cùng cho +0,0106, và 52 câu không đủ để nói cái
+> nào thật. 24 gói `de_thi_thu` (52 → 76 câu) giờ không còn là việc "nên làm"
+> mà là **điều kiện để quyết định bất cứ điều gì tiếp theo**.
+
+Việc còn lại: sinh caption cho cả kho (103,4 giờ, chia 12 phần —
+`notebooks/kaggle_caption_chay.md` cell B) rồi đo lại KHÔNG khoá bể. Chỉ nên
+làm sau khi tập đề thật lên 76 câu, nếu không thì lại ra một con số 🟡 nữa.
+
 ## PHẦN B — QUYẾT ĐỊNH HẠ TẦNG
 
 ### B1. Không dùng Supabase / Postgres / Milvus / Elasticsearch — ĐÃ KIỂM CHỨNG
