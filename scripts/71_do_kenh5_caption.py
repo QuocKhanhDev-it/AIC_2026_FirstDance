@@ -51,7 +51,9 @@ W5 = (0.25, 0.5, 1.0)
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[1])
     ap.add_argument("--index", default=GOC / "index", type=Path)
-    ap.add_argument("--file", default=GOC / "dev" / "tap_de_that.jsonl", type=Path)
+    ap.add_argument("--file", nargs="*", type=Path, default=[
+        GOC / "dev" / "tap_de_that.jsonl",
+        GOC / "dev" / "tap_de_thi_thu.jsonl"])
     ap.add_argument("--caption", default=GOC / "index" / "caption.parquet",
                     type=Path)
     ap.add_argument("--be", type=int, default=100)
@@ -59,7 +61,9 @@ def main():
 
     master = pd.read_parquet(a.index / "master.parquet")
     cap = pd.read_parquet(a.caption)
-    cau = tap_dev.doc(a.file)
+    cau = []
+    for f in a.file:
+        cau += tap_dev.doc(f)
 
     # Bể ứng viên = mọi keyframe của các video CÓ caption.
     vid_co = set(master.video_id.iloc[cap.row_id.values])
@@ -79,7 +83,7 @@ def main():
     con = [c for c in giu
            if any(be[r] for r in (c.row_id_dung if c.loai != "TRAKE"
                                   else [x for b in c.row_id_dung for x in b]))]
-    print(f"{a.file.name}: {len(con)}/{len(giu)} câu có đáp án trong bể\n")
+    print(f"{'+'.join(f.stem for f in a.file)}: {len(con)}/{len(giu)} câu có đáp án trong bể\n")
 
     tho = {}
 

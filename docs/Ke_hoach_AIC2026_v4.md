@@ -4552,6 +4552,134 @@ thấy là có hại.
 +0,0106). Cả hai đi đúng hướng khi tập lớn lên, vẫn 🟡. Cùng dấu ở cả hai mức
 dung sai và ở cả hai trọng số.
 
+### A71. Các kênh **gần như không bao giờ đồng ý cùng một khung** — và đó không phải chuyện độ phủ
+
+A59 đo kênh 5 (caption) đứng một mình 0,3904 mà hợp nhất chỉ **+0,0106**. Điểm
+số không tách được ba cách giải thích, và chúng dẫn tới ba quyết định khác nhau:
+kênh YẾU / kênh TRÙNG kênh 1 / kênh KHÁC nhưng phủ ít. Độ trùng thì tách được.
+
+`scripts/84_do_tuong_quan_kenh.py` đo hai đại lượng, không đo điểm:
+
+* **chồng@k** — bao nhiêu phần trăm top-k của hai kênh là **cùng `row_id`**.
+  Đây đúng thứ RRF cần: RRF chỉ cộng hưởng khi hai kênh đề cử cùng `row_id`.
+* **Spearman** — tương quan hạng trên phần giao (chỉ tính khi hai kênh chung
+  ≥ 5 ứng viên; cột `n` cho biết bao nhiêu câu đủ điều kiện).
+
+| cặp kênh | chồng@10 | chồng@20 | chồng@100 | Spearman | n |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| *bể 51.088 khung (28,8% kho), 49 câu* | | | | | |
+| 1 ảnh × 3 ocr+asr | 4,1% | 4,3% | 6,9% | 0,203 | 27 |
+| 1 ảnh × 5 caption | 2,7% | 4,3% | 7,3% | 0,093 | 30 |
+| 3 ocr+asr × 5 caption | 3,9% | 2,8% | 3,5% | 0,169 | 6 |
+| *bể 134.708 khung (76,0% kho), 65 câu* | | | | | |
+| 1 ảnh × 3 ocr+asr | 2,0% | 3,4% | 5,5% | 0,120 | 35 |
+| **1 ảnh × 5 caption** | 4,0% | **4,0%** | 4,9% | **0,043** | 37 |
+| 3 ocr+asr × 5 caption | 3,4% | 2,9% | 2,5% | 0,190 | 10 |
+
+#### Hai điều đọc ra
+
+**Caption KHÔNG thừa.** Spearman 0,093 rồi 0,043 — gần như độc lập với kênh 1.
+Giả thuyết "Qwen2.5-VL nhìn cùng tấm ảnh nên nói cùng thứ với SigLIP2" **bị
+bác**. Hai model nhìn cùng ảnh mà xếp hạng gần như không liên quan tới nhau.
+
+**Nhưng chúng cũng không hợp tác.** chồng@20 chỉ 4%: trong 20 ứng viên đầu,
+chưa tới một cái trùng. Đây **đúng cơ chế A14** (kênh 2 × kênh 4 chung khung ở
+5/97 câu -> RRF thô thua −0,0144). Không cộng hưởng thì RRF chỉ **đan xen**, và
+đan xen thì mỗi ứng viên tốt của kênh mạnh bị một ứng viên của kênh yếu đẩy lùi
+một bậc. +0,0106 chính là thứ đan xen mua được.
+
+#### Vì sao đo hai lần với hai độ phủ — và vì sao điều đó đóng một quyết định
+
+Lần đầu bể chỉ 5,9% kho, nên "độ chồng thấp vì caption phủ ít" là cách giải
+thích cạnh tranh còn sống. Gộp thêm 9 phần (51.088 -> **134.708 ảnh / 663
+video**, 76% kho) rồi đo lại: **độ chồng không nhúc nhích**, Spearman còn giảm.
+
+Độ chồng là chuyện **đồng thuận**, không phải chuyện **độ phủ**. Nên 3 phần
+caption còn lại (7, 8, 12 — khoảng 26 giờ GPU) mua thêm độ phủ, chứ không mua
+thêm khả năng hợp nhất. Quyết định chỉ còn phụ thuộc một số: kênh 5 đóng góp
+bao nhiêu khi bể khoá ở 76% (`71_do_kenh5_caption.py`).
+
+> Giá trị của A71: nó tách được "kênh yếu" khỏi "kênh không hợp tác" — hai thứ
+> mà điểm hợp nhất trông y hệt nhau, mà cách chữa thì ngược nhau (một bên là
+> làm kênh mạnh lên, bên kia là đổi cơ chế hợp nhất).
+
+### A72. Hợp nhất kênh bằng **ĐIỂM chuẩn hoá** thay vì thứ hạng — thua ở **cả 8 biến thể**
+
+A71 chỉ thẳng vào một nghi ngờ: nếu các kênh chỉ đan xen chứ không cộng hưởng,
+thì có lẽ vấn đề là RRF **vứt hết biên độ** — một khớp gần như chắc chắn bị đối
+xử y hệt một khớp yếu, miễn cùng hạng. `rrf.py` từ chối cộng điểm ngay từ đầu,
+nhưng đó là lý do **né**, chưa từng là một phép đo.
+
+`src/hop_diem.py` + `scripts/85_do_hop_nhat_diem.py`. Chỉ đổi **một thứ**: cơ
+chế hợp nhất ở tầng KÊNH. Hợp nhất mệnh đề *trong* kênh 1 vẫn là RRF hạng ở mọi
+dòng (A51 đã thắng ở đó).
+
+| cấu hình | ±2s | ±15s | hiệu ±2s | T-B-H | |
+| --- | ---: | ---: | ---: | :---: | :---: |
+| **1. MỐC: RRF hạng** | **0,5809** | **0,6721** | — | — | |
+| 2. điểm z-score | 0,5647 | 0,6375 | −0,0162 | 2-7-59 | ✅ |
+| 3. điểm min-max | 0,5684 | 0,6456 | −0,0125 | | ✅ |
+| 4. sigmoid tau=2 | 0,5735 | 0,6507 | −0,0074 | | ✅ |
+| 5. sigmoid tau=8 | 0,5676 | 0,6507 | −0,0133 | | ✅ |
+| 6. z-score + log1p BM25 | 0,5647 | 0,6375 | −0,0162 | 2-7-59 | ✅ |
+| 7. min-max + log1p BM25 | 0,5713 | 0,6426 | −0,0096 | 2-5-61 | ✅ |
+| 8. z-score, **bù 0** | 0,5493 | 0,6147 | −0,0316 | 3-13-52 | ✅ |
+| **9. chỉ kênh 1** *(chẩn đoán)* | 0,5537 | 0,6426 | −0,0272 | | ✅ |
+
+68 câu đề thật. Đo trước trên 52 câu, cùng dấu ở cả 8 dòng và hiệu số lớn hơn
+(z-score −0,0212 / −0,0490) — tập lớn lên thì hiệu co lại, dấu không đổi.
+
+#### Dòng 9 giải thích toàn bộ
+
+Kênh 1 một mình **0,5537**. RRF hạng đẩy lên **0,5809**, tức kênh 3 đóng góp
+**+0,0272**. Hợp nhất theo điểm chỉ tới 0,5647–0,5735: nó **vứt đi khoảng một
+nửa đóng góp của kênh 3**.
+
+Lý do nằm ở chỗ `rrf.py` cảnh báo, giờ có số: BM25 lệch nặng — phần lớn ứng
+viên gần 0, một nhúm vọt cao — nên ứng viên đầu của kênh 3 có z-score cỡ +8,
+còn ứng viên đầu của kênh 1 (cosine phân bố mượt) chỉ cỡ +3. Cộng vào thì BM25
+nuốt hết. **Chuẩn hoá không chữa được, vì cái lệch nằm ở HÌNH DẠNG phân phối
+chứ không ở thang đo** — mà z-score, min-max và sigmoid đều chỉ đụng tới thang.
+
+Suy luận từ A71 — *"chồng 4% nên RRF chỉ đan xen; cộng điểm giữ được biên độ"* —
+đúng phần chẩn đoán, **sai phần kết luận**. Giữ được biên độ đúng là thứ gây hại.
+
+#### Ba thứ đo được thêm
+
+**Bẫy A60 có thật và đắt.** Bù `0` thay vì bù giá trị thấp nhất kênh đó thật sự
+trả về làm tệ thêm gần gấp đôi (−0,0316 so với −0,0162). Ứng viên vắng mặt ở
+một kênh chỉ nghĩa là *không lọt top-100 của kênh đó*, không phải *kênh đó nói
+nó sai*.
+
+**`log1p` không đổi gì với z-score** — dòng 2 và 6 trùng nhau tới bốn chữ số.
+"Tham số bị nuốt trên đường truyền" trông y hệt "tham số vô tác dụng", nên đã
+thêm test dựng phân phối lệch kiểu BM25 và kiểm rằng `log1p` **thật sự đổi điểm
+hợp nhất**. Test qua -> kết luận thật: nó đổi điểm nhưng không đổi thứ tự
+top-100 đủ để chạm vào R@k.
+
+**`logit_scale`/`logit_bias` của SigLIP2 không phải thứ đáng đi lấy.**
+`σ(s·τ + b)` **đơn điệu** theo cosine, nên nó không đổi được thứ hạng nội bộ
+kênh — chỉ đổi biên độ khi cộng. Nếu chỉ cần biên độ thì `τ` **dò được như tham
+số thường**, và dò thì bao trùm luôn giá trị của checkpoint. Khỏi mở model, mà
+máy thi cũng không mở nổi. Cả `tau=2` lẫn `tau=8` đều thua.
+
+#### Hệ quả
+
+`run.py` giữ RRF. Và **cổng theo độ tự tin của kênh** (dùng ngưỡng trên điểm đã
+chuẩn hoá để tắt kênh phụ ở những câu nó không chắc) mất chỗ dựa — nó cần đúng
+phép chuẩn hoá vừa bị bác.
+
+#### Hai lỗi repo tìm ra trên đường
+
+* `76_kiem_caption_phan.py --ghep` dùng `Path.rename()` để sao lưu, mà trên
+  Windows `rename` ném `FileExistsError` khi đích đã có — và bản sao lưu lần
+  ghép trước thì luôn đã có. Chặn hẳn việc ghép caption. -> `.replace()`.
+* `25_ma_hoa_truy_van.py` chặn bằng `if not (a.de or a.tap_dev or a.them)`,
+  **thiếu `a.tap`** — trong khi câu thông báo lỗi *có* liệt kê `--tap`. Cờ này
+  thêm ở A63 mà điều kiện không cập nhật theo, nên `--tap` đứng một mình luôn
+  thoát mã 1 với đúng câu "chưa chọn nguồn nào: … --tap …". Nay danh sách nguồn
+  và câu thông báo lấy từ **cùng một dict**, không lệch lại được.
+
 ## PHẦN B — QUYẾT ĐỊNH HẠ TẦNG
 
 ### B1. Không dùng Supabase / Postgres / Milvus / Elasticsearch — ĐÃ KIỂM CHỨNG
