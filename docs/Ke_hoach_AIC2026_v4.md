@@ -4680,6 +4680,61 @@ phép chuẩn hoá vừa bị bác.
   thoát mã 1 với đúng câu "chưa chọn nguồn nào: … --tap …". Nay danh sách nguồn
   và câu thông báo lấy từ **cùng một dict**, không lệch lại được.
 
+### A73. Caption: độ phủ tăng **13 lần** thì đóng góp **biến mất** — và con số cũ là ảo
+
+A59 đo kênh 5 (caption) hợp nhất **+0,0106** với bể khoá 10.488 ảnh (5,9% kho).
+A71 cho thấy kênh này độc lập thật với kênh 1 (Spearman 0,043) nhưng chỉ chồng
+4% ở top-20. Câu hỏi còn lại là con số +0,0106 có sống nổi khi bể lớn lên không
+— vì 3 phần caption còn lại là **~26 giờ GPU**.
+
+Gộp 9/12 phần: **134.708 ảnh / 663 video = 76,0% kho** (trước 51.088 / 249).
+`71_do_kenh5_caption.py`, 68 câu đề thật, 66/68 có đáp án trong bể.
+
+| cấu hình | ±2s | ±15s | hiệu ±2s | T-B-H | |
+| --- | ---: | ---: | ---: | :---: | :---: |
+| **1. mốc: ảnh + kênh 3 (khoá bể)** | **0,5713** | **0,6551** | — | — | |
+| 2. **chỉ kênh 5** *(chẩn đoán)* | 0,2625 | 0,3186 | −0,3088 | 7-43-18 | ✅ |
+| 3. chỉ kênh 1 *(chẩn đoán)* | 0,5522 | 0,6235 | −0,0191 | 7-10-51 | ✅ |
+| 4. + kênh 5 (0,25) | 0,5735 | 0,6522 | **+0,0022** | 5-6-57 | **❌ ĐẢO DẤU** |
+| 4. + kênh 5 (0,5) | 0,5684 | 0,6551 | −0,0029 | 9-11-48 | 🟡 |
+| 4. + kênh 5 (1,0) | 0,5485 | 0,6265 | −0,0228 | 13-26-29 | 🟡 |
+| 5. kênh 5 THAY kênh 3 | 0,5669 | 0,6353 | −0,0044 | 11-10-47 | 🟡 |
+
+**Trọng số tốt nhất giờ ❌ ĐẢO DẤU** (+0,0022 ở ±2s, −0,0029 ở ±15s). Theo đúng
+luật của repo, đảo dấu = **không kết luận được**, không phải "hơi hơn". Hai
+trọng số còn lại đều âm.
+
+#### Con số cũ đẹp vì bể quá nhỏ, không phải vì kênh tốt
+
+Kênh 5 đứng một mình rơi từ **0,3904 xuống 0,2625**. Bể 5,9% cũ gồm gần như chỉ
+những video *có chứa đáp án*, nên kênh 5 chỉ cần chọn đúng khung trong một tập
+đã được lọc sẵn hộ. Đây đúng cơ chế **A21** (mức tăng ảo 0,400 -> 0,840), và
+điều đáng ghi là **khoá bể chỉ chặn được một phần của nó**: khoá bể giữ cho mọi
+kênh cùng nhìn một vũ trụ, nhưng khi vũ trụ đó nhỏ tới 5,9% thì bản thân nó đã
+là một gợi ý mạnh, và kênh yếu hưởng lợi nhiều hơn kênh mạnh.
+
+> **Bài học chung:** khoá bể làm phép so *công bằng*, không làm nó *đại diện*.
+> Bể càng nhỏ so với kho thật, con số càng nói về bể chứ không về kênh. Lần sau
+> đo kênh phủ một phần, ghi kèm tỷ lệ phủ và coi kết quả là **tạm** cho tới khi
+> phủ đủ.
+
+#### Quyết định
+
+**Không chạy 3 phần caption còn lại (7, 8, 12).** ~26 giờ GPU để mua thêm 24% độ
+phủ cho một kênh mà ở 76% độ phủ đã không còn đóng góp đo được.
+
+Kênh 5 **không bật** trong `run.py`. 9 phần đã sinh thì giữ lại — chúng không
+tốn thêm gì, và nếu về sau có cơ chế hợp nhất khai thác được kênh ít chồng lấn
+(A71) thì dữ liệu đã sẵn. Nhưng A72 vừa bác cơ chế ứng viên duy nhất cho việc
+đó, nên đừng chờ.
+
+#### Ba chẩn đoán chỉ có được nhờ dòng "chỉ kênh 1"
+
+Kênh 1 một mình 0,5522, thêm kênh 3 lên 0,5713 (**+0,0191**, ✅ ổn định ở ±15s).
+Đó là mức đóng góp của một kênh *có* tác dụng, để đối chiếu với +0,0022 của
+kênh 5. Không có dòng chẩn đoán này thì +0,0022 trông như "nhỏ nhưng dương";
+đặt cạnh nhau mới thấy nó nhỏ hơn một bậc độ lớn.
+
 ## PHẦN B — QUYẾT ĐỊNH HẠ TẦNG
 
 ### B1. Không dùng Supabase / Postgres / Milvus / Elasticsearch — ĐÃ KIỂM CHỨNG

@@ -6,7 +6,12 @@
 ⚠️ VÌ SAO KHÔNG ĐO THẲNG NHƯ CÁC KÊNH KHÁC
 
 `caption.parquet` hiện chỉ phủ **47 video mà tập đề thật đụng tới** (10.488 ảnh
-= 5,9% kho) — cố ý, để biết kênh này có đáng 103 giờ GPU cho cả kho hay không.
+= 5,9% kho) — cố ý, để biết kênh này có đáng 103 giờ GPU cho cả kho không.
+Nay đã có 9/12 phần (**134.708 ảnh / 663 video = 76% kho**); script tự đọc
+độ phủ thật từ `caption.parquet`.
+
+⚠️ A73: độ phủ tăng 13 lần thì đóng góp của kênh 5 **biến mất** (+0,0106 ->
++0,0022 rồi đảo dấu). Con số cũ đẹp là vì bể quá nhỏ, không phải vì kênh tốt.
 
 Nhưng dựng BM25 trên đúng ngần ấy thì kênh 5 **chỉ có thể đề xuất khung từ
 chính những video chứa đáp án**. Nó sẽ cho ra con số đẹp rực rỡ và hoàn toàn vô
@@ -22,7 +27,7 @@ nên so sánh công bằng. Câu hỏi trở thành:
 
 Hợp lệ, và trả lời đúng vấn đề A54: R@20 = 0,61 nhưng R@1 = 0,20.
 
-⚠️ ĐIỂM Ở ĐÂY KHÔNG SO ĐƯỢC VỚI ĐIỂM Ở CÁC MỤC KHÁC. Bể chỉ còn 5,9% kho nên
+⚠️ ĐIỂM Ở ĐÂY KHÔNG SO ĐƯỢC VỚI ĐIỂM Ở CÁC MỤC KHÁC. Bể bị khoá nhỏ hơn kho nên
 mọi cấu hình đều cao vọt. Chỉ đọc HIỆU giữa các dòng, đừng trích con số tuyệt
 đối ra ngoài script này.
 """
@@ -118,7 +123,7 @@ def main():
 
     print(bao_cao_do_nhay(giu, cau_hinh, master))
     print("\n⚠️ Điểm tuyệt đối ở đây KHÔNG so được với các mục khác — bể chỉ "
-          "còn 5,9% kho. Chỉ đọc HIỆU giữa các dòng.")
+          f"còn {be.mean() * 100:.1f}% kho. Chỉ đọc HIỆU giữa các dòng.")
 
 
 if __name__ == "__main__":
