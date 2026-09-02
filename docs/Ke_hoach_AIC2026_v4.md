@@ -4801,6 +4801,136 @@ như `bao_cao_do_nhay()`. Trước khi đổi `run.py` cần:
 Hai câu thua đó là 2/17, và mức rơi của chúng lớn hơn mức thắng trung bình —
 đúng dạng rủi ro mà điểm trung bình che mất.
 
+### A75. Kênh 3 có **trần hạng do chính công thức RRF** — trần có thật, nhưng phá nó tốn hơn được
+
+RRF cộng `w/(k + hạng)`. Với `k = 60`, `w = 0,5`, một ứng viên **chỉ kênh 3
+tìm ra** có điểm cao nhất là `0,5/61 = 0,008197`, đúng bằng `1,0/122` — tức
+hạng 62 của kênh 1. Suy ra công thức trần:
+
+    h = (k+1)/w − k      k=60 -> 62    k=20 -> 22    k=10 -> 12
+                         k=30 -> 32    k=15 -> 17    k= 5 ->  7
+
+`h` là hạng thấp nhất của kênh 1 mà ứng viên chỉ-kênh-3 có thể vượt. Điểm BTC
+là trung bình R@{1,5,20,50,100}, nên chừng nào `h > 20` thì **kênh 3 không thể
+chạm vào ba mốc đầu**, bất kể nó đúng tới đâu.
+
+#### Chẩn đoán: trần là THẬT (`86_do_dinh_muc_kenh3.py`, 68 câu)
+
+| top-N kênh 3 | hạng trung vị sau hợp nhất | vào top-20 | vào top-100 | chỉ kênh 3 |
+| --- | ---: | ---: | ---: | ---: |
+| top-1 | **64** | **10%** | 100% | 74% |
+| top-3 | 68 | 10% | 99% | 75% |
+| top-5 | 70 | 10% | 99% | 74% |
+
+Công thức dự đoán 62, đo được trung vị **64**. Và **74%** ứng viên tốt của kênh
+3 là loại "chỉ kênh 3" — khớp A71 (chồng@20 chỉ 3,4%).
+
+#### Cách chữa 1 — định mức chỗ dành riêng: THUA
+
+Vì "dòng sai không bị phạt", thử cắt M dòng cuối dành cho top-M của riêng kênh 3:
+
+| cấu hình | ±2s | ±15s | hiệu ±2s | T-B-H | |
+| --- | ---: | ---: | ---: | :---: | :---: |
+| *RRF thuần* | 0,5919 | 0,6669 | — | — | |
+| dành 10 dòng | 0,5890 | 0,6640 | −0,0029 | 0-1-67 | 🟡 |
+| dành 20 dòng | 0,5860 | 0,6640 | −0,0059 | 0-2-66 | 🟡 |
+| dành 30 dòng | 0,5801 | 0,6640 | −0,0118 | 0-4-64 | ✅ tệ hơn |
+
+**Không một câu nào thắng**, và càng dành nhiều càng tệ. Lý do nằm ngay trong
+bảng chẩn đoán: **100% top-5 của kênh 3 đã nằm trong top-100 rồi**, nên định
+mức ở đuôi chỉ đổi chỗ thứ vốn có mặt, mà đánh đổi bằng ứng viên kênh 1 hạng
+71–100. Cảnh báo này đã ghi vào docstring TRƯỚC khi chạy.
+
+#### Cách chữa 2 — hạ `k` để phá trần: THUA, đơn điệu (`87_do_hang_so_k.py`)
+
+| k | trần hạng | ±2s | ±15s | hiệu ±2s | T-B-H | |
+| ---: | ---: | ---: | ---: | ---: | :---: | :---: |
+| **60** | 62 | **0,5809** | **0,6721** | — | — | mốc |
+| 30 | 32 | 0,5809 | 0,6654 | +0,0000 | 2-1-65 | 🟡 |
+| 20 | 22 | 0,5765 | 0,6544 | −0,0044 | 2-3-63 | 🟡 |
+| 15 | 17 | 0,5735 | 0,6551 | −0,0074 | 2-4-62 | 🟡 |
+| 10 | 12 | 0,5647 | 0,6441 | −0,0162 | 2-6-60 | ✅ tệ hơn |
+| 5 | 7 | 0,5537 | 0,6353 | −0,0272 | 2-10-56 | ✅ tệ hơn |
+| *chỉ kênh 1* | | 0,5537 | 0,6426 | −0,0272 | 2-9-57 | ✅ |
+
+A48 từng dò `k` và kết luận "gần như trơ", nhưng dò ở trọng số 1:1 dưới mốc nền
+cũ 0,3440 và **dừng đúng ở k = 20** — tức `h = 22`, sát ngay bên ngoài top-20.
+Nay bước qua rồi: **càng hạ càng tệ, đơn điệu**, và `k = 5` tụt đúng về mức
+kênh 1 một mình (0,5537).
+
+Cơ chế, đã ghi vào docstring trước khi chạy: `k` nhỏ **không chỉ** nâng ứng viên
+chỉ-kênh-3, nó còn làm top-1 của riêng kênh 1 áp đảo mạnh hơn. Nó thưởng cho sự
+tự tin của **cả hai** kênh, và kênh 1 mạnh hơn nên hưởng nhiều hơn.
+
+> **Kết luận dùng được:** trần hạng là thật và **đáng sống chung**. Kênh 3 đáng
+> giá đúng bằng phần nó đóng ở R@50 và R@100. Ba cách khai thác nó mạnh hơn —
+> định mức chỗ (A75), hạ `k` (A75), cộng điểm chuẩn hoá (A72) — đều đã đo và
+> đều thua. Muốn kênh 3 chạm được R@1/R@5 thì phải làm nó **đúng hơn**, không
+> phải trộn nó **khác đi**.
+
+### A76. VietOCR: **gộp** với OCR cũ thắng cả hai phía, và ngưỡng đặt trước đã sai
+
+`vietnamese-news-video-ocr` của một nhóm khác dùng PaddleOCR dò vùng + VietOCR
+đọc chữ. Ba lượt Kaggle chết trong chuỗi phụ thuộc của paddle (`.post120`,
+`pyclipper`, `imgaug`, rồi `imgaug` gọi `np.sctypes` đã bị bỏ ở NumPy 2). Bỏ
+paddle, dùng **EasyOCR dò vùng (CRAFT, chạy trên torch)** — cùng ngăn xếp với
+VietOCR, không thêm runtime thứ hai. 251 khung, T4.
+
+| | CŨ | MỚI (VietOCR) | **GỘP** |
+| --- | ---: | ---: | ---: |
+| có dấu — mọi khung | 8% | 48% | 48% |
+| có dấu — riêng khung đáp án | 20% | **82%** | **82%** |
+| khớp đúng dấu | 4/13 | 5/13 | **6/13** |
+| khớp khi bỏ dấu | 6/13 | 5/13 | 6/13 |
+| **CHỈ đáp án CÓ dấu** | **0/5** | **2/5** | **2/5** |
+
+Tốc độ **0,74 s/ảnh** -> cả kho 36,6 giờ.
+
+#### Ngưỡng đặt trước là SAI, và chỗ sai đáng ghi lại
+
+Ngưỡng ghi trước khi đo: *"khớp đúng dấu phải ≥ 4/13"*, dựa trên câu của A68 là
+"hiện 0/13". Nhưng mốc cũ đo được **4/13** — tức ngưỡng chính là nguyên trạng,
+một cái bar mà không làm gì cũng đạt.
+
+Nguyên nhân: **8/13 đáp án không chứa dấu nào** (`46`, `2,15`, `7`, `20`, `2`,
+`200g`, `1204`, `Giang Ly`). Với chúng, "khớp đúng dấu" và "khớp khi bỏ dấu" là
+**cùng một phép thử** — chúng không nói gì về dấu, chỉ làm loãng con số.
+
+> Ghi ngưỡng trước khi xem số vẫn đúng và vẫn nên làm. Nhưng ngưỡng phải đặt
+> trên **đại lượng thật sự đo được thứ cần đo**. Ở đây đại lượng đúng là "khớp
+> đúng dấu **trên các đáp án CÓ dấu**": **0/5 -> 2/5**. `83_do_vietocr.py` nay
+> in thẳng dòng đó.
+
+#### GỘP chứ không THAY — phép đo quyết định
+
+VietOCR **làm mất một con số** OCR cũ đọc được: `qa-DE1-15`, đáp án `46`, đi từ
+✅ về —. Hai bộ hỏng ở chỗ khác nhau: cũ mất dấu, mới mất số.
+
+Văn bản gộp `OCR cũ + VietOCR` giữ **cả hai**: 2/5 đáp án có dấu *và* lấy lại
+`46`. **Không câu nào tệ hơn cả CŨ lẫn MỚI** — hợp đúng nghĩa, không đánh đổi.
+BTC không phạt dòng sai và BM25 chỉ lợi khi có thêm từ, nên gộp không có mặt trái.
+
+#### Kèm theo: đào đáp án ưu tiên bản CÓ DẤU
+
+`run.py` ghép `OCR + " " + ASR` cho mỗi khung, mà ASR 100% có dấu — nên cùng
+một thực thể hay xuất hiện hai lần: `Ta Pua` rồi `Tà Pứa`. Chọn theo khoảng
+cách không phân biệt, mà OCR đứng trước nên hay thắng. `dap_an.uu_tien_co_dau()`
+chọn bản có dấu khi **cả hai cùng có mặt** — không đoán dấu, không cần model.
+Với văn bản gộp, tình huống này càng hay xảy ra.
+
+#### Chia việc: 7/12 phần KHÔNG cần L26
+
+L26 chiếm **44,9% kho** (498 video, 79.590 khung), và `chia_caption` trải nó đều
+ra cả 12 phần (39–43 video L26 mỗi phần) nên ai chưa tải được L26 thì không chạy
+nổi phần nào. `chia_ocr/` tách hai nhóm, cân theo **số khung** chứ không theo số
+video (L23: 25 video/2.326 khung; L25: 88 video/37.445 khung):
+
+    A1-A7 : 53-54 video, ~13.960 khung, 2,9 giờ  -> KHÔNG cần L26
+    B1-B5 : 99-100 video, ~15.920 khung, 3,3 giờ -> chỉ L26
+
+Chia mới ở đây hợp lệ vì OCR chưa ai chạy phần nào; bài học "đừng chia lại" nói
+về bản chia **đang có người chạy dở**. `88_chia_viec_ocr.py` tự từ chối ghi đè.
+
 ## PHẦN B — QUYẾT ĐỊNH HẠ TẦNG
 
 ### B1. Không dùng Supabase / Postgres / Milvus / Elasticsearch — ĐÃ KIỂM CHỨNG
