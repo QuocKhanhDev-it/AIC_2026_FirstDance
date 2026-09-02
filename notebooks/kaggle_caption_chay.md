@@ -89,22 +89,23 @@ trong cùng bể — một kênh truy hồi thật sự chạy được (A59). L
 +0,0106 🟡, dưới ngưỡng nhiễu của 52 câu, nên con số cuối cùng phải đợi tập đề
 thật lên 76 câu. Nhóm đã quyết định cứ sinh cho cả kho.
 
-`chia_caption/phan_1.txt` … `phan_12.txt`: **826 video, 166.833 ảnh** — đã TRỪ
-47 video mà cell A caption rồi, khỏi ai phải chạy lại 6 giờ cho việc đã có kết
-quả. Chia theo LPT, lệch **30 ảnh** giữa phần nặng nhất và nhẹ nhất, không phần
-nào trùng nhau.
-
-Mỗi phần ~13.900 ảnh × 2,10 s = **8,1 giờ** — an toàn dưới trần 12 giờ một
-phiên. Tổng **97,3 giờ**.
+`chia_caption/phan_1.txt` … `phan_12.txt`: **873 video, 177.321 ảnh**, chia
+theo LPT, lệch **30 ảnh** giữa phần nặng nhất và nhẹ nhất, không phần nào trùng
+nhau. Mỗi phần ~14.777 ảnh × 2,10 s = **8,6 giờ** — dưới trần 12 giờ một phiên.
+Tổng **103,4 giờ**.
 
 Chia 12 chứ không 6 vì 6 phần là 17,2 giờ/phần — **vượt trần, mất trắng phiên
 đó**.
 
-**KHÔNG cần tài khoản mới.** Quota là 30 giờ/tuần mỗi tài khoản, 6 người là 180
-giờ — thừa cho 97,3 giờ. Mỗi người nhận 2 phần, chạy hai lượt, tổng 16,2 giờ,
-vẫn còn dư một nửa quota. (Kaggle cho mỗi người MỘT tài khoản; lập thêm là vi
-phạm điều khoản và có thể mất cả tài khoản lẫn dữ liệu đã tải lên — mà ở đây
-cũng không cần.)
+**KHÔNG cần tài khoản mới.** Quota 30 giờ/tuần mỗi tài khoản, 6 người là 180
+giờ. Mỗi người nhận 2 phần, chạy hai lượt, tổng 17,2 giờ. (Kaggle cho mỗi người
+MỘT tài khoản; lập thêm là vi phạm điều khoản — mà ở đây cũng không cần.)
+
+⚠️ **ĐỪNG CHIA LẠI KHI ĐÃ CÓ NGƯỜI CHẠY.** Bản chia này gồm cả 47 video mà cell
+A đã caption — thừa ~0,5 giờ mỗi phần, và đó là cái giá RẺ. Tôi từng chia lại
+để trừ 47 video đó ra; ba người đã chạy xong theo bản cũ, và bản mới lập tức
+biến ba kết quả hợp lệ thành "sai phần" khi đối chiếu. Trùng lặp thì
+`drop_duplicates` xử lý được, còn lệch bản chia thì không.
 
 **Mỗi người đổi đúng một dòng: `PHAN = <số của mình>`.**
 
