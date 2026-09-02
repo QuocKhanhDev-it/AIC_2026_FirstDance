@@ -125,7 +125,10 @@ def main():
     gop += list(tat_ca.values())
     d = pd.concat(gop, ignore_index=True).drop_duplicates("row_id", keep="last")
     if cu.exists():
-        cu.rename(cu.with_suffix(".parquet.truoc_khi_ghep"))
+        # ⚠️ `.rename()` NÉM FileExistsError trên Windows khi đích đã có — và
+        # bản sao lưu lần ghép trước thì luôn đã có. Lỗi nổ TRƯỚC khi ghi nên
+        # không mất dữ liệu, nhưng nó chặn hẳn việc ghép. `.replace()` đè được.
+        cu.replace(cu.with_suffix(".parquet.truoc_khi_ghep"))
     d.to_parquet(cu, index=False)
     print(f"\n✅ {cu}: {len(d):,} ảnh "
           f"({vid_theo_row.loc[d.row_id].nunique()} video)")
