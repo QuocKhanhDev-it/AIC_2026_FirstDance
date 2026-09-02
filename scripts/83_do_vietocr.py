@@ -74,6 +74,12 @@ def main():
     bang = pd.read_parquet(a.index / "ocr_asr.parquet")
     cu = dict(zip(bang.row_id.astype(int), bang.ocr_text.fillna("")))
 
+    # GỘP = OCR cũ + OCR mới. Hai bộ hỏng ở chỗ KHÁC NHAU — cũ mất dấu, mới
+    # mất số (đo được: `46` đi từ ✅ về —). Thay hẳn là đánh đổi; gộp thì
+    # không mất bên nào, và BM25 chỉ được lợi khi có thêm từ.
+    gop = {r: f"{cu.get(r, '')} {moi.get(r, '')}".strip()
+           for r in set(cu) | set(moi)}
+
     cau = []
     for f in a.file:
         cau += [c for c in tap_dev.doc(f) if c.loai == "QA" and c.dap_an]
@@ -82,39 +88,52 @@ def main():
     print(f"OCR mới: {len(moi):,} khung | {len(cau)} câu Q&A, "
           f"{len(rid_qa)} khung đáp án\n")
 
-    print(f"{'':<22}{'CŨ':>10}{'MỚI':>10}")
-    print("-" * 42)
+    print(f"{'':<22}{'CŨ':>10}{'MỚI':>10}{'GỘP':>10}")
+    print("-" * 52)
     for ten, ids in (("mọi khung đo được", list(moi)),
                      ("riêng khung đáp án", rid_qa)):
-        c_cu = sum(1 for r in ids if co_dau(cu.get(r, "")))
-        c_moi = sum(1 for r in ids if co_dau(moi.get(r, "")))
         n = len(ids)
-        print(f"{'có dấu — ' + ten:<22}{c_cu / n * 100:>9.0f}%"
-              f"{c_moi / n * 100:>9.0f}%")
+        ra = [sum(1 for r in ids if co_dau(x.get(r, ""))) / n * 100
+              for x in (cu, moi, gop)]
+        print(f"{'có dấu — ' + ten:<22}{ra[0]:>9.0f}%{ra[1]:>9.0f}%"
+              f"{ra[2]:>9.0f}%")
     for ten, f in (("dài trung bình (ký tự)",
                     lambda d, ids: sum(len(str(d.get(r, ""))) for r in ids) / len(ids)),):
         print(f"{ten:<22}{f(cu, rid_qa):>10.0f}{f(moi, rid_qa):>10.0f}")
 
-    print(f"\n{'câu':<16}{'đáp án':<18}{'CŨ':>12}{'MỚI':>12}")
-    print("-" * 60)
-    dem = {"cu_dau": 0, "moi_dau": 0, "cu_bo": 0, "moi_bo": 0}
+    print(f"\n{'câu':<16}{'đáp án':<18}{'dấu?':>6}{'CŨ':>12}{'MỚI':>12}"
+          f"{'GỘP':>12}")
+    print("-" * 78)
+    dem = {f"{k}_{x}": 0 for k in ("cu", "moi", "gop") for x in ("dau", "bo")}
+    rieng = {k: 0 for k in ("cu", "moi", "gop")}      # chỉ đáp án CÓ dấu
+    n_rieng = 0
     for c in cau:
         vang = c.dap_an.strip()
-        t_cu = " ".join(str(cu.get(r, "")) for r in c.row_id_dung)
-        t_moi = " ".join(str(moi.get(r, "")) for r in c.row_id_dung)
+        vang_co_dau = co_dau(vang)
+        n_rieng += vang_co_dau
         kq = []
-        for t, k in ((t_cu, "cu"), (t_moi, "moi")):
-            dau = vang.lower() in t.lower()
-            bo = bo_dau(vang) in bo_dau(t)
+        for x, k in ((cu, "cu"), (moi, "moi"), (gop, "gop")):
+            van = " ".join(str(x.get(r, "")) for r in c.row_id_dung)
+            dau = vang.lower() in van.lower()
+            bo = bo_dau(vang) in bo_dau(van)
             dem[f"{k}_dau"] += dau
             dem[f"{k}_bo"] += bo
+            rieng[k] += dau and vang_co_dau
             kq.append("✅ đúng dấu" if dau else ("~ bỏ dấu" if bo else "—"))
-        print(f"{c.id:<16}{vang[:16]:<18}{kq[0]:>12}{kq[1]:>12}")
+        print(f"{c.id:<16}{vang[:16]:<18}{'CÓ' if vang_co_dau else '·':>6}"
+              f"{kq[0]:>12}{kq[1]:>12}{kq[2]:>12}")
 
     n = len(cau)
-    print(f"\n{'KHỚP ĐÚNG DẤU':<22}{dem['cu_dau']:>6}/{n}{dem['moi_dau']:>10}/{n}"
+    print(f"\n{'KHỚP ĐÚNG DẤU':<22}{dem['cu_dau']:>6}/{n}"
+          f"{dem['moi_dau']:>10}/{n}{dem['gop_dau']:>10}/{n}")
+    print(f"{'khớp khi bỏ dấu':<22}{dem['cu_bo']:>6}/{n}"
+          f"{dem['moi_bo']:>10}/{n}{dem['gop_bo']:>10}/{n}")
+    print(f"\n{'CHỈ đáp án CÓ dấu':<22}{rieng['cu']:>6}/{n_rieng}"
+          f"{rieng['moi']:>10}/{n_rieng}{rieng['gop']:>10}/{n_rieng}"
           f"   <- con số quyết định")
-    print(f"{'khớp khi bỏ dấu':<22}{dem['cu_bo']:>6}/{n}{dem['moi_bo']:>10}/{n}")
+    print(f"\n⚠️ {n - n_rieng}/{n} đáp án KHÔNG chứa dấu nào (46, 200g, 1204…).")
+    print("   Với chúng 'đúng dấu' và 'bỏ dấu' là CÙNG một phép thử, nên hai")
+    print("   dòng đầu bị loãng. Dòng 'CHỈ đáp án CÓ dấu' mới trả lời câu hỏi.")
 
     if giay:
         print(f"\ntốc độ: {giay:.2f} s/ảnh -> cả kho {giay * KHO / 3600:.1f} giờ"
