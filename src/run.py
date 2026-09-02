@@ -803,8 +803,13 @@ def main():
                          "loại câu dài mà A34 tưởng là thua. Giữ lại để dựng "
                          "lại phép đo cũ, đừng bật khi đi thi")
     ap.add_argument("--tra-loi", default="",
-                    help="chuỗi `answer` dùng chung cho mọi dòng Q&A khi chưa "
-                         "có VLM. Sai đáp án = 0 điểm, nhưng vẫn phải nộp")
+                    help="chuỗi `answer` DỰ PHÒNG cho dòng Q&A không đào được "
+                         "gì. Sai đáp án = 0 điểm, nhưng vẫn phải nộp")
+    ap.add_argument("--khong-dao-dap-an", action="store_true",
+                    help="TẮT việc đào `answer` riêng cho từng dòng Q&A, quay "
+                         "lại dùng một chuỗi chung (--tra-loi). A67 đo được "
+                         "đào riêng đúng 1/13 câu còn chuỗi chung 0/13, nên "
+                         "chỉ tắt để dựng lại số cũ")
     ap.add_argument("--so-su-kien", type=int, default=0,
                     help="ép số sự kiện TRAKE, thay vì tự tách từ đề")
     # --- Mũi nhọn 1 (Giai đoạn 2). Cả ba mặc định TẮT — xem A22 ------------
@@ -945,6 +950,29 @@ def main():
 
             uv = bu_cho_du(uv, master, a.k)
 
+            # --- Bước 3b: đào `answer` cho TỪNG DÒNG từ OCR/ASR của chính
+            # khung đó (A67). Chạy TRƯỚC VLM để VLM ghi đè được nếu bật.
+            #
+            # ⚠️ VÌ SAO KHÔNG DÙNG MỘT CHUỖI CHUNG. BTC chấm `answer` theo TỪNG
+            # DÒNG. `--tra-loi` một chuỗi cho cả 100 dòng nghĩa là hoặc trúng
+            # cả trăm hoặc trắng cả trăm — vứt đi đúng cơ chế ăn điểm từng dòng.
+            #
+            # ⚠️ ĐÂY LÀ BẢN VÁ, KHÔNG PHẢI LỜI GIẢI. Đo trên 13 câu Q&A đề
+            # thật: đào bằng regex đúng 1/13, trần của mọi cách đào từ văn bản
+            # là 7/13 (sáu câu còn lại phải NHÌN ẢNH). Nhưng BTC không phạt đáp
+            # án sai, nên 1/13 vẫn hơn 0/13 — xem A67.
+            if loai == "qa" and not a.khong_dao_dap_an:
+                from dap_an import gan_cho_moi_dong
+                if "van_qa" not in locals():
+                    _b = pd.read_parquet(a.index / "ocr_asr.parquet")
+                    van_qa = {int(r): f"{o} {s}".strip() for r, o, s in zip(
+                        _b.row_id.values, _b.ocr_text.fillna("").values,
+                        _b.asr_text.fillna("").values)}
+                n_dao = gan_cho_moi_dong(uv[:a.k], de[ten], van_qa,
+                                         mac_dinh=a.tra_loi or "không rõ")
+                print(f"     đào `answer`: {n_dao}/{min(len(uv), a.k)} dòng "
+                      f"có chuỗi từ chính khung đó")
+
             # --- Bước 4: VLM sinh `answer`, chỉ cho gói Q&A ------------------
             if loai == "qa" and a.vlm:
                 from mui_nhon_1 import gan_dap_an
@@ -961,14 +989,19 @@ def main():
         del kenh1_obj
         gc.collect()
 
-    if any(loai_cua(t) == "qa" for t in de) and not a.tra_loi.strip() and not a.vlm:
+    if (any(loai_cua(t) == "qa" for t in de) and not a.tra_loi.strip()
+            and not a.vlm and a.khong_dao_dap_an):
         raise SystemExit(
             "\n❌ Có gói Q&A nhưng chưa có `answer`.\n"
             "   BTC chấm: khung đúng NHƯNG answer sai -> 0 điểm. Bỏ trống là\n"
             "   chắc chắn 0, và `nop_bai.soat` sẽ chặn.\n\n"
-            "   Tạm thời: --tra-loi \"không rõ\"  (vẫn 0 điểm, nhưng nộp được\n"
-            "   để kiểm định dạng đầu-cuối).\n"
-            "   Đúng cách: cần VLM sinh đáp án — việc 12 của PHẦN H.")
+            "   Bỏ --khong-dao-dap-an để đào `answer` từ OCR/ASR của từng khung,\n"
+            "   hoặc --tra-loi \"không rõ\" để nộp được mà kiểm định dạng.")
+    if any(loai_cua(t) == "qa" for t in de) and not a.vlm:
+        print("\n⚠️ Q&A: `answer` đào bằng regex từ OCR/ASR — A67 đo được ĐÚNG\n"
+              "   1/13 câu, và trần của mọi cách đào từ văn bản là 7/13 (sáu\n"
+              "   câu còn lại phải NHÌN ẢNH). Đây là bản vá để không dòng nào\n"
+              "   bỏ trống, KHÔNG phải lời giải. Có VLM thì bật --vlm.")
 
     d = ghi_goi(goi, a.ra, so_su_kien)
 

@@ -4417,6 +4417,84 @@ gọi. Cần đo trước khi tin.
 > 13/68 câu. Và nó không lộ ra trong bất kỳ phép đo nào của repo, vì chính
 > thước đo đã được thiết kế để bỏ qua nó.
 
+### A68. Hai rào cản **cấu trúc** của việc đào đáp án Q&A từ văn bản
+
+A67 đo được bộ đào regex đúng 1/13 câu. Sửa hai lần (chọn theo khoảng cách tới
+từ khoá; loại ứng viên vốn là chữ của chính câu hỏi) — vẫn **1/13, ngay cả khi
+đào tại ĐÚNG khung đáp án**. Soi vào dữ liệu thì rõ vì sao, và lý do không nằm
+ở regex.
+
+| | |
+| --- | --- |
+| `ocr_text` có dấu tiếng Việt | **944/3.000 mẫu (31%)** |
+| `asr_text` có dấu tiếng Việt | 3.000/3.000 (100%) |
+| nhưng ASR viết số bằng CHỮ | *"hai mươi mốt"*, *"ba mươi"* |
+
+**Rào cản 1 — OCR mất dấu.** Đáp án vàng là `Tà Pứa`, `Lý Thường Kiệt`,
+`Cá sòng`; OCR cho ra `Ta Pua`, `Soc Trang`, `Khanh Vinh`. So chuỗi chính xác
+thì **không bao giờ khớp**, dù đọc đúng chữ trên màn hình.
+
+**Rào cản 2 — ASR viết số bằng chữ.** Đáp án vàng là `46`, `1204`, `200g`; ASR
+ghi *"bốn mươi sáu"*. Regex số không bắt được, và ngược lại.
+
+Nghĩa là hai nguồn văn bản **bổ khuyết đúng cái nhau thiếu**: OCR có số nhưng
+mất dấu, ASR có dấu nhưng không có số. Câu Q&A hỏi tên thì phải đọc OCR (mất
+dấu), hỏi số thì phải đọc ASR (viết chữ).
+
+#### Kết luận cho hướng "đào đáp án bằng regex": **đóng**
+
+Không phải vì mẫu chưa đủ tinh, mà vì **dạng dữ liệu không khớp dạng đáp án**.
+Trần 7/13 của A67 còn lạc quan: trong 7 câu "đáp án có mặt trong văn bản", phần
+lớn khớp được là nhờ so KHÔNG DẤU — mà bài nộp thì phải đúng chuỗi.
+
+Việc cần làm vẫn là **đọc hiểu**, và giờ có thêm một yêu cầu cụ thể: bộ sinh
+đáp án phải **khôi phục dấu** (VLM/LLM làm được, regex thì không).
+
+#### Đã làm gì
+
+`src/dap_an.py` + nối vào `run.py`: mỗi dòng Q&A giờ mang `answer` đào từ
+OCR/ASR **của chính khung đó**, thay vì một chuỗi dùng chung. `--khong-dao-dap-an`
+để dựng lại hành vi cũ.
+
+Đúng 1/13 — nhưng chốt chặn cũ *bắt buộc* phải có `--tra-loi` mới chạy được,
+nghĩa là bài nộp thật hoặc trắng hoặc phụ thuộc người gõ tay. Giờ nó luôn có
+chuỗi, và `run.py` in cảnh báo nói rõ đây là bản vá chứ không phải lời giải.
+7 test chốt, trong đó một test bắt đúng lỗi "chọn trúng từ khoá của câu hỏi".
+
+### A69. Gom đoạn để tóm tắt bằng LLM: **OCR không gom được, ASR thì được 18 lần**
+
+Ý (học từ một nhóm khác): gom khung liên tiếp cùng video có văn bản giống nhau
+thành ĐOẠN, rồi một lượt LLM mỗi đoạn tóm tắt nội dung. Biến 177.321 lượt gọi
+thành "số đoạn" lượt.
+
+Chưa ai biết số đoạn là bao nhiêu — mà đó chính là thứ quyết định ý tưởng sống
+hay chết. `80_do_gom_doan_ocr.py` chỉ đếm:
+
+| gom theo | ngưỡng Jaccard | số đoạn | khung/đoạn | đoạn 1 khung |
+| --- | ---: | ---: | ---: | ---: |
+| **OCR** | 0,3 | 62.960 | 2,8 | **54%** |
+| OCR | 0,5 | 88.597 | 2,0 | 69% |
+| **ASR** | **0,3** | **9.802** | **18,1** | **8%** |
+| ASR | 0,5 | 11.093 | 16,0 | 7% |
+
+**Gom theo OCR thất bại**: giảm 2,8 lần, và 54% số đoạn chỉ có MỘT khung — tức
+tốn một lượt gọi LLM mà chẳng lan tín hiệu đi đâu. Lý do: OCR trung vị **4
+token/khung** và chứa đồng hồ chạy (`06:30:11`), nên hai khung liền kề gần như
+không bao giờ giống nhau đủ.
+
+**Gom theo ASR thì được**: 9.802 đoạn, **giảm 18 lần**, 18,1 khung/đoạn, chỉ 8%
+đoạn lẻ. Khả thi thật — vài giờ LLM, hoặc một lượt Kaggle với model địa phương.
+
+> Ý tưởng đúng, nhưng gắn nhầm nguồn. Người đề xuất nhắm vào OCR vì họ thấy OCR
+> là ticker rời rạc — đúng chẩn đoán, sai lời giải: chính vì rời rạc mà nó
+> không gom được. ASR mới là thứ liên tục qua thời gian.
+
+⚠️ Nhưng phải đọc cùng A59: kênh 6 nhúng ASR bằng BGE-M3 (model text–text
+thật) đứng một mình chỉ được **0,1462**. Tóm tắt ASR là một biến đổi khác trên
+CÙNG nguồn tín hiệu đó, nên trần của nó khó vượt xa. Trước khi tiêu vài giờ
+LLM, nên đo trước trên một mẫu nhỏ: tóm tắt 100 đoạn thuộc video của tập đề
+thật rồi xem BM25 trên bản tóm tắt có hơn BM25 trên ASR gốc không.
+
 ## PHẦN B — QUYẾT ĐỊNH HẠ TẦNG
 
 ### B1. Không dùng Supabase / Postgres / Milvus / Elasticsearch — ĐÃ KIỂM CHỨNG
