@@ -20,7 +20,7 @@ Settings → **GPU T4**.
 
 ```python
 # ── THỬ VietOCR trên 251 khung ────────────────────────────────────────
-import subprocess, json, glob, os, time, pathlib
+import subprocess, json, os, re, time, pathlib
 
 def chay(lenh, im=False):
     p = subprocess.run(lenh, shell=True, text=True,
@@ -106,6 +106,12 @@ for k in KHUNG:
 #
 # Cach nay KHONG liet ke thu muc keyframe mot lan nao: chi di tim THU MUC
 # video, roi ghep thang duong dan vi ten file da biet san (`kf_name`).
+# ⚠️ Ban truoc van cham (278s) vi mot le CHUA sua: thu muc video KHONG nam
+# trong `CAN` (685/873 cai) bi coi la thu muc thuong nen van bi di vao va liet
+# ke — tuc van duyet gan het 177k anh. Phai chan theo HINH DANG TEN, khong
+# phai theo "co can hay khong".
+LA_VIDEO = re.compile(r"^L\d\d_V\d\d\d$")
+
 t_quet = time.perf_counter()
 DUONG = {}
 ngan_xep = ["/kaggle/input"]
@@ -115,10 +121,11 @@ while ngan_xep:
             for e in it:
                 if not e.is_dir(follow_symlinks=False):
                     continue
-                if e.name in CAN:
-                    DUONG[e.name] = e.path      # DUNG di vao trong
-                else:
-                    ngan_xep.append(e.path)
+                if LA_VIDEO.match(e.name):
+                    if e.name in CAN:
+                        DUONG[e.name] = e.path
+                    continue                    # can hay khong, DUNG di vao
+                ngan_xep.append(e.path)
     except OSError:
         pass
 
@@ -138,6 +145,39 @@ print(f"{len(co)}/{len(KHUNG)} khung co anh"
 assert len(co) > len(KHUNG) * 0.8, "thieu qua nhieu anh — Add Input du L21-L30 chua?"
 
 # ── model ────────────────────────────────────────────────────────────
+# ⚠️ `imgaug` khong con duoc bao tri: no goi `np.sctypes`, thu da bi BO o
+# NumPy 2.0 — ma Kaggle chay NumPy 2. Ha NumPy xuong 1.x thi pha torch, nen
+# khong lam the. paddleocr chi can imgaug cho duong HUAN LUYEN con ta chi suy
+# dien, nen dap lai vai ten NumPy da bo la du cho no import duoc.
+import numpy as _np
+if not hasattr(_np, "sctypes"):
+    _np.sctypes = {"float": [_np.float16, _np.float32, _np.float64],
+                   "int": [_np.int8, _np.int16, _np.int32, _np.int64],
+                   "uint": [_np.uint8, _np.uint16, _np.uint32, _np.uint64],
+                   "complex": [_np.complex64, _np.complex128],
+                   "others": [bool, object, bytes, str, _np.void]}
+for _ten, _kieu in (("bool", bool), ("int", int), ("float", float),
+                    ("complex", complex), ("object", object), ("str", str)):
+    if not hasattr(_np, _ten):
+        setattr(_np, _ten, _kieu)
+
+# Duong lui: imgaug con dung API khac da bo thi thay han bang module rong.
+# paddleocr chi `import` no chu khong goi trong duong suy dien.
+try:
+    import imgaug                                          # noqa: F401
+    print("imgaug: nhap duoc")
+except Exception as _e:
+    print("imgaug van hong:", _e, "-> thay bang module rong")
+    import sys, types
+    class _Bat:
+        def __getattr__(self, t): return _Bat()
+        def __call__(self, *x, **k): return _Bat()
+    _g, _a = types.ModuleType("imgaug"), types.ModuleType("imgaug.augmenters")
+    _a.__getattr__ = lambda t: _Bat()
+    _g.__getattr__ = lambda t: _Bat()
+    _g.augmenters = _a
+    sys.modules["imgaug"], sys.modules["imgaug.augmenters"] = _g, _a
+
 def _nhap():
     global PaddleOCR, Cfg, Predictor, Image
     from paddleocr import PaddleOCR
