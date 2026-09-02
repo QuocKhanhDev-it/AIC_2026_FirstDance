@@ -31,8 +31,14 @@ def chay(lenh, im=False):
         raise RuntimeError(f"ma thoat {p.returncode}: {lenh}")
     return p.stdout
 
-chay("rm -rf /tmp/repo && git clone -q -b giai-doan-0 "
-     "https://github.com/QuocKhanhDev-it/AIC_2026_FirstDance.git /tmp/repo")
+# ⚠️ HAI URL DUOI DAY CO Y NOI CHUOI, DUNG "don dep" lai thanh mot chuoi.
+# Copy tu cho da render Markdown (chat, GitHub preview) thi URL lien khoi bi
+# boc thanh `[nhan](dich)`, va `sh` chet ngay: Syntax error: "(" unexpected.
+# Cat lam doi thi bo tu-nhan-link khong nhan ra nua. Bam nut Raw van tot hon.
+KHO_GIT = "https://" + "github.com/QuocKhanhDev-it/AIC_2026_FirstDance.git"
+NGUON_PADDLE = "https://" + "www.paddlepaddle.org.cn/packages/stable/cu120/"
+
+chay(f"rm -rf /tmp/repo && git clone -q -b giai-doan-0 {KHO_GIT} /tmp/repo")
 os.chdir("/tmp/repo")
 
 # KHONG `pip -U` — no keo pillow/pandas moi vao va pha vo torchvision co san
@@ -58,8 +64,7 @@ for mod, goi in [("pyclipper", "pyclipper"), ("shapely", "shapely"),
 # van chiu duoc, chi mat phan uoc toc do.
 DUNG_GPU = True
 try:
-    chay("pip -q install paddlepaddle-gpu==2.6.2.post120 -i "
-         "https://www.paddlepaddle.org.cn/packages/stable/cu120/")
+    chay(f"pip -q install paddlepaddle-gpu==2.6.2.post120 -i {NGUON_PADDLE}")
 except Exception as e:
     print("khong cai duoc ban GPU, lui ve CPU:", e)
     chay("pip -q install paddlepaddle==2.6.2")
