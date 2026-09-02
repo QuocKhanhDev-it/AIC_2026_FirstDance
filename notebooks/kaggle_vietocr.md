@@ -35,10 +35,22 @@ chay("rm -rf /tmp/repo && git clone -q -b giai-doan-0 "
      "https://github.com/QuocKhanhDev-it/AIC_2026_FirstDance.git /tmp/repo")
 os.chdir("/tmp/repo")
 
-# KHONG `pip -U` — no keo pillow/pandas moi vao va pha vo torchvision co san.
-chay("pip -q install --no-deps vietocr")
-chay("pip -q install --no-deps 'paddleocr<3'")
-chay("pip -q install --no-deps gdown lmdb albumentations")
+# KHONG `pip -U` — no keo pillow/pandas moi vao va pha vo torchvision co san
+# (da tung gay `ImportError: cannot import name '_Ink'` va hong ca phien).
+chay("pip -q install --no-deps vietocr paddleocr==2.7.3")
+
+# `--no-deps` chan duoc thu pha moi truong, nhung chan luon may goi nho ma
+# paddleocr/vietocr CAN LUC IMPORT. Dò tung cai, thieu cai nao cai dung cai do.
+for mod, goi in [("pyclipper", "pyclipper"), ("shapely", "shapely"),
+                 ("lmdb", "lmdb"), ("gdown", "gdown"),
+                 ("albumentations", "albumentations"),
+                 ("rapidfuzz", "rapidfuzz"), ("skimage", "scikit-image"),
+                 ("prefetch_generator", "prefetch_generator")]:
+    try:
+        __import__(mod)
+    except ImportError:
+        print("thieu", mod, "-> cai", goi)
+        chay(f"pip -q install --no-deps {goi}", im=True)
 
 # ⚠️ Kho paddle KHONG co ban `2.6.1` tran — chi co hau to `.post120` theo phien
 # ban CUDA ("from versions: 2.6.1.post120, 2.6.2.post120"). Ghim sai la hong
@@ -100,6 +112,10 @@ def ocr_mot_anh(duong_dan):
             continue
         ra.append(doc_chu.predict(anh.crop((x0, y0, x1, y1))))
     return " ".join(x for x in ra if x)
+
+# Thu MOT anh truoc — hong o day thi hong sau 2 giay, khong phai sau 251 anh.
+_thu = BAN_DO[(co[0]["video_id"], co[0]["kf_name"])]
+print("thu 1 anh:", repr(ocr_mot_anh(_thu)[:120]))
 
 # ── chay ─────────────────────────────────────────────────────────────
 kq, t0 = [], time.perf_counter()
