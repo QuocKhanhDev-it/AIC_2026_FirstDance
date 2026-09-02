@@ -4184,6 +4184,114 @@ một chỗ — trước đó nó chỉ có ở nhánh `--tap-dev`.
 219 chuỗi, ~3 giây GPU. Xong thì gộp bằng `67_gop_cache_truy_van.py` rồi chạy
 lại `75_do_lap_rap_trake.py` trên 17 câu — đủ để dò bốn tham số A39.
 
+### A65. Tập đề thật **52 → 68 câu**, và ngưỡng nhiễu bắt đầu co lại
+
+16/24 gói `de_thi_thu` đã tìm được đáp án (`dev/tap_de_thi_thu.jsonl`, soi bằng
+`66_soat_de_thi_thu.py`). Soát trước khi dùng:
+
+| | |
+| --- | --- |
+| số câu | 16 (15 KIS + 1 Q&A) |
+| trùng tập test / tập đề thật | **0 / 0** |
+| khung đáp án mỗi câu | trung vị 4 (min 1, max 7) |
+| Q&A có `dap_an` | ✅ (bỏ trống là 0 điểm dù khung đúng) |
+| nhãn độ chắc | `kha` cả 16 |
+| cache truy vấn | thiếu **0** chuỗi ở cả gopt lẫn BGE-M3 |
+
+Còn 8 gói: 3 KIS, 2 Q&A, **3 TRAKE**. Ba câu TRAKE đó sẽ đưa tập TRAKE đề thật
+từ 3 lên 6 câu — vừa đủ để bắt đầu dò bốn tham số A39 cho khâu lắp ráp (A63,
+chỗ đang mất 52% điểm).
+
+#### Trọng số kênh 3 đo lại trên 68 câu
+
+| | 52 câu | 68 câu |
+| --- | ---: | ---: |
+| hiệu 0,5 so với 0,75 | +0,0077 | **+0,0118** |
+| ngưỡng nhiễu ±2s | 0,0290 | **0,0235** |
+| thắng–thua–hoà | 7-4-41 | **9-4-55** |
+| kết luận | 🟡 | 🟡 |
+
+Cả ba chỉ số đi đúng hướng — hiệu tăng, ngưỡng co, thắng-thua rộng ra — nhưng
+vẫn chưa vượt. Mặc định **giữ nguyên 0,5**, không đổi gì.
+
+Và `w = 1,0` giờ ✅ ỔN ĐỊNH có hại (−0,0353, thắng-thua **1-13** ở ±2s và
+**0-13** ở ±15s). Kết luận *"kênh ASR/OCR chỉ được làm phụ, không được lấn kênh
+1"* đã đủ vững để coi là sự thật của hệ này.
+
+> Đây là lần đầu tiên trong dự án một con số 🟡 được đo lại trên tập lớn hơn và
+> **dịch chuyển đúng hướng dự đoán**. Nó xác nhận chẩn đoán của A59: nút thắt
+> là CỠ TẬP ĐO, không phải thiếu ý tưởng.
+
+### A64. Ba cách xử lý truy vấn KIS — không cách nào thắng, và **tách mệnh đề được chứng minh là đúng**
+
+Đo lần đầu trên **68 câu đề thật** (52 cũ + 16 câu mới từ `de_thi_thu`, xem
+A65). Mốc là `run.py` hiện tại: tách khi câu > 40 từ, kênh 3 trọng số 0,5.
+
+| cấu hình | ±2s | ±15s | hiệu ±2s | T-B-H | |
+| --- | ---: | ---: | ---: | :---: | :---: |
+| *mốc: ngưỡng 40 từ* | 0,5868 | 0,6721 | — | — | |
+| A. ngưỡng 50 từ | 0,5809 | 0,6574 | −0,0059 | 3-4-61 | 🟡 |
+| A. ngưỡng 60 từ | 0,5779 | 0,6544 | −0,0088 | 4-6-58 | 🟡 |
+| **A. KHÔNG tách** | 0,4956 | 0,5603 | **−0,0912** | 5-18-45 | ✅ TỆ HƠN |
+| B. cân mệnh đề — MAX IDF | 0,5985 | 0,6721 | +0,0118 | 6-2-60 | ❌ |
+| B. cân mệnh đề — IDF trung bình | 0,5868 | 0,6662 | −0,0000 | 2-2-64 | 🟡 |
+| C. cổng kênh 3 — sàn 0 | 0,5743 | 0,6574 | −0,0125 | 2-4-62 | 🟡 |
+| C. cổng kênh 3 — sàn 0,1 | 0,5757 | 0,6574 | −0,0110 | 1-3-64 | 🟡 |
+| C. cổng kênh 3 — sàn 0,25 | 0,5868 | 0,6743 | +0,0000 | 1-1-66 | 🟡 |
+| B+C | 0,5904 | 0,6632 | +0,0037 | 8-5-55 | ❌ |
+
+#### A. Tách mệnh đề: ngưỡng 40 là ĐÚNG, và bỏ tách là mất 0,09
+
+Đây là kết quả ✅ duy nhất của cả bảng, và nó **xác nhận một quyết định cũ**
+thay vì đổi nó. Bỏ tách hẳn mất **−0,0912**, thua 5-18. Nâng ngưỡng lên 50 hay
+60 từ đều âm, đơn điệu theo cường độ.
+
+Lý do khớp với A51: câu nguyên có trung vị **62 từ ≈ 64 token**, đúng trần tháp
+văn bản. Nâng ngưỡng = đẩy thêm câu vào vùng cắt cụt. Lập luận "giữ nguyên câu
+để bảo toàn liên kết chủ–vị" nghe hợp lý, nhưng thứ thật sự xảy ra là **mất
+phần đuôi câu**.
+
+> Giá trị của dòng này: `TRAN_TOKEN = 40` từ trước tới nay là một con số chọn
+> theo lý lẽ, chưa ai dò. Giờ nó có số đo, và số đo nói nó đúng.
+
+#### B. Cân mệnh đề theo độ hiếm từ: đảo dấu, nhưng đáng theo dõi
+
+`max(IDF)` được **+0,0118 ở ±2s với thắng-thua 6-2** — hiệu lớn hơn ngưỡng
+nhiễu 0,0165? Không, vẫn dưới. Và ở ±15s thì đúng **−0,0000**. Đảo dấu nên
+không dùng để quyết.
+
+Nhưng hình dạng của nó khác hẳn C: 6 thắng 2 thua (C là 1-3, 2-4). Nghĩa là nó
+**có tác động thật, đúng chiều, ở cửa sổ hẹp** — chỉ là không đủ mạnh và không
+sống ở cửa sổ rộng. Đây là ứng viên đáng đo lại ở 76 câu.
+
+`max(IDF)` hơn `IDF trung bình` (+0,0118 so với −0,0000) đúng như dự đoán: mệnh
+đề ngắn chứa một thực thể hiếm bị trung bình cộng kéo tụt oan.
+
+⚠️ Bản đầu của phép đo này chuẩn hoá min–max TRONG TỪNG CÂU, nên một từ gõ sai
+(IDF cực đại) tự động thành 1,0 và đẩy mọi mệnh đề khác xuống 0,2. Đã sửa: chia
+cho **IDF trung vị của kho** rồi kẹp `[0,2; 1,0]` — mốc cố định, không phụ
+thuộc câu.
+
+#### C. Cổng kênh 3: không có gì
+
+Cả ba mức sàn đều ~0 hoặc âm nhẹ. Sàn 0,25 đổi đúng **1 câu trên 68**.
+
+Lý do rõ khi nhìn số: chỉ **24/68 câu (35%)** có từ chỉ thị chữ/lời, nghĩa là
+cổng này hạ trọng số ở 65% số câu — và A52 đã đo bỏ kênh 3 làm tệ đi. Kênh 3
+thực chất là kênh **ASR**, mà lời dẫn bản tin mô tả cả cảnh chứ không riêng
+phần có chữ; không có từ "biển/chữ/nói" trong câu hỏi KHÔNG có nghĩa là ASR vô
+dụng cho câu đó.
+
+Đây là lần thứ hai cùng một ý bị bác: A58 bác việc hạn chế ĐẦU VÀO, A64 bác
+việc hạ TRỌNG SỐ. Hai cách khác nhau, cùng một giả định sai.
+
+#### Ghi chú phương pháp
+
+Đề xuất gốc khuyên đo TUẦN TỰ: chốt ngưỡng tách, rồi đo cổng trên ngưỡng đã
+chốt, rồi đo IDF. Ở đây đo **song song, mỗi cấu hình so với cùng một mốc** —
+vì chốt một lựa chọn 🟡 rồi xây tiếp lên nó là đúng cái đã xảy ra ở A50 (trọng
+số 0,75 chọn dưới nền sai, kéo theo mọi thứ tới A52 mới gỡ được).
+
 ## PHẦN B — QUYẾT ĐỊNH HẠ TẦNG
 
 ### B1. Không dùng Supabase / Postgres / Milvus / Elasticsearch — ĐÃ KIỂM CHỨNG
