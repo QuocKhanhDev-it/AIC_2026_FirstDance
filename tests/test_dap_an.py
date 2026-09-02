@@ -69,3 +69,33 @@ def test_nop_bai_uu_tien_answer_tung_dong():
     uv[1].meta["answer"] = "88"
     ra = tu_ung_vien(uv, "qa", dap_an="CHUNG")
     assert [x.answer for x in ra] == ["46", "88"]
+
+
+def test_uu_tien_ban_co_dau_khi_ca_hai_cung_co_mat():
+    """OCR khong dau + ASR co dau trong CUNG mot chuoi -> phai lay ban co dau.
+
+    A68: ocr_text 31% co dau, asr_text 100%; run.py ghep `OCR + " " + ASR` nen
+    cung mot thuc the xuat hien hai lan. BTC khop CHUOI nen `Ta Pua` la 0 diem.
+
+    Fixture dat ban KHONG DAU ngay canh tu khoa cau hoi, de phep chon theo
+    khoang cach chac chan lay no truoc — co the uu tien co dau moi phai lam
+    viec, chu khong an may vi tri.
+    """
+    from dap_an import dao
+    van = "Ta Pua vua hoan thanh con duong. Ban tin hom nay tai Tà Pứa."
+    assert dao(van, "Địa danh nào vừa hoàn thành con đường") == "Tà Pứa"
+
+
+def test_khong_tu_bia_dau_khi_ban_co_dau_khong_ton_tai():
+    """Chi CHON dung ban, KHONG doan dau — khong co ban co dau thi giu nguyen."""
+    from dap_an import dao
+    van = "Ta Pua vua hoan thanh con duong. Ban tin hom nay."
+    assert dao(van, "Địa danh nào vừa hoàn thành con đường") == "Ta Pua"
+
+
+def test_co_dau_nhan_dien_dung():
+    from dap_an import co_dau
+    assert co_dau("Tà Pứa")
+    assert co_dau("Đường")           # dau mu cung tinh
+    assert not co_dau("Ta Pua")
+    assert not co_dau("06:30")

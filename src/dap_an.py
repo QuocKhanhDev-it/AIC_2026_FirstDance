@@ -49,6 +49,36 @@ def bo_dau(s) -> str:
     return "".join(c for c in s if unicodedata.category(c) != "Mn")
 
 
+def co_dau(s) -> bool:
+    """Chuỗi có mang dấu tiếng Việt không (dấu thanh hoặc dấu mũ)."""
+    return any(unicodedata.category(c) == "Mn"
+               for c in unicodedata.normalize("NFD", str(s)))
+
+
+def uu_tien_co_dau(chon: str, moi_uv: list) -> str:
+    """Cùng một chuỗi mà có cả bản CÓ DẤU lẫn bản KHÔNG DẤU thì lấy bản có dấu.
+
+    VÌ SAO — A68 đo được `ocr_text` chỉ **31% có dấu** còn `asr_text` **100%**.
+    `run.py` ghép `OCR + " " + ASR` nên cùng một thực thể thường xuất hiện HAI
+    lần trong cùng chuỗi văn bản: `Ta Pua` (OCR) rồi `Tà Pứa` (ASR). Cách chọn
+    theo khoảng cách không phân biệt hai bản, mà OCR đứng trước nên hay thắng.
+
+    BTC khớp CHUỖI, nên `Ta Pua` là 0 điểm dù đúng khung và đúng thực thể. Hiện
+    **0/13 câu khớp đúng dấu, 7/13 chỉ khớp khi bỏ dấu** — nghĩa là khoảng cách
+    giữa hai con số đó phần lớn là chuyện DẤU, không phải chuyện nội dung.
+
+    Đây KHÔNG phải phục hồi dấu: nó không đoán dấu cho chuỗi chưa có bao giờ.
+    Nó chỉ chọn đúng bản khi bản có dấu **đã nằm sẵn trong cùng văn bản**.
+    """
+    if co_dau(chon):
+        return chon
+    goc = bo_dau(chon)
+    for x in moi_uv:
+        if x != chon and co_dau(x) and bo_dau(x) == goc:
+            return x
+    return chon
+
+
 def dao(van: str, cau_hoi: str) -> str:
     """Chuỗi `answer` ứng viên từ văn bản CỦA CHÍNH keyframe đó. '' nếu chịu.
 
@@ -74,9 +104,11 @@ def dao(van: str, cau_hoi: str) -> str:
     v = bo_dau(van)
     khoa = [w for w in bo_dau(cau_hoi).split() if len(w) > 2 and w not in DUNG]
     vi_tri = [m.start() for w in khoa for m in re.finditer(re.escape(w), v)]
+    moi_uv = [x[0] for x in uv]
     if not vi_tri:
-        return uv[0][0]
-    return min(uv, key=lambda x: min(abs(x[1] - p) for p in vi_tri))[0]
+        return uu_tien_co_dau(uv[0][0], moi_uv)
+    chon = min(uv, key=lambda x: min(abs(x[1] - p) for p in vi_tri))[0]
+    return uu_tien_co_dau(chon, moi_uv)
 
 
 def gan_cho_moi_dong(ung_vien: list, cau_hoi: str, van_theo_row: dict,
