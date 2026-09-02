@@ -237,9 +237,15 @@ def main():
     a = ap.parse_args()
 
     BO_QUA_RAM[0] = a.bo_qua_ram
-    if not (a.de or a.tap_dev or a.them):
-        raise SystemExit("Chưa chọn nguồn nào: --de, --tap-dev, --tap "
-                         "hoặc --them")
+    # ⚠️ Danh sách nguồn và thông báo lỗi lấy từ CÙNG MỘT chỗ. Trước đây hai
+    # thứ đó tách rời, và khi A63 thêm `--tap` thì chỉ thông báo được cập nhật
+    # còn điều kiện thì không — `--tap` đứng một mình luôn bị chặn với đúng
+    # câu "chưa chọn nguồn nào: ... --tap ...". Thêm nguồn mới vào dict này là
+    # đủ, không thể lệch nữa.
+    nguon = {"--de": a.de, "--tap-dev": a.tap_dev, "--tap": a.tap,
+             "--them": a.them}
+    if not any(nguon.values()):
+        raise SystemExit("Chưa chọn nguồn nào: " + ", ".join(nguon))
 
     ra_file = a.ra or (a.index / "truy_van.npz")
     cac_cau = thu_thap(a.de, a.tap_dev, a.them, a.tap)
