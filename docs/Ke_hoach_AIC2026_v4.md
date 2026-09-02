@@ -4351,6 +4351,72 @@ ràng buộc HÌNH THỨC, không phụ thuộc câu dễ hay khó.
 > thay vì 0,01. Lý do: nó không cố cải thiện TRUY HỒI (thứ đã bão hoà) mà sửa
 > một khâu HẬU XỬ LÝ đang vứt đi thông tin kênh đã tìm ra.
 
+### A67. **Điểm Q&A trong repo là TRẦN TRÊN, không phải điểm thi** — và bài nộp thật đang 0
+
+Đi tìm cách điền `answer` cho từng dòng, lại tìm ra một chuyện lớn hơn.
+
+#### Thước đo đang bỏ qua `answer`
+
+`cham_diem._dung_dap_an()` coi ứng viên **không có** khoá `answer` là HỢP LỆ.
+Cố ý — docstring ghi rõ *"mọi kênh hiện tại chưa biết trả lời, và lúc này ta
+đang đo TRUY HỒI"*. Nhưng không kênh nào gắn `answer`, nên:
+
+> **Mọi con số Q&A trong repo đều được chấm như thể đáp án luôn đúng.**
+
+BTC cho **0 điểm** nếu `answer` sai hoặc trống. Q&A chiếm **13/68 = 19%** số câu
+đề thật.
+
+#### Và bài nộp thật thì tệ hơn nữa
+
+`run.py` chỉ có `--tra-loi`: **một chuỗi dùng chung cho cả 100 dòng**. Không có
+gì tự sinh nó. Nên trong một bài nộp thật hôm nay, hoặc người chạy tự gõ đúng
+chuỗi đó (mọi dòng có cơ hội), hoặc **cả 100 dòng đều 0 điểm** — bất kể truy
+hồi tốt đến đâu.
+
+Mà BTC chấm `answer` **theo TỪNG DÒNG**: mỗi dòng mang `answer` riêng, ăn điểm
+khi đúng CẢ khung LẪN chuỗi. Một chuỗi dùng chung là vứt đi đúng cơ chế đó.
+
+#### Đo bốn cách (13 câu Q&A, `79_do_dap_an_qa.py`)
+
+| cách điền `answer` | ±2s | ±15s |
+| --- | ---: | ---: |
+| bỏ trống — *cách repo đang chấm* | 0,4000 | 0,5231 |
+| một chuỗi chung, đào từ khung hạng 1 | **0,0000** | **0,0000** |
+| mỗi dòng đào riêng, lấy ứng viên đầu | **0,0000** | **0,0000** |
+| mỗi dòng đào riêng, chọn theo từ khoá câu hỏi | 0,0000 | 0,0462 |
+
+Cả ba bộ đào bằng regex đều gần như trắng tay.
+
+#### Trần trên của MỌI cách đào từ văn bản: **7/13**
+
+Đáp án vàng chỉ xuất hiện trong OCR/ASR của khung đúng ở **7/13 câu**. Sáu câu
+còn lại (`Cá sòng`, `200g`, `2`…) phải **nhìn ảnh** mới trả lời được — không
+lượng văn bản nào cứu được.
+
+Và 7 câu có mặt trong văn bản thì regex vẫn hỏng, vì chọn ĐÚNG con số nào mới
+là việc khó: OCR bản tin đầy dấu thời gian (`06:30:11`), số hiệu kênh, ngày
+tháng. Lấy "số đầu tiên" gần như luôn trúng chúng. Bản chọn theo khoảng cách
+tới từ khoá câu hỏi cứu được đúng **1/13**.
+
+#### Việc phải làm, và nó KHÔNG phải regex
+
+Điền `answer` là bài toán **đọc hiểu**, không phải trích mẫu:
+
+  * VLM đọc ảnh (6 câu bắt buộc phải thế), hoặc
+  * LLM đọc `câu hỏi + OCR/ASR của chính khung đó` rồi chọn đoạn (đủ cho 7 câu
+    còn lại, và rẻ hơn nhiều).
+
+`mui_nhon_1.gan_dap_an` đã có sẵn đường VLM nhưng sinh **một** đáp án cho cả
+gói, không phải mỗi dòng một đáp án.
+
+Chi phí lúc thi cho hướng LLM-đọc-văn-bản: ~24 câu Q&A × top-20 dòng = 480 lượt
+gọi. Cần đo trước khi tin.
+
+> **Đây là lỗ hổng lớn nhất về mặt ĐIỂM THI đã tìm ra**, lớn hơn cả khâu lắp
+> ráp TRAKE (A63/A66): TRAKE mất một nửa trên 3/68 câu, còn Q&A mất TRẮNG trên
+> 13/68 câu. Và nó không lộ ra trong bất kỳ phép đo nào của repo, vì chính
+> thước đo đã được thiết kế để bỏ qua nó.
+
 ## PHẦN B — QUYẾT ĐỊNH HẠ TẦNG
 
 ### B1. Không dùng Supabase / Postgres / Milvus / Elasticsearch — ĐÃ KIỂM CHỨNG
