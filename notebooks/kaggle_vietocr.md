@@ -38,13 +38,24 @@ os.chdir("/tmp/repo")
 # KHONG `pip -U` — no keo pillow/pandas moi vao va pha vo torchvision co san.
 chay("pip -q install --no-deps vietocr")
 chay("pip -q install --no-deps 'paddleocr<3'")
-chay("pip -q install paddlepaddle-gpu==2.6.1 -i "
-     "https://www.paddlepaddle.org.cn/packages/stable/cu120/")
 chay("pip -q install --no-deps gdown lmdb albumentations")
+
+# ⚠️ Kho paddle KHONG co ban `2.6.1` tran — chi co hau to `.post120` theo phien
+# ban CUDA ("from versions: 2.6.1.post120, 2.6.2.post120"). Ghim sai la hong
+# ngay o giay thu 16. Thu GPU truoc, khong duoc thi lui ve CPU: 251 anh cham
+# van chiu duoc, chi mat phan uoc toc do.
+DUNG_GPU = True
+try:
+    chay("pip -q install paddlepaddle-gpu==2.6.2.post120 -i "
+         "https://www.paddlepaddle.org.cn/packages/stable/cu120/")
+except Exception as e:
+    print("khong cai duoc ban GPU, lui ve CPU:", e)
+    chay("pip -q install paddlepaddle==2.6.2")
+    DUNG_GPU = False
 
 import torch
 assert torch.cuda.is_available(), "Settings > Accelerator > GPU T4"
-print("GPU:", torch.cuda.get_device_name(0))
+print("GPU:", torch.cuda.get_device_name(0), "| paddle GPU:", DUNG_GPU)
 
 # ── tra anh theo video_id + kf_name (KHONG dung kf_path — duong dan may khac)
 BAN_DO = {}
@@ -67,10 +78,11 @@ from vietocr.tool.predictor import Predictor
 from PIL import Image
 
 # PaddleOCR chi DO VUNG CHU (rec=False) — phan doc chu giao cho VietOCR.
-do_chu = PaddleOCR(use_angle_cls=False, lang="en", use_gpu=True, show_log=False)
+do_chu = PaddleOCR(use_angle_cls=False, lang="en",
+                   use_gpu=DUNG_GPU, show_log=False)
 
 cfg = Cfg.load_config_from_name("vgg_transformer")
-cfg["device"] = "cuda:0"
+cfg["device"] = "cuda:0"          # VietOCR chay torch, luon dung GPU duoc
 cfg["predictor"]["beamsearch"] = False        # nhanh hon, chenh lech nho
 doc_chu = Predictor(cfg)
 
@@ -139,12 +151,16 @@ Ghi ngưỡng ra trước để không tự thuyết phục mình sau khi thấy
 
 ## Nếu cell hỏng
 
-`paddlepaddle-gpu` là chỗ dễ vỡ nhất (bánh xe theo phiên bản CUDA). Hỏng ở đó
-thì đổi sang bản CPU — chỉ 251 ảnh nên chậm cũng chịu được:
+`paddlepaddle-gpu` là chỗ dễ vỡ nhất — bánh xe của nó gắn hậu tố theo phiên bản
+CUDA, **không có bản số trần**. Ghim `2.6.1` thì pip báo:
 
-```python
-chay("pip -q install paddlepaddle==2.6.1")
+```
+ERROR: Could not find a version that satisfies the requirement
+paddlepaddle-gpu==2.6.1 (from versions: 2.6.1.post120, 2.6.2.post120)
 ```
 
-và đổi `use_gpu=True` thành `use_gpu=False`. Lúc đó **con số s/ảnh không dùng
-để ước cả kho được nữa** — chỉ còn dùng để trả lời câu hỏi về dấu.
+Cell đã ghim `2.6.2.post120` và **tự lui về bản CPU** nếu vẫn hỏng. Chỉ 251 ảnh
+nên CPU vẫn chạy được — lúc đó `DUNG_GPU=False` và **con số s/ảnh không dùng để
+ước cả kho được nữa**, chỉ còn trả lời câu hỏi về dấu.
+
+VietOCR thì chạy trên torch nên luôn dùng được GPU, bất kể paddle ở chế độ nào.
