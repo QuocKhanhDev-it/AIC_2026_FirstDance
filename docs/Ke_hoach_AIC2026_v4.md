@@ -4495,6 +4495,63 @@ CÙNG nguồn tín hiệu đó, nên trần của nó khó vượt xa. Trước 
 LLM, nên đo trước trên một mẫu nhỏ: tóm tắt 100 đoạn thuộc video của tập đề
 thật rồi xem BM25 trên bản tóm tắt có hơn BM25 trên ASR gốc không.
 
+### A70. Gộp vector BGE theo **đoạn ASR**: tệ đi một nửa — và điều đó đóng luôn nhánh "tóm tắt bằng LLM"
+
+A69 đo được gom theo ASR cho 9.802 đoạn (18,1 khung/đoạn, giảm 18 lần) và kết
+luận nhánh này *khả thi về chi phí*. Bước tiếp theo lẽ ra là gọi LLM tóm tắt
+mỗi đoạn. Nhưng ta đã có sẵn `van_ban_bge.npz` — BGE-M3 nhúng từng khung — nên
+**gộp VECTOR theo đoạn** thử được ngay, miễn phí, và nó mô phỏng đúng cấu trúc
+mà tóm tắt-bằng-LLM tạo ra: **một biểu diễn duy nhất cho cả đoạn**.
+
+| cấu hình | ±2s | ±15s | hiệu ±2s | T-B-H | |
+| --- | ---: | ---: | ---: | :---: | :---: |
+| *mốc: run.py* | 0,5868 | 0,6721 | — | — | |
+| + kênh 6 GỐC (0,25) | 0,5956 | 0,6838 | +0,0088 | 5-3-60 | 🟡 |
+| + kênh 6 GỐC (0,5) | **0,6007** | **0,6868** | **+0,0140** | 7-6-55 | 🟡 |
+| + kênh 6 GỘP ĐOẠN (0,25) | 0,5926 | 0,6721 | +0,0059 | 3-1-64 | 🟡 |
+| + kênh 6 GỘP ĐOẠN (0,5) | 0,5890 | 0,6721 | +0,0022 | 3-3-62 | 🟡 |
+| **chỉ kênh 6 gốc** *(chẩn đoán)* | **0,1853** | 0,2426 | | | |
+| **chỉ kênh 6 GỘP ĐOẠN** *(chẩn đoán)* | **0,0794** | 0,1176 | | | |
+
+**Gộp đoạn làm kênh yếu đi hơn một nửa** (0,1853 → 0,0794), và lãi khi hợp nhất
+tụt từ +0,0140 xuống +0,0022.
+
+#### Vì sao — và đây là A57 lặp lại
+
+Một đoạn trung bình 18,1 khung × 2,16 s ≈ **39 giây**. Gộp đoạn nghĩa là **mọi
+khung trong 39 giây đó nhận CÙNG một vector**, nên kênh không còn phân biệt nổi
+khung nào trong đoạn. Mà cửa sổ chấm là ±2s.
+
+Đúng cơ chế đã đo ở A57 (làm mượt vector theo thời gian): gộp không thêm thông
+tin, nó **san phẳng phần dư** — đúng thứ dùng để phân biệt khung đáp án với
+hàng xóm của nó.
+
+Cái lợi duy nhất có thật là độ phủ: **177.304/177.321 khung (100,0%)** so với
+176.009 (99,3%) của kênh gốc. Nhưng 0,7% không đáng gì so với việc mất khả năng
+xếp hạng bên trong đoạn.
+
+#### Hệ quả: nhánh "tóm tắt đoạn bằng LLM" nên đóng
+
+Tóm tắt bằng LLM có **cùng cấu trúc** với phép gộp này: một biểu diễn cho cả
+đoạn, gán cho mọi khung trong đoạn. Nó hứa hẹn văn bản *tốt hơn* (diễn giải,
+thực thể neo) nhưng chịu **cùng một khuyết tật hình học**: 18 khung không phân
+biệt được nhau.
+
+Nó chỉ đáng làm nếu vấn đề là "văn bản quá vụn để hiểu", nhưng phép đo nói vấn
+đề là "định vị trong 39 giây". Vài giờ LLM để mua đúng thứ phép gộp này vừa cho
+thấy là có hại.
+
+> Giá trị của A70: một ý tưởng nghe rất hợp lý bị bác **mà không tốn một giờ
+> GPU nào**, nhờ nhận ra rằng thứ có sẵn (vector BGE per-frame) mô phỏng được
+> cấu trúc của thứ định làm (tóm tắt per-đoạn). Kiểm cấu trúc trước, mua nội
+> dung sau.
+
+#### Ghi thêm: kênh 6 gốc trên 68 câu
+
+Đứng một mình **0,1853** (52 câu: 0,1462), hợp nhất **+0,0140** (52 câu:
++0,0106). Cả hai đi đúng hướng khi tập lớn lên, vẫn 🟡. Cùng dấu ở cả hai mức
+dung sai và ở cả hai trọng số.
+
 ## PHẦN B — QUYẾT ĐỊNH HẠ TẦNG
 
 ### B1. Không dùng Supabase / Postgres / Milvus / Elasticsearch — ĐÃ KIỂM CHỨNG
