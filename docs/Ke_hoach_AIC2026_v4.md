@@ -4735,6 +4735,72 @@ Kênh 1 một mình 0,5522, thêm kênh 3 lên 0,5713 (**+0,0191**, ✅ ổn đ�
 kênh 5. Không có dòng chẩn đoán này thì +0,0022 trông như "nhỏ nhưng dương";
 đặt cạnh nhau mới thấy nó nhỏ hơn một bậc độ lớn.
 
+### A74. TRAKE trên **17 câu**: K-best thắng lớn ở ±2s — và A63/A66 (3 câu) đã sai cả hai chiều
+
+219 chuỗi của `dev/tap_dev_trake.jsonl` đã mã hoá (Kaggle, ~3 giây GPU) và gộp
+vào cache (1.239 -> 1.458 chuỗi). Tập TRAKE đo được đi từ **3 câu lên 17 câu**.
+Câu tự soạn dùng được ở đây vì thứ tự sự kiện và số Frame ID là ràng buộc
+**hình thức**, không phụ thuộc câu hỏi dễ hay khó — khác hẳn việc so kênh, nơi
+A50/A58 đã cấm dùng câu tự soạn.
+
+#### Khâu lắp ráp mất bao nhiêu (`75_do_lap_rap_trake.py`)
+
+| | KÊNH | NỘP | mất | |
+| --- | ---: | ---: | ---: | --- |
+| ±2s — 3 câu (A63) | 0,3500 | 0,1667 | −0,1833 | **52%** |
+| **±2s — 17 câu** | **0,3982** | **0,2518** | **−0,1465** | **37%** |
+| ±15s — 3 câu (A63) | 0,4833 | 0,2500 | −0,2333 | **48%** |
+| **±15s — 17 câu** | **0,5400** | **0,5165** | **−0,0235** | **4,3%** |
+
+Ở ±2s con số đứng vững (52% -> 37%). Ở ±15s nó **sụp từ 48% xuống 4,3%** — tức
+kết luận "khâu lắp ráp vứt đi gần nửa số điểm ở cả hai mức dung sai" là **hiện
+vật của 3 câu**, không phải sự thật của hệ thống.
+
+#### K-best beam search (`78_do_kbest_trake.py`)
+
+| dung sai | CŨ 1 dòng/video | K-best 0,5s | 1,5s | **3,0s** | oracle |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| 3 câu (A66) ±2s | 0,1667 | 0,1667 | 0,1667 | 0,1667 | — |
+| 3 câu (A66) ±15s | 0,2500 | 0,4167 | 0,4333 | 0,4500 | 0,4167 |
+| **17 câu ±2s** | 0,2518 | 0,3435 | 0,3465 | **0,3547** | 0,4576 |
+| **17 câu ±15s** | 0,5165 | 0,5312 | 0,5341 | **0,5488** | 0,6718 |
+
+**±2s: +0,1029 (tăng 41%), thắng–thua–hoà 8-2-7.**
+**±15s: +0,0323 (tăng 6%), 7-4-6.**
+
+Cùng dấu ở cả hai mức dung sai, và giãn cách 3,0s tốt nhất ở cả hai — đơn điệu
+theo tham số chứ không nhảy loạn.
+
+#### Ba điều A66 kết luận sai, và vì sao
+
+**"±2s không nhúc nhích."** Sai — đó là mức được lợi NHIỀU NHẤT (+0,1029 so với
++0,0323). Trên 3 câu, cả ba câu đều đứng yên ở ±2s nên trông như một quy luật;
+thật ra hai trong ba câu đó có điểm 0 tuyệt đối ở mọi cấu hình.
+
+**"K-best ≈ oracle, nên khâu chọn video đã đúng sẵn."** Sai — khoảng cách tới
+oracle là **0,1029 ở ±2s** và **0,1230 ở ±15s**, đúng bằng cỡ phần K-best vừa
+lấy lại được. Vẫn còn ngần ấy nằm ở khâu CHỌN VIDEO.
+
+**"Khâu lắp ráp mất ~50%."** Chỉ đúng ở ±2s.
+
+> Đây là ca rõ nhất trong repo về việc **n = 3 không phải một phép đo**. Cả hai
+> mục A63 và A66 đều đã tự ghi "3 câu là quá ít, chưa đổi mặc định" — kỷ luật
+> đó vừa cứu ta khỏi bật một mặc định dựa trên kết luận sai chiều.
+
+#### Vẫn CHƯA đổi mặc định, và lý do khác lần trước
+
+17 câu là đủ để tin dấu, nhưng `78_do_kbest_trake.py` **không in ngưỡng nhiễu**
+như `bao_cao_do_nhay()`. Trước khi đổi `run.py` cần:
+
+1. Cho `78_` báo cáo qua `bao_cao_do_nhay()` để có ngưỡng nhiễu và kết luận
+   ✅/🟡/❌ như mọi phép đo khác.
+2. Soi **hai câu thua**: `trake-L25-004` rơi 0,4800 -> 0,0000 ở CẢ HAI mức, mà
+   oracle của nó là 0,8000 — tức K-best chọn nhầm VIDEO ở câu này.
+   `trake-L23-008` rơi 0,4000 -> 0,3000.
+
+Hai câu thua đó là 2/17, và mức rơi của chúng lớn hơn mức thắng trung bình —
+đúng dạng rủi ro mà điểm trung bình che mất.
+
 ## PHẦN B — QUYẾT ĐỊNH HẠ TẦNG
 
 ### B1. Không dùng Supabase / Postgres / Milvus / Elasticsearch — ĐÃ KIỂM CHỨNG
