@@ -46,17 +46,33 @@ os.chdir("/tmp/repo")
 chay("pip -q install --no-deps vietocr paddleocr==2.7.3")
 
 # `--no-deps` chan duoc thu pha moi truong, nhung chan luon may goi nho ma
-# paddleocr/vietocr CAN LUC IMPORT. Dò tung cai, thieu cai nao cai dung cai do.
-for mod, goi in [("pyclipper", "pyclipper"), ("shapely", "shapely"),
-                 ("lmdb", "lmdb"), ("gdown", "gdown"),
-                 ("albumentations", "albumentations"),
-                 ("rapidfuzz", "rapidfuzz"), ("skimage", "scikit-image"),
-                 ("prefetch_generator", "prefetch_generator")]:
-    try:
-        __import__(mod)
-    except ImportError:
-        print("thieu", mod, "-> cai", goi)
-        chay(f"pip -q install --no-deps {goi}", im=True)
+# paddleocr/vietocr CAN LUC IMPORT.
+#
+# ⚠️ DUNG doan truoc danh sach do. Da doan thieu `imgaug` mot lan va mat tron
+# 15 phut moi biet, vi loi chi no o dong `from paddleocr import PaddleOCR` —
+# tuc SAU khi da tai 797 MB paddle va quet xong thu muc. `nhap_du()` duoi day
+# de chinh loi tu khai ten module con thieu, cai no, roi thu lai.
+TEN_GOI = {"skimage": "scikit-image", "cv2": "opencv-python",
+           "PIL": "pillow", "yaml": "pyyaml", "sklearn": "scikit-learn"}
+
+def nhap_du(lam, toi_da=12):
+    """Chay `lam()`; thieu module nao thi cai dung module do roi thu lai."""
+    for _ in range(toi_da):
+        try:
+            return lam()
+        except ModuleNotFoundError as e:
+            ten = (e.name or "").split(".")[0]
+            if not ten:
+                raise
+            goi = TEN_GOI.get(ten, ten)
+            print("thieu", ten, "-> cai", goi, flush=True)
+            chay(f"pip -q install --no-deps {goi}", im=True)
+    raise RuntimeError("cai vong quanh qua nhieu lan — xem log ben tren")
+
+# Cai truoc nhung cai da biet, cho do phai vong lai nhieu lan.
+for goi in ("pyclipper", "shapely", "lmdb", "gdown", "albumentations",
+            "rapidfuzz", "scikit-image", "prefetch_generator", "imgaug"):
+    chay(f"pip -q install --no-deps {goi}", im=True)
 
 # ⚠️ Kho paddle KHONG co ban `2.6.1` tran — chi co hau to `.post120` theo phien
 # ban CUDA ("from versions: 2.6.1.post120, 2.6.2.post120"). Ghim sai la hong
@@ -81,18 +97,40 @@ CAN = {}
 for k in KHUNG:
     CAN.setdefault(k["video_id"], set()).add(k["kf_name"])
 
-# ⚠️ DUNG `glob("/kaggle/input/**/*.jpg", recursive=True)`: no liet ke ca
-# 167.195 anh va DO THAT 655 GIAY. Chi can 251 anh trong 188 thu muc.
-# os.walk + `thu_muc.clear()` cat han duong xuong duoi thu muc keyframe.
+# ⚠️ HAI CACH DA DO THAT VA DEU CHAM:
+#     glob("/kaggle/input/**/*.jpg", recursive=True)  -> 655 giay
+#     os.walk co cat nhanh duoi thu muc keyframe      -> 669 giay
+# `os.walk` van LIET KE FILE cua moi thu muc no di qua, nen cat nhanh xuong
+# duoi thu muc keyframe khong tiet kiem gi (thu muc keyframe von khong co thu
+# muc con). Cai dat tien la 177k lan liet ke tren mount mang cua Kaggle.
+#
+# Cach nay KHONG liet ke thu muc keyframe mot lan nao: chi di tim THU MUC
+# video, roi ghep thang duong dan vi ten file da biet san (`kf_name`).
 t_quet = time.perf_counter()
+DUONG = {}
+ngan_xep = ["/kaggle/input"]
+while ngan_xep:
+    try:
+        with os.scandir(ngan_xep.pop()) as it:
+            for e in it:
+                if not e.is_dir(follow_symlinks=False):
+                    continue
+                if e.name in CAN:
+                    DUONG[e.name] = e.path      # DUNG di vao trong
+                else:
+                    ngan_xep.append(e.path)
+    except OSError:
+        pass
+
 BAN_DO = {}
-for goc, thu_muc, tep in os.walk("/kaggle/input"):
-    ten = os.path.basename(goc)
-    if ten in CAN:
-        thu_muc.clear()                    # da toi noi, khong di sau nua
-        for f in CAN[ten].intersection(tep):
-            BAN_DO[(ten, f)] = os.path.join(goc, f)
-print(f"quet {time.perf_counter()-t_quet:.0f}s | {len(BAN_DO)} anh tra duoc")
+for k in KHUNG:
+    d = DUONG.get(k["video_id"])
+    if d:
+        duong = os.path.join(d, k["kf_name"])
+        if os.path.exists(duong):
+            BAN_DO[(k["video_id"], k["kf_name"])] = duong
+print(f"quet {time.perf_counter()-t_quet:.0f}s | {len(DUONG)} thu muc video "
+      f"| {len(BAN_DO)} anh tra duoc")
 
 co = [k for k in KHUNG if (k["video_id"], k["kf_name"]) in BAN_DO]
 print(f"{len(co)}/{len(KHUNG)} khung co anh"
@@ -100,10 +138,13 @@ print(f"{len(co)}/{len(KHUNG)} khung co anh"
 assert len(co) > len(KHUNG) * 0.8, "thieu qua nhieu anh — Add Input du L21-L30 chua?"
 
 # ── model ────────────────────────────────────────────────────────────
-from paddleocr import PaddleOCR
-from vietocr.tool.config import Cfg
-from vietocr.tool.predictor import Predictor
-from PIL import Image
+def _nhap():
+    global PaddleOCR, Cfg, Predictor, Image
+    from paddleocr import PaddleOCR
+    from vietocr.tool.config import Cfg
+    from vietocr.tool.predictor import Predictor
+    from PIL import Image
+nhap_du(_nhap)
 
 # PaddleOCR chi DO VUNG CHU (rec=False) — phan doc chu giao cho VietOCR.
 do_chu = PaddleOCR(use_angle_cls=False, lang="en",
