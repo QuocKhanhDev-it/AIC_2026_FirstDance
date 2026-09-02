@@ -36,26 +36,28 @@ def chay(lenh, im=False):
 # boc thanh `[nhan](dich)`, va `sh` chet ngay: Syntax error: "(" unexpected.
 # Cat lam doi thi bo tu-nhan-link khong nhan ra nua. Bam nut Raw van tot hon.
 KHO_GIT = "https://" + "github.com/QuocKhanhDev-it/AIC_2026_FirstDance.git"
-NGUON_PADDLE = "https://" + "www.paddlepaddle.org.cn/packages/stable/cu120/"
 
 chay(f"rm -rf /tmp/repo && git clone -q -b giai-doan-0 {KHO_GIT} /tmp/repo")
 os.chdir("/tmp/repo")
 
 # KHONG `pip -U` — no keo pillow/pandas moi vao va pha vo torchvision co san
 # (da tung gay `ImportError: cannot import name '_Ink'` va hong ca phien).
-chay("pip -q install --no-deps vietocr paddleocr==2.7.3")
-
-# `--no-deps` chan duoc thu pha moi truong, nhung chan luon may goi nho ma
-# paddleocr/vietocr CAN LUC IMPORT.
 #
-# ⚠️ DUNG doan truoc danh sach do. Da doan thieu `imgaug` mot lan va mat tron
-# 15 phut moi biet, vi loi chi no o dong `from paddleocr import PaddleOCR` —
-# tuc SAU khi da tai 797 MB paddle va quet xong thu muc. `nhap_du()` duoi day
-# de chinh loi tu khai ten module con thieu, cai no, roi thu lai.
-TEN_GOI = {"skimage": "scikit-image", "cv2": "opencv-python",
-           "PIL": "pillow", "yaml": "pyyaml", "sklearn": "scikit-learn"}
+# ⚠️ KHONG DUNG PaddleOCR NUA. Ba luot Kaggle chet vi chuoi phu thuoc cua no:
+#   - paddlepaddle-gpu khong co ban so tran, phai ghim `.post120`
+#   - thieu pyclipper (chan boi --no-deps)
+#   - thieu imgaug
+#   - imgaug goi `np.sctypes`, da bi bo o NumPy 2.0 ma Kaggle chay NumPy 2
+# Va 797 MB paddle KHONG phai phan tra loi cau hoi. Cau hoi la "VietOCR co doc
+# ra DAU khong", no khong phu thuoc ai do vung chu. EasyOCR do vung bang CRAFT,
+# chay tren torch — cung ngan xep voi VietOCR, khong them runtime thu hai.
+chay("pip -q install --no-deps vietocr easyocr")
 
-def nhap_du(lam, toi_da=12):
+TEN_GOI = {"skimage": "scikit-image", "cv2": "opencv-python-headless",
+           "PIL": "pillow", "yaml": "pyyaml", "sklearn": "scikit-learn",
+           "bidi": "python-bidi"}
+
+def nhap_du(lam, toi_da=15):
     """Chay `lam()`; thieu module nao thi cai dung module do roi thu lai."""
     for _ in range(toi_da):
         try:
@@ -69,26 +71,13 @@ def nhap_du(lam, toi_da=12):
             chay(f"pip -q install --no-deps {goi}", im=True)
     raise RuntimeError("cai vong quanh qua nhieu lan — xem log ben tren")
 
-# Cai truoc nhung cai da biet, cho do phai vong lai nhieu lan.
-for goi in ("pyclipper", "shapely", "lmdb", "gdown", "albumentations",
-            "rapidfuzz", "scikit-image", "prefetch_generator", "imgaug"):
+for goi in ("python-bidi", "pyclipper", "shapely", "lmdb", "gdown",
+            "albumentations", "prefetch_generator", "ninja"):
     chay(f"pip -q install --no-deps {goi}", im=True)
-
-# ⚠️ Kho paddle KHONG co ban `2.6.1` tran — chi co hau to `.post120` theo phien
-# ban CUDA ("from versions: 2.6.1.post120, 2.6.2.post120"). Ghim sai la hong
-# ngay o giay thu 16. Thu GPU truoc, khong duoc thi lui ve CPU: 251 anh cham
-# van chiu duoc, chi mat phan uoc toc do.
-DUNG_GPU = True
-try:
-    chay(f"pip -q install paddlepaddle-gpu==2.6.2.post120 -i {NGUON_PADDLE}")
-except Exception as e:
-    print("khong cai duoc ban GPU, lui ve CPU:", e)
-    chay("pip -q install paddlepaddle==2.6.2")
-    DUNG_GPU = False
 
 import torch
 assert torch.cuda.is_available(), "Settings > Accelerator > GPU T4"
-print("GPU:", torch.cuda.get_device_name(0), "| paddle GPU:", DUNG_GPU)
+print("GPU:", torch.cuda.get_device_name(0))
 
 # ── tra anh theo video_id + kf_name (KHONG dung kf_path — duong dan may khac)
 KHUNG = [json.loads(l) for l in
@@ -145,66 +134,39 @@ print(f"{len(co)}/{len(KHUNG)} khung co anh"
 assert len(co) > len(KHUNG) * 0.8, "thieu qua nhieu anh — Add Input du L21-L30 chua?"
 
 # ── model ────────────────────────────────────────────────────────────
-# ⚠️ `imgaug` khong con duoc bao tri: no goi `np.sctypes`, thu da bi BO o
-# NumPy 2.0 — ma Kaggle chay NumPy 2. Ha NumPy xuong 1.x thi pha torch, nen
-# khong lam the. paddleocr chi can imgaug cho duong HUAN LUYEN con ta chi suy
-# dien, nen dap lai vai ten NumPy da bo la du cho no import duoc.
-import numpy as _np
-if not hasattr(_np, "sctypes"):
-    _np.sctypes = {"float": [_np.float16, _np.float32, _np.float64],
-                   "int": [_np.int8, _np.int16, _np.int32, _np.int64],
-                   "uint": [_np.uint8, _np.uint16, _np.uint32, _np.uint64],
-                   "complex": [_np.complex64, _np.complex128],
-                   "others": [bool, object, bytes, str, _np.void]}
-for _ten, _kieu in (("bool", bool), ("int", int), ("float", float),
-                    ("complex", complex), ("object", object), ("str", str)):
-    if not hasattr(_np, _ten):
-        setattr(_np, _ten, _kieu)
-
-# Duong lui: imgaug con dung API khac da bo thi thay han bang module rong.
-# paddleocr chi `import` no chu khong goi trong duong suy dien.
-try:
-    import imgaug                                          # noqa: F401
-    print("imgaug: nhap duoc")
-except Exception as _e:
-    print("imgaug van hong:", _e, "-> thay bang module rong")
-    import sys, types
-    class _Bat:
-        def __getattr__(self, t): return _Bat()
-        def __call__(self, *x, **k): return _Bat()
-    _g, _a = types.ModuleType("imgaug"), types.ModuleType("imgaug.augmenters")
-    _a.__getattr__ = lambda t: _Bat()
-    _g.__getattr__ = lambda t: _Bat()
-    _g.augmenters = _a
-    sys.modules["imgaug"], sys.modules["imgaug.augmenters"] = _g, _a
-
+# EasyOCR CHI DO VUNG CHU (recognizer=False -> khong tai model nhan dang cua
+# no). Phan doc chu giao cho VietOCR, vi day moi la thu dang do: VietOCR la
+# model chuyen tieng Viet nen tra ve chu CO DAU.
 def _nhap():
-    global PaddleOCR, Cfg, Predictor, Image
-    from paddleocr import PaddleOCR
+    global easyocr, Cfg, Predictor, Image
+    import easyocr
     from vietocr.tool.config import Cfg
     from vietocr.tool.predictor import Predictor
     from PIL import Image
 nhap_du(_nhap)
 
-# PaddleOCR chi DO VUNG CHU (rec=False) — phan doc chu giao cho VietOCR.
-do_chu = PaddleOCR(use_angle_cls=False, lang="en",
-                   use_gpu=DUNG_GPU, show_log=False)
+do_vung = easyocr.Reader(["vi"], gpu=True, recognizer=False)
 
 cfg = Cfg.load_config_from_name("vgg_transformer")
-cfg["device"] = "cuda:0"          # VietOCR chay torch, luon dung GPU duoc
+cfg["device"] = "cuda:0"
 cfg["predictor"]["beamsearch"] = False        # nhanh hon, chenh lech nho
 doc_chu = Predictor(cfg)
 
 def ocr_mot_anh(duong_dan):
     anh = Image.open(duong_dan).convert("RGB")
-    hop = do_chu.ocr(duong_dan, rec=False)
-    if not hop or not hop[0]:
-        return ""
+    W, H = anh.size
+    ngang, tu_do = do_vung.detect(duong_dan)
+    vung = []
+    for h in (ngang[0] if ngang else []):
+        vung.append((h[0], h[2], h[1], h[3]))          # x0,y0,x1,y1
+    for g in (tu_do[0] if tu_do else []):
+        xs = [q[0] for q in g]; ys = [q[1] for q in g]
+        vung.append((min(xs), min(ys), max(xs), max(ys)))
+
     ra = []
-    for box in hop[0]:
-        xs = [p[0] for p in box]; ys = [p[1] for p in box]
-        x0, x1 = max(0, int(min(xs))), int(max(xs))
-        y0, y1 = max(0, int(min(ys))), int(max(ys))
+    for x0, y0, x1, y1 in vung:
+        x0, y0 = max(0, int(x0)), max(0, int(y0))
+        x1, y1 = min(W, int(x1)), min(H, int(y1))
         if x1 - x0 < 4 or y1 - y0 < 4:
             continue
         ra.append(doc_chu.predict(anh.crop((x0, y0, x1, y1))))
