@@ -75,14 +75,25 @@ assert torch.cuda.is_available(), "Settings > Accelerator > GPU T4"
 print("GPU:", torch.cuda.get_device_name(0), "| paddle GPU:", DUNG_GPU)
 
 # ── tra anh theo video_id + kf_name (KHONG dung kf_path — duong dan may khac)
-BAN_DO = {}
-for p in glob.glob("/kaggle/input/**/L*_V*/*.jpg", recursive=True):
-    q = pathlib.Path(p)
-    BAN_DO[(q.parent.name, q.name)] = p
-print(f"{len(BAN_DO):,} anh tra duoc")
-
 KHUNG = [json.loads(l) for l in
          open("dev/khung_thu_ocr.jsonl", encoding="utf-8") if l.strip()]
+CAN = {}
+for k in KHUNG:
+    CAN.setdefault(k["video_id"], set()).add(k["kf_name"])
+
+# ⚠️ DUNG `glob("/kaggle/input/**/*.jpg", recursive=True)`: no liet ke ca
+# 167.195 anh va DO THAT 655 GIAY. Chi can 251 anh trong 188 thu muc.
+# os.walk + `thu_muc.clear()` cat han duong xuong duoi thu muc keyframe.
+t_quet = time.perf_counter()
+BAN_DO = {}
+for goc, thu_muc, tep in os.walk("/kaggle/input"):
+    ten = os.path.basename(goc)
+    if ten in CAN:
+        thu_muc.clear()                    # da toi noi, khong di sau nua
+        for f in CAN[ten].intersection(tep):
+            BAN_DO[(ten, f)] = os.path.join(goc, f)
+print(f"quet {time.perf_counter()-t_quet:.0f}s | {len(BAN_DO)} anh tra duoc")
+
 co = [k for k in KHUNG if (k["video_id"], k["kf_name"]) in BAN_DO]
 print(f"{len(co)}/{len(KHUNG)} khung co anh"
       f"  ({sum(1 for k in co if k['nhom']=='qa')} khung dap an)")
