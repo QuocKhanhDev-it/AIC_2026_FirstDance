@@ -4292,6 +4292,65 @@ chốt, rồi đo IDF. Ở đây đo **song song, mỗi cấu hình so với cù
 vì chốt một lựa chọn 🟡 rồi xây tiếp lên nó là đúng cái đã xảy ra ở A50 (trọng
 số 0,75 chọn dưới nền sai, kéo theo mọi thứ tới A52 mới gỡ được).
 
+### A66. TRAKE: dồn 100 dòng vào vài video — **lấy lại 80% phần đã mất** ở ±15s
+
+A63 đo được khâu lắp ráp TRAKE mất 52% điểm kênh tìm được. Nguyên nhân soi ra
+trong `dung_trake()`: nó xếp **một dòng cho mỗi video**, rồi bù cho đủ 100 bằng
+99 video xếp sau.
+
+Nhưng BTC chấm TRAKE **theo vị trí**: chuỗi của video tốt nhất lệch một sự kiện
+ra ngoài cửa sổ là cả dòng đó 0 điểm — và 99 dòng còn lại dành cho những video
+gần như chắc chắn sai. Với TRAKE, đáp án nằm trong MỘT video, nên 100 dòng nên
+là **100 giả thuyết khác nhau về video đó**, không phải 100 video khác nhau.
+
+#### Cách làm
+
+1. Chấm điểm video: `Σ log(điểm cao nhất của video cho từng sự kiện)`. Video
+   thiếu hẳn ứng viên cho một sự kiện -> loại.
+2. Lấy top-5 video, chia ngân sách 100 dòng theo thứ hạng (50/25/15/7/3).
+3. Trong mỗi video, **beam search** (bề rộng 64) sinh K chuỗi khác nhau, đều
+   tăng dần ngặt theo thời gian, có phạt trùng thời điểm để chúng trải ra.
+
+#### Kết quả (3 câu TRAKE đề thật)
+
+| dung sai | CŨ 1 dòng/video | K-best 0,5s | 1,5s | 3,0s |
+| --- | ---: | ---: | ---: | ---: |
+| ±2s | 0,1667 | 0,1667 | 0,1667 | 0,1667 |
+| **±15s** | **0,2500** | 0,4167 | 0,4333 | **0,4500** |
+
+Ở ±15s: **+0,2000, tăng 80%**. Khâu lắp ráp từ chỗ mất 48% điểm kênh (0,4833 ->
+0,2500) nay chỉ còn mất 7% (-> 0,4500).
+
+Ở ±2s: **không đổi gì**, cả ba mức giãn.
+
+#### Hai điều đọc ra, ngoài con số
+
+**K-best ≈ oracle.** Dòng `oracle` (dồn cả 100 dòng vào ĐÚNG video chứa đáp án)
+cho 0,4167 — tức **không hơn** K-best tự chọn video. Nghĩa là khâu CHỌN VIDEO
+đã đúng sẵn; toàn bộ mất mát nằm ở khâu LẮP CHUỖI. Không có dòng oracle thì
+không tách được hai tầng đó.
+
+**Cửa hẹp không cứu được bằng cách này.** ±2s không nhúc nhích dù giãn 0,5s hay
+3,0s. Sinh thêm chuỗi chỉ giúp khi cửa sổ đủ rộng để một biến thể rơi trúng;
+ở ±2s thì ứng viên gốc đã không đủ chính xác, và không cách sắp xếp nào tạo ra
+độ chính xác chưa có.
+
+#### CHƯA đổi mặc định
+
+**3 câu là quá ít.** Đây là kết quả đúng hướng và có cơ chế rõ ràng, nhưng
+ngưỡng nhiễu trên 3 câu thì vô nghĩa. `78_do_kbest_trake.py` giữ nguyên dạng
+script đo, `run.py` chưa động tới.
+
+8 gói `de_thi_thu` còn lại có **3 câu TRAKE**; khi có chúng thì tập TRAKE đề
+thật lên 6 câu — vẫn ít, nhưng gấp đôi, và đủ để thấy hướng có ổn định không.
+Cộng thêm 14 câu `tap_dev_trake.jsonl` (cần 219 chuỗi mã hoá, ~3 giây GPU) thì
+thành 20 câu: câu tự soạn dùng được ở đây vì thứ tự sự kiện và số Frame ID là
+ràng buộc HÌNH THỨC, không phụ thuộc câu dễ hay khó.
+
+> Đây là hướng duy nhất trong hơn 20 hướng đã thử cho thấy hiệu ứng cỡ **0,2**
+> thay vì 0,01. Lý do: nó không cố cải thiện TRUY HỒI (thứ đã bão hoà) mà sửa
+> một khâu HẬU XỬ LÝ đang vứt đi thông tin kênh đã tìm ra.
+
 ## PHẦN B — QUYẾT ĐỊNH HẠ TẦNG
 
 ### B1. Không dùng Supabase / Postgres / Milvus / Elasticsearch — ĐÃ KIỂM CHỨNG
