@@ -37,6 +37,13 @@ HOA = r"A-ZĐÂÊÔƯĂÁÀÃẢẠÉÈẼẺẸÍÌĨỈỊÓÒÕỎỌÚÙŨ�
 THUONG = (r"a-zàáâãèéêìíòóôõùúýăđĩũơưạảấầẩẫậắằẳẵặẹẻẽếềểễệỉịọỏốồổỗộớ"
           r"ờởỡợụủứừửữựỳỵỷỹ")
 TEN = re.compile(rf"\b[{HOA}][{THUONG}]+(?:\s+[{HOA}][{THUONG}]+){{0,2}}\b")
+# ⚠️ `TEN` đòi MỌI từ viết hoa, nên nó KHÔNG BAO GIỜ bắt được danh từ thường
+# tiếng Việt kiểu "Cá lóc", "Cá sòng": chỉ khớp "Cá", rồi bị bộ lọc `len > 2`
+# gạt nốt. A84 đo được 3/5 câu có đáp án CÓ SẴN trong văn bản mà bộ đào không
+# bao giờ chọn — và bảng tra dấu vô dụng vì không bao giờ được đưa ứng viên
+# đúng. `TEN_RONG` cho 1 từ hoa + tối đa 2 từ THƯỜNG theo sau.
+TEN_RONG = re.compile(
+    rf"\b[{HOA}][{THUONG}]+(?:\s+[{HOA}{THUONG}][{THUONG}]+){{0,2}}\b")
 HOI_SO = re.compile(r"\b(bao nhiêu|mấy|số|khối lượng|gam|kg|phần trăm|"
                     r"nhiệt độ|năm|giờ|độ|lít)\b", re.I)
 # Từ quá phổ biến, không đáng làm neo khi dò vị trí
@@ -55,7 +62,32 @@ def co_dau(s) -> bool:
                for c in unicodedata.normalize("NFD", str(s)))
 
 
-def uu_tien_co_dau(chon: str, moi_uv: list) -> str:
+def bang_tra_ngram(van: str, n_toi_da: int = 4) -> dict:
+    """Văn bản CÓ DẤU -> `{dạng bỏ dấu: dạng có dấu}` cho mọi n-gram 1..n.
+
+    VÌ SAO — A68 đo `asr_text` **100% có dấu** còn `ocr_text` chỉ 31%. Nên ASR
+    của chính kho này là **một cuốn từ điển có dấu của chính nó**: không cần
+    model phục hồi dấu, chỉ cần tra.
+
+    Và A83 đo được `uu_tien_co_dau()` bản đầu **chỉ bắt được khi hai bản có
+    CÙNG SỐ TỪ** — mẫu tên riêng bắt tới 3 từ viết hoa liên tiếp nên
+    `"Tại Tà Pứa"` không khớp `"Ta Pua"` sau khi bỏ dấu. Quét n-gram 1–4 từ
+    không vướng chuyện đó: `"tà pứa"` là một 2-gram riêng.
+
+    Chỉ ghi n-gram CÓ dấu — n-gram không dấu chẳng giúp gì, mà còn đè mất bản
+    có dấu nếu vào trước.
+    """
+    ra = {}
+    tu = re.findall(r"[^\W\d_]+", str(van), re.UNICODE)
+    for n in range(1, n_toi_da + 1):
+        for i in range(len(tu) - n + 1):
+            cum = " ".join(tu[i:i + n])
+            if co_dau(cum):
+                ra.setdefault(bo_dau(cum), cum)
+    return ra
+
+
+def uu_tien_co_dau(chon: str, moi_uv: list, tra: dict | None = None) -> str:
     """Cùng một chuỗi mà có cả bản CÓ DẤU lẫn bản KHÔNG DẤU thì lấy bản có dấu.
 
     VÌ SAO — A68 đo được `ocr_text` chỉ **31% có dấu** còn `asr_text` **100%**.
@@ -76,10 +108,12 @@ def uu_tien_co_dau(chon: str, moi_uv: list) -> str:
     for x in moi_uv:
         if x != chon and co_dau(x) and bo_dau(x) == goc:
             return x
+    if tra and goc in tra:            # bảng tra n-gram từ ASR (A84)
+        return tra[goc]
     return chon
 
 
-def dao(van: str, cau_hoi: str) -> str:
+def dao(van: str, cau_hoi: str, rong: bool = False) -> str:
     """Chuỗi `answer` ứng viên từ văn bản CỦA CHÍNH keyframe đó. '' nếu chịu.
 
     Chọn ứng viên GẦN NHẤT với một từ khoá của câu hỏi, không lấy ứng viên đầu
@@ -89,7 +123,7 @@ def dao(van: str, cau_hoi: str) -> str:
     if not van:
         return ""
     hoi_so = bool(HOI_SO.search(cau_hoi))
-    mau = SO if hoi_so else TEN
+    mau = SO if hoi_so else (TEN_RONG if rong else TEN)
     # ⚠️ LOẠI ứng viên vốn là chữ CỦA CÂU HỎI. Câu "tên phóng viên là gì" đứng
     # cạnh chữ "Phóng viên" trong OCR, nên chọn-theo-khoảng-cách sẽ trả về
     # đúng cái từ khoá vừa dùng để dò. Đáp án không bao giờ là từ đã có sẵn
@@ -111,7 +145,8 @@ def dao(van: str, cau_hoi: str) -> str:
     return uu_tien_co_dau(chon, moi_uv)
 
 
-def dao_nhieu(van: str, cau_hoi: str, k: int = 3) -> list[str]:
+def dao_nhieu(van: str, cau_hoi: str, k: int = 3,
+              rong: bool = False) -> list[str]:
     """Tối đa `k` chuỗi `answer` ứng viên, xếp theo độ gần từ khoá câu hỏi.
 
     VÌ SAO CẦN NHIỀU HƠN MỘT — BTC cho 100 dòng và **không phạt dòng sai**, mà
@@ -125,7 +160,7 @@ def dao_nhieu(van: str, cau_hoi: str, k: int = 3) -> list[str]:
     if not van or k <= 0:
         return []
     hoi_so = bool(HOI_SO.search(cau_hoi))
-    mau = SO if hoi_so else TEN
+    mau = SO if hoi_so else (TEN_RONG if rong else TEN)
     q = bo_dau(cau_hoi)
     uv = [(m.group().strip(), m.start()) for m in mau.finditer(van)
           if len(m.group().strip()) > (0 if hoi_so else 2)
@@ -138,6 +173,20 @@ def dao_nhieu(van: str, cau_hoi: str, k: int = 3) -> list[str]:
     vi_tri = [m.start() for w in khoa for m in re.finditer(re.escape(w), v)]
     if vi_tri:
         uv.sort(key=lambda x: min(abs(x[1] - p) for p in vi_tri))
+
+    # `rong` bắt được cụm dài hơn đáp án ("Mon Ca loc kho" khi đáp án là
+    # "Cá lóc"), nên phát ra cả ĐOẠN CON. Rẻ vì A83 đã có cơ chế rải nhiều biến
+    # thể ra nhiều dòng, và BTC không phạt dòng sai.
+    if rong:
+        them = []
+        for s, vt in uv:
+            w = s.split()
+            for n in range(1, min(3, len(w)) + 1):
+                for i in range(len(w) - n + 1):
+                    con = " ".join(w[i:i + n])
+                    if len(con) > 2 and bo_dau(con) not in q:
+                        them.append((con, vt))
+        uv = uv + them
 
     moi_uv = [x[0] for x in uv]
     ra, da = [], set()
@@ -165,3 +214,42 @@ def gan_cho_moi_dong(ung_vien: list, cau_hoi: str, van_theo_row: dict,
             n += 1
         c.meta["answer"] = tra or mac_dinh
     return n
+
+
+def rai_bien_the(ung_vien: list, cau_hoi: str, van_theo_row: dict,
+                 k: int = 2, n_dong: int = 10, mac_dinh: str = "",
+                 gioi_han: int = 100):
+    """`n_dong` khung đầu phát ra `k` dòng, mỗi dòng một biến thể `answer`.
+
+    BTC cho 100 dòng và **không phạt dòng sai**, mà `dao()` chỉ trả về MỘT
+    chuỗi — chuỗi đó sai thì cả 100 dòng cùng sai. A83 đo trên 13 câu Q&A:
+
+        1 biến thể/dòng   0,0462
+        2 biến thể, 10 khung đầu   0,1077   (+0,0615, thắng-thua-hoà 1-0-12)
+        TRẦN mọi biến thể          0,1231
+
+    Gấp 2,3 lần, **0 câu thua**, nhưng vẫn 🟡: `+0,0615 = 0,8/13`, tức toàn bộ
+    hiệu ứng là **một câu trên mười ba**. Nên đây là **cờ dự bị**, không phải
+    mặc định — đúng kỷ luật "chưa thắng trên dev thì chưa bật".
+
+    Đánh đổi có thật: `k` biến thể của một khung chiếm chỗ của `k−1` khung
+    khác. A83 đo `k=3` và `n_dong=30` cho kết quả **y hệt** `k=2, n_dong=10`,
+    nên rải rộng hơn không mua thêm gì.
+
+    Trả về `(danh sách ứng viên mới, số dòng đào được chuỗi thật)`.
+    """
+    import copy
+
+    ra, n = [], 0
+    for i, c in enumerate(ung_vien):
+        van = van_theo_row.get(c.row_id, "")
+        bien = (dao_nhieu(van, cau_hoi, k) if i < n_dong
+                else [dao(van, cau_hoi)])
+        for b in (bien or [None]):
+            x = copy.copy(c)
+            x.meta = {**c.meta, "answer": b or mac_dinh}
+            n += bool(b)
+            ra.append(x)
+            if len(ra) >= gioi_han:
+                return ra, n
+    return ra, n

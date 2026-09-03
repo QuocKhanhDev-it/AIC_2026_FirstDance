@@ -5400,6 +5400,83 @@ Không làm sai kết quả A76 (0/5 -> 2/5 vẫn đúng), nhưng nó nói phép
 **yếu hơn tôi tưởng**: chỉ bắt được khi hai bản có **cùng số từ**. Đây đúng là
 chỗ bảng tra n-gram 1–4 từ từ ASR mạnh hơn hẳn.
 
+### A84. Bảng tra dấu từ ASR: **0/5 ở mọi phạm vi** — và lý do gốc không phải chuyện dấu
+
+A68: `ocr_text` chỉ **31% có dấu**, `asr_text` **100%**. Nên ASR của chính kho
+này là **một cuốn từ điển có dấu của chính nó** — không cần model phục hồi dấu,
+chỉ cần tra. A83 còn chỉ ra chỗ này là nút thắt: rải biến thể đã lấy 87% khoảng
+cách tới trần, phần chặn nằm ở **khâu ĐÀO**.
+
+`dap_an.bang_tra_ngram()` dựng `{dạng bỏ dấu: dạng có dấu}` cho mọi n-gram 1–4
+từ. Nó khắc phục đúng hạn chế A83 phát hiện ở `uu_tien_co_dau()` (chỉ bắt được
+khi hai bản **cùng số từ**): `"tà pứa"` là một 2-gram riêng nên khớp được
+`"Ta Pua"` dù ASR viết `"tại Tà Pứa"`.
+
+    cả kho : 1.803.158 n-gram có dấu
+    video  : 847 video có ASR, trung bình 4.021 n-gram/video
+
+#### Ba phạm vi, và cả ba đều 0/5 (`97_do_bang_tra_asr.py`)
+
+| phạm vi bảng tra | khớp đúng chuỗi |
+| --- | ---: |
+| không bảng tra (A76) | **0/5** |
+| cùng KHUNG | **0/5** |
+| cùng VIDEO | **0/5** |
+| cả KHO | **0/5** |
+
+Mẫu số là **5 câu có đáp án CHỨA DẤU** — 8/13 câu còn lại không có dấu nào nên
+chúng không nói gì về phép phục hồi dấu.
+
+#### Chẩn đoán: hỏng nằm TRƯỚC khâu dấu
+
+| câu | đáp án | có trong văn bản (bỏ dấu)? | bộ đào ra |
+| --- | --- | :---: | --- |
+| qa-DE2-28 | Cá lóc | **có** | `['Nam', 'Nuoc', 'Gao']` |
+| qa-DE2-09 | Cá sòng | **có** | `['Online']` |
+| qa-DE1-17 | Tà Pứa | **có** | `['Binh Thuan', 'Som']` |
+
+**3/5 câu có sẵn chuỗi đúng trong văn bản mà bộ đào không bao giờ chọn nó.**
+Bảng tra không cứu được vì nó **không bao giờ được đưa cho ứng viên đúng**.
+
+#### Lý do gốc: bộ đào chỉ nhìn cụm bắt đầu bằng chữ HOA
+
+    TEN = [HOA][thường]+ (\s+[HOA][thường]+){0,2}
+
+Nguyên văn ở khung đúng:
+
+    qa-DE2-28  'NGUYEN LIEU Thit ca loc 300g Gao deo 100g …'   <- toàn chữ thường
+    qa-DE2-09  '…để làm lần lượt cho nó hết cá sòng nướng…'      <- thường, CÓ dấu
+
+Đáp án Q&A ở đây là **danh từ thường nằm giữa câu**, không phải tên riêng. Điều
+kiện đầu tiên của mẫu là chữ hoa, nên chúng **về mặt cấu trúc không bao giờ đào
+ra được**.
+
+Đã thử nới: `TEN_RONG` (1 từ hoa + tối đa 2 từ thường) cộng phát ra mọi **đoạn
+con** 1–3 từ. Vẫn **0/5** — vì điều kiện chữ hoa ở từ ĐẦU vẫn còn.
+
+> Nới regex thêm nữa là đi tới *"mọi cụm 1–3 từ bất kỳ"*, tức nổ tung tập ứng
+> viên và biến bài toán thành **xếp hạng cụm**, không phải trích cụm. Đó là
+> thiết kế khác, không phải một bản vá. Dừng ở đây và ghi lại, thay vì đẩy một
+> nửa lời giải vào đường chạy.
+
+#### Ba thứ được giải thích cùng lúc
+
+* **A83** trần thấp — vì mọi biến thể đều đến từ cùng một mẫu hỏng.
+* **A76** được 2/5 — vì VietOCR viết hoa đầu cụm, tình cờ lọt qua mẫu.
+* **A77** đáp án số nằm trong OCR chứ không trong ASR — cùng một chuyện: đáp án
+  Q&A của kho này phần lớn là **chữ trên màn hình dạng danh sách nguyên liệu**,
+  không phải tên riêng trong lời nói.
+
+#### Việc cần làm tiếp, và nó không phải regex
+
+Bài toán đúng là: *cho câu hỏi + văn bản của khung, chọn cụm nào là đáp án*.
+Đó là **đọc hiểu**, và hai đường khả dĩ đều cần model — VLM đọc ảnh (A60 đã đo
+là không hơn thứ tự sẵn có) hoặc LLM đọc `câu hỏi + văn bản`. Chưa đo đường thứ
+hai.
+
+Trong lúc chờ, `--rai-bien-the 2` (A83) là thứ rẻ nhất còn dùng được: gấp 2,3
+lần điểm Q&A, 0 câu thua, và BTC không phạt dòng sai.
+
 ## PHẦN B — QUYẾT ĐỊNH HẠ TẦNG
 
 ### B1. Không dùng Supabase / Postgres / Milvus / Elasticsearch — ĐÃ KIỂM CHỨNG

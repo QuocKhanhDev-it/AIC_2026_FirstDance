@@ -805,6 +805,13 @@ def main():
     ap.add_argument("--tra-loi", default="",
                     help="chuỗi `answer` DỰ PHÒNG cho dòng Q&A không đào được "
                          "gì. Sai đáp án = 0 điểm, nhưng vẫn phải nộp")
+    ap.add_argument("--rai-bien-the", type=int, default=0, metavar="K",
+                    help="Q&A: phát K biến thể `answer` cho mỗi khung trong 10 "
+                         "dòng đầu, thay vì 1. A83 đo 0,0462 -> 0,1077 "
+                         "(gấp 2,3 lần, 0 câu thua) nhưng 🟡 vì toàn bộ hiệu "
+                         "ứng là MỘT câu trên 13. Dự bị: BTC không phạt dòng "
+                         "sai nên đây là cược một chiều. K=2 là đủ — A83 đo "
+                         "K=3 và 30 khung đều cho kết quả Y HỆT")
     ap.add_argument("--khong-dao-dap-an", action="store_true",
                     help="TẮT việc đào `answer` riêng cho từng dòng Q&A, quay "
                          "lại dùng một chuỗi chung (--tra-loi). A67 đo được "
@@ -983,8 +990,14 @@ def main():
                     van_qa = {int(r): f"{o} {s}".strip() for r, o, s in zip(
                         _b.row_id.values, _b.ocr_text.fillna("").values,
                         _b.asr_text.fillna("").values)}
-                n_dao = gan_cho_moi_dong(uv[:a.k], de[ten], van_qa,
-                                         mac_dinh=a.tra_loi or "không rõ")
+                if a.rai_bien_the > 1:
+                    from dap_an import rai_bien_the
+                    uv, n_dao = rai_bien_the(
+                        uv, de[ten], van_qa, k=a.rai_bien_the,
+                        mac_dinh=a.tra_loi or "không rõ", gioi_han=a.k)
+                else:
+                    n_dao = gan_cho_moi_dong(uv[:a.k], de[ten], van_qa,
+                                             mac_dinh=a.tra_loi or "không rõ")
                 print(f"     đào `answer`: {n_dao}/{min(len(uv), a.k)} dòng "
                       f"có chuỗi từ chính khung đó")
 
