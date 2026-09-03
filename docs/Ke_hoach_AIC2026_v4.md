@@ -5679,6 +5679,104 @@ nhau** được — dùng A54 nếu cần con số trống chính xác trên cù
    rộng. Vấn đề của hệ thống này chưa bao giờ là *tìm không ra*, mà là *xếp
    không lên*.
 
+### A88. VietOCR cả kho: nâng **TRẦN** Q&A 50%, nhưng không phép đào nào với tới — và IDF làm mọi thứ tệ hơn
+
+12/12 phần VietOCR về đủ: **177.321/177.321 keyframe**, 166.605 khung có chữ.
+Tỷ lệ có dấu toàn kho **7% -> 45%**, riêng khung đáp án **20% -> 82%** — tái
+lập chính xác bản thử 251 khung của A76.
+
+Một khác biệt hệ thống giữa hai nhóm phần, đã truy ra nguyên nhân:
+
+| | rỗng | có dấu | s/ảnh |
+| --- | ---: | ---: | ---: |
+| A1–A7 | 9–14% | 52–59% | 0,77–1,08 |
+| B1–B5 (L26) | **0%** | **31–33%** | **0,44–0,46** |
+
+Không phải chạy sai cấu hình: **43% khung L26 chỉ có watermark `HTV Online`**
+(15.685 dòng, cộng 3.971 dòng `HIV Online` do VietOCR đọc nhầm `T` thành `I`).
+Watermark luôn có nên không khung nào rỗng; watermark không dấu nên tỷ lệ có
+dấu thấp; ít vùng chữ nên nhanh gấp đôi. **Ba dấu hiệu lệch cùng lúc, một
+nguyên nhân.**
+
+#### 1. Kênh 3 trên văn bản GỘP: ❌ đảo dấu ở mọi α (`102_`, 72 câu)
+
+| cấu hình | ±2s | ±15s | |
+| --- | ---: | ---: | :---: |
+| **MỐC: OCR cũ (α=0,5)** | **0,5611** | **0,6514** | |
+| GỘP + VietOCR, α=0,5 | 0,5688 | 0,6486 | ❌ ĐẢO DẤU |
+| GỘP, α=0,6 | 0,5660 | 0,6486 | ❌ |
+| GỘP, α=0,7 | 0,5660 | 0,6486 | ❌ |
+| GỘP, α=0,8 | 0,5632 | 0,6486 | ❌ |
+
+Lý do nằm ngay ở số khung: gộp chỉ thêm **192 khung** có chữ (176.009 ->
+176.201). Phần còn lại là **từ trùng** đổ vào khung vốn đã có chữ — TF tăng
+(bão hoà theo `k1`) nhưng `dl` cũng tăng, mà BM25 **phạt độ dài** qua `b`. Hai
+hiệu ứng ngược chiều, và độ dài trung vị 489 -> 510 ký tự đủ để `b` cắn.
+
+Ngưỡng ghi trước ở `kaggle_vietocr.md` đã báo đúng: *"`bm25.py` đã có nhánh
+không dấu nên lợi ích ở đó nhỏ"*. Truy hồi không phải chỗ VietOCR giúp.
+
+`alpha` (tỷ trọng nhánh có dấu) cũng trơ: nâng α chỉ làm ±2s tụt dần, ±15s
+không đổi. Nhánh không dấu tồn tại để cứu truy vấn gõ thiếu dấu **và OCR đọc
+sai dấu** — mà VietOCR vẫn đọc `HTV` thành `HIV` ở 8,3% khung L26.
+
+#### 2. Q&A: TRẦN tăng 50%, mà mọi phép đào đều XA HƠN (`103_`)
+
+Trần = có cụm 1–4 từ nào trong văn bản **bằng đúng đáp án** không:
+
+| văn bản | trần |
+| --- | ---: |
+| CŨ (ocr + asr) | 4/13 |
+| **GỘP (ocr + VietOCR + asr)** | **6/13** |
+
+VietOCR đọc ra `'Thịt cá lóc 300g'` **đúng dấu** — đáp án có mặt thật. Nhưng:
+
+| phép đào | khớp đúng chuỗi |
+| --- | ---: |
+| CŨ · regex chữ hoa | **3/13** |
+| GỘP · regex chữ hoa | 2/13 |
+| GỘP · cụm + IDF | **0/13** |
+| *TRẦN (gộp)* | *6/13* |
+
+**Cả ba đều đi xa trần hơn, không gần hơn.** Gộp văn bản còn làm regex tụt
+3 -> 2 (mất `46`): thêm chữ làm đổi cụm gần từ khoá nhất.
+
+#### Vì sao IDF hỏng — và đây là bài học chung, không riêng câu này
+
+Ý tưởng: bỏ điều kiện chữ hoa, sinh mọi cụm 1–4 từ rồi xếp theo `max(IDF)`, vì
+đáp án là **thực thể hiếm**. Đúng với nhãn vật thể (A62). Sai ở đây, và số liệu
+nói thẳng — năm cụm điểm cao nhất ở khung chứa `Cá lóc`:
+
+    ['Gao deo 100g Bapnep', 'deo 100g Bapnep', 'deo 100g Bapnep 2', …]
+
+    IDF('ca')  = 1,18      <- từ THẬT nên phổ biến
+    IDF('loc') = 3,87
+    IDF('Bapnep') = cực đại — nó là LỖI OCR dính chữ ("Bắp nếp"), xuất hiện
+                    ĐÚNG MỘT LẦN trong cả kho
+
+> **OCR sinh ra rác DUY NHẤT.** Mỗi lần đọc sai một ký tự là một token hapax,
+> tức IDF cực đại. Xếp theo IDF trên văn bản OCR là xếp **rác lên đầu**. IDF đo
+> "hiếm thì đáng chú ý" — đúng khi từ vựng đóng và sạch, sai khi hiếm nghĩa là
+> **SAI**.
+
+`dap_an.dao_cum()` giữ lại kèm kết quả 0/13 trong docstring, để lần sau ai nghĩ
+ra ý này thì thấy nó đã được thử.
+
+#### Kết luận cho cả đợt
+
+**Không có cải thiện nào bật được.** Điểm cao nhất dùng được vẫn là cấu hình
+hiện tại: **0,5611 ở ±2s / 0,6514 ở ±15s** trên 72 câu (0,5317 / 0,6067 trên
+52 câu của tập so A87).
+
+Nhưng đợt này không vô ích: nó **dịch chuyển trần Q&A từ 4/13 lên 6/13** và
+chứng minh phần chặn nằm hoàn toàn ở **khâu đào**, không ở dữ liệu. Ba phép đào
+đã thử (regex chữ hoa, regex nới, cụm + IDF) đều là **phép chọn theo hình thức
+bề mặt**, và cả ba đều thua vì bài toán thật là **đọc hiểu**: *cho câu hỏi và
+văn bản của khung, cụm nào là đáp án*. Đường còn lại là LLM đọc
+`câu hỏi + văn bản khung` — chưa đo.
+
+Trong lúc chờ, `--rai-bien-the 2` (A83) vẫn là thứ rẻ nhất còn dùng được.
+
 ## PHẦN B — QUYẾT ĐỊNH HẠ TẦNG
 
 ### B1. Không dùng Supabase / Postgres / Milvus / Elasticsearch — ĐÃ KIỂM CHỨNG

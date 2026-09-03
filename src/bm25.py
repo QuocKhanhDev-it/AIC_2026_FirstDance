@@ -63,6 +63,7 @@ Dùng:
 """
 
 import argparse
+import gc
 import math
 import re
 import unicodedata
@@ -190,11 +191,13 @@ class KenhVanBan:
     """
 
     def __init__(self, van_ban: list[str], khoa_dong: list[np.ndarray],
-                 master: pd.DataFrame, ten: str = "bm25", bigram: bool = True):
+                 master: pd.DataFrame, ten: str = "bm25",
+                 bigram: bool = True, alpha: float = 0.5):
         if len(van_ban) != len(khoa_dong):
             raise ValueError(f"{len(van_ban)} tài liệu nhưng {len(khoa_dong)} khóa")
         self.master, self.ten = master, ten
         self.khoa_dong = khoa_dong
+        self.alpha = alpha
         self.co_dau = BM25(van_ban, bigram=bigram)
         self.khong_dau = BM25([bo_dau(v or "") for v in van_ban], bigram=bigram)
 
@@ -206,8 +209,15 @@ class KenhVanBan:
 
         Cộng hai chỉ mục — xem phần "Dấu" ở đầu file. Khớp đúng dấu ăn điểm cả
         hai lần, khớp mờ ăn một lần.
+
+        `alpha` là tỷ trọng nhánh CÓ DẤU: `α·có_dấu + (1−α)·không_dấu`.
+        **Mặc định 0,5 = hành vi cũ y hệt** — RRF chỉ đọc THỨ HẠNG nên nhân cả
+        hai vế với 2 không đổi gì. Có tham số để dò được: khi văn bản có thêm
+        45% chữ có dấu từ VietOCR (A88) thì nhánh có dấu sắc hơn hẳn, vì IDF
+        của từ có dấu cao hơn từ đã bỏ dấu — nhưng đó là LẬP LUẬN, phải đo.
         """
-        return self.co_dau.diem(cau) + self.khong_dau.diem(bo_dau(cau))
+        return (self.alpha * self.co_dau.diem(cau)
+                + (1.0 - self.alpha) * self.khong_dau.diem(bo_dau(cau)))
 
     def tim(self, cau, k: int = 100, moi_video: int | None = None,
             be=None) -> list[Candidate]:
@@ -289,7 +299,8 @@ class KenhVanBan:
     @classmethod
     def tu_bang_khung(cls, master: pd.DataFrame, bang: pd.DataFrame,
                       cot: str = "caption", ten: str = "caption",
-                      bigram: bool = True) -> "KenhVanBan":
+                      bigram: bool = True,
+                      alpha: float = 0.5) -> "KenhVanBan":
         """KÊNH 3 hoặc 5 — một tài liệu mỗi KEYFRAME.
 
         `bang` cần hai cột: `row_id` và cột văn bản. Chỉ những `row_id` có
@@ -303,7 +314,45 @@ class KenhVanBan:
         b = bang[bang[cot].fillna("").str.strip() != ""]
         return cls(b[cot].tolist(),
                    [np.array([r], dtype=np.int64) for r in b.row_id],
-                   master, ten=ten, bigram=bigram)
+                   master, ten=ten, bigram=bigram, alpha=alpha)
+
+
+def doc_van_ban_khung(index_dir, ten_cot: str = "text") -> pd.DataFrame:
+    """`(row_id, text)` cho kênh 3 — GỘP `ocr_asr.parquet` + `ocr_vietocr.parquet`.
+
+    ⚠️ **MỘT CHỖ DUY NHẤT dựng văn bản kênh 3.** `run.py`, `web/server.py` và
+    mọi script đo đều gọi vào đây. Bốn lỗi im lặng vừa sửa (xem commit
+    `8a27e29`) lọt qua theo đúng một cách: **script đo không chạy cùng đường
+    với bài nộp**. Đường ghép văn bản là chỗ dễ tái phạm nhất, nên nó chỉ có
+    một bản.
+
+    GỘP CHỨ KHÔNG THAY, và lý do đo được (A76/A88): VietOCR đọc chuẩn dấu
+    (`Tà Pứa`) nhưng **làm mất số** (`46`); OCR cũ đọc được số nhưng mất dấu.
+    Nối cả hai vào cùng một tài liệu thì BM25 ăn được cả hai token.
+
+    ⚠️ Nối chuỗi làm TĂNG độ dài tài liệu, mà BM25 PHẠT độ dài qua `b`. Từ nào
+    hai bản cùng đọc ra thì TF tăng (bão hoà theo `k1`) nhưng `dl` cũng tăng —
+    hai hiệu ứng NGƯỢC chiều. Không suy được cái nào thắng, phải đo: đó chính
+    là việc của `102_do_kenh3_vietocr.py`.
+    """
+    index_dir = Path(index_dir)
+    b = pd.read_parquet(index_dir / "ocr_asr.parquet")
+    van = {int(r): str(t or "").strip()
+           for r, t in zip(b.row_id.values, b[ten_cot].fillna("").values)}
+
+    f = index_dir / "ocr_vietocr.parquet"
+    if f.exists():
+        v = pd.read_parquet(f)
+        for r, t in zip(v.row_id.values, v.text.fillna("").values):
+            t = str(t).strip()
+            if t:
+                r = int(r)
+                van[r] = f"{van.get(r, '')} {t}".strip()
+        del v
+        gc.collect()
+    del b
+    gc.collect()
+    return pd.DataFrame({"row_id": list(van), "text": list(van.values())})
 
 
 def main():
