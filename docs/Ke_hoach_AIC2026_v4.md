@@ -5854,6 +5854,65 @@ nguyên.
 > làm mọi tầng phía trên trở thành trang trí. 88 mục đo không phát hiện ra;
 > một bảng điểm 25 dòng của BTC phát hiện ra trong mười phút.
 
+### A90. Caption phủ **100% kho**: A73 không lật — và dãy ba điểm đo là bằng chứng sạch nhất về bẫy bể nhỏ
+
+12/12 phần caption về đủ. Soát bằng `76_kiem_caption_phan.py`: mọi phần đúng
+phần được giao, **0 caption rỗng**, số dòng lệch **0,2%**, độ dài trung vị
+280–289 ký tự (lệch 3% -> cùng cấu hình sinh). Gộp: **177.321 ảnh / 873 video
+= 100,0% kho**.
+
+Đo lại trên **52 câu `tap_de_that`** — nhãn sạch, sau khi A89 phát hiện 20 câu
+`de_thi_thu` mang nhãn hái từ chính hệ thống.
+
+#### Vì sao phải đo lại chứ không tin A73
+
+A73 kết luận ❌ đảo dấu, nhưng phép đo đó có **hai** điều kiện nay đã đổi: độ
+phủ 76% (chưa đầy đủ) và tập 68 câu (có nhiễm nhãn). A89 vừa chứng minh nhiễm
+nhãn đè được một kết quả dương xuống thành ❌. Nên A73 đúng là loại kết luận
+phải chạy lại.
+
+#### Kết quả: không lật, và mạnh hơn
+
+| cấu hình | ±2s | ±15s | hiệu ±2s | T-B-H | |
+| --- | ---: | ---: | ---: | :---: | :---: |
+| **mốc: ảnh + kênh 3** | **0,5173** | **0,6096** | — | — | |
+| + kênh 5 (0,25) | 0,5048 | 0,6019 | −0,0125 | 2-6-44 | 🟡 |
+| + kênh 5 (0,5) | 0,5125 | 0,6173 | −0,0048 | 5-8-39 | ❌ ĐẢO DẤU |
+| + kênh 5 (1,0) | 0,4577 | 0,5635 | **−0,0596** | 7-24-21 | **✅ TỆ HƠN** |
+| kênh 5 THAY kênh 3 | 0,4846 | 0,5779 | −0,0327 | 5-10-37 | 🟡 |
+
+Ở độ phủ đầy đủ, `w = 1,0` đi từ 🟡 sang **✅ ổn định TỆ HƠN** — bằng chứng
+chống caption **mạnh lên**, không yếu đi.
+
+#### Dãy ba điểm đo: bằng chứng sạch nhất về bẫy bể nhỏ trong cả repo
+
+| độ phủ caption | kênh 5 đứng một mình (±2s) |
+| ---: | ---: |
+| 5,9% kho (A59) | **0,3904** |
+| 76,0% kho (A73) | **0,2625** |
+| **100% kho (A90)** | **0,1615** |
+
+**Càng phủ đủ càng thấp, đơn điệu, ba trên ba.** Đây là cơ chế A21 ở dạng
+thuần khiết: bể càng nhỏ so với kho thật, con số càng nói về **BỂ** chứ không
+về **KÊNH**. Ở 5,9% thì bể gần như chỉ gồm video *có chứa đáp án*, nên kênh 5
+chỉ phải chọn khung trong một tập đã được lọc sẵn hộ.
+
+> Nếu chỉ có điểm đo đầu tiên (0,3904 ở độ phủ 5,9%), kênh caption trông như
+> kênh mạnh thứ hai của hệ thống. Ba điểm đo cho thấy nó là **hiện vật của
+> phép đo**. Đây là lý do A73 ghi *"khoá bể làm phép so CÔNG BẰNG chứ không
+> làm nó ĐẠI DIỆN"* — và giờ có ba điểm để chứng minh câu đó.
+
+#### Kết luận: đóng kênh 5, giữ dữ liệu
+
+**103 giờ GPU, và kênh không vào được bài nộp.** Nói thẳng vậy thì đúng hơn là
+tìm cách bào chữa. Nhưng dữ liệu giữ lại: nó không tốn thêm gì, A71 đo được
+caption **độc lập thật** với kênh ảnh (Spearman 0,043), nên nếu về sau có cơ
+chế hợp nhất khai thác được kênh ít chồng lấn thì nó đã sẵn sàng. A72 vừa bác
+ứng viên duy nhất cho việc đó, nên đừng chờ.
+
+`71_do_kenh5_caption.py` bỏ dòng cảnh báo "bể bị khoá" khi độ phủ đạt 100% —
+một cảnh báo luôn hiện là một cảnh báo không ai còn đọc.
+
 ## PHẦN B — QUYẾT ĐỊNH HẠ TẦNG
 
 ### B1. Không dùng Supabase / Postgres / Milvus / Elasticsearch — ĐÃ KIỂM CHỨNG

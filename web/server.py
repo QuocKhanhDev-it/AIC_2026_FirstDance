@@ -499,8 +499,9 @@ def main():
                     help="bật kênh 4 (objects). MẶC ĐỊNH TẮT — A62 đo là làm "
                          "TỆ ĐI khi hợp nhất, dù đã sửa hai lỗi công thức")
     ap.add_argument("--co-caption", action="store_true",
-                    help="bật kênh 5 (caption). MẶC ĐỊNH TẮT — A73 đo là "
-                         "❌ ĐẢO DẤU ở độ phủ 76%%")
+                    help="bật kênh 5 (caption). MẶC ĐỊNH TẮT — A90 đo lại ở "
+                         "ĐỦ 100%% độ phủ trên nhãn sạch: vẫn không thắng, và "
+                         "w=1,0 nay là ✅ ổn định TỆ HƠN (-0,0596)")
     ap.add_argument("--co-bge", action="store_true",
                     help="bật kênh 6 (BGE-M3). MẶC ĐỊNH TẮT — A59 đo "
                          "+0,0140 nhưng 🟡. Tốn ~360 MB RAM")
