@@ -62,14 +62,20 @@ def main():
 
     moi = {}
     giay = None
-    for l in a.moi.read_text("utf-8").splitlines():
-        if not l.strip():
-            continue
-        d = json.loads(l)
-        if d.get("_meta"):
-            giay = d.get("giay_moi_anh")
-            continue
-        moi[int(d["row_id"])] = d.get("text", "")
+    if a.moi.suffix == ".parquet":
+        # `101_kiem_ocr_phan.py --ghep` ghi ra parquet (177k dòng), còn bản thử
+        # 251 khung là jsonl. Nhận cả hai để so được bản thử với bản cả kho.
+        _b = pd.read_parquet(a.moi)
+        moi = dict(zip(_b.row_id.astype(int), _b.text.fillna("")))
+    else:
+        for l in a.moi.read_text("utf-8").splitlines():
+            if not l.strip():
+                continue
+            d = json.loads(l)
+            if d.get("_meta"):
+                giay = d.get("giay_moi_anh")
+                continue
+            moi[int(d["row_id"])] = d.get("text", "")
 
     bang = pd.read_parquet(a.index / "ocr_asr.parquet")
     cu = dict(zip(bang.row_id.astype(int), bang.ocr_text.fillna("")))
