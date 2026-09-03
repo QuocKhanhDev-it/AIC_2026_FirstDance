@@ -5617,6 +5617,68 @@ nền là `run.py` như nó đang chạy:
 **KHÔNG đổi `run.py`.** "Cả câu" hơn +0,0041 nhưng dưới ngưỡng nhiễu 0,0082 ở
 ±2s — chưa đủ căn cứ, và đổi mốc nền thì mọi phép đo cũ hết so được.
 
+### A87. Hệ thống hiện tại so với bản SigLIP2-1152: **gấp 2,4 lần**, và trần còn 0,35
+
+Đo cả hai ma trận trong **một lượt chạy, trên cùng bộ câu** — tôn trọng đính
+chính A54, nơi tôi từng đọc chênh lệch giữa ba lượt riêng như một hiệu ứng thật.
+
+#### Khoá tập câu trước, vì hai cache phủ khác nhau
+
+    gopt-1536     72/72 câu đủ chuỗi
+    siglip2-1152  52/72 câu đủ chuỗi   <- cache cũ chỉ phủ `tap_de_that`
+    TẬP KHOÁ      52 câu
+
+Đo gopt trên 72 câu rồi so với SigLIP2 trên 52 câu là so **hai bộ đề khác
+nhau**. Không cần khoá bể ứng viên: cả hai ma trận đều phủ trọn 177.321 dòng,
+nên bẫy `dense.be_chung` của A17 (+0,2833 vì bể nhỏ hơn thắng) không áp dụng.
+
+#### Điểm thật (52 câu)
+
+| cấu hình | ±2s | ±15s | hiệu ±2s | T-B-H | |
+| --- | ---: | ---: | ---: | :---: | :---: |
+| **gopt + kênh 3 — ĐANG CHẠY** | **0,5317** | **0,6067** | — | — | |
+| gopt một mình | 0,4904 | 0,5683 | −0,0413 | 2-9-41 | ✅ |
+| SigLIP2-1152 + kênh 3 | 0,2221 | 0,3077 | **−0,3096** | 5-31-16 | ✅ |
+| SigLIP2-1152 một mình | 0,1760 | 0,2462 | −0,3558 | 4-35-13 | ✅ |
+
+**Gấp 2,4 lần** (0,5317 so với 0,2221), ✅ ổn định ở cả hai mức dung sai,
+31 thắng / 5 thua. Đây là khoảng cách lớn nhất giữa hai cấu hình từng đo trong
+repo, và nó xác nhận A47 ở quy mô toàn hệ thống chứ không chỉ riêng kênh 1.
+
+Dòng chẩn đoán cũng cho một con số đáng nhớ: **kênh 3 đóng góp +0,0413** trên
+nền gopt, ✅ ổn định ở cả hai mức. Trước đây con số này luôn 🟡.
+
+#### Trần — điểm cao nhất hệ thống có thể đạt
+
+Trần = *đáp án nằm đâu đó trong bể thì coi như xếp lại hoàn hảo cho 1,0*.
+Bể 1.000, tính trên **49 câu KIS/QA** (TRAKE chấm theo vị trí nên "có trong bể"
+không cùng nghĩa):
+
+| cấu hình | trần ±2s | trần ±15s |
+| --- | ---: | ---: |
+| **gopt + kênh 3** | **0,8776** | **0,9592** |
+| SigLIP2-1152 + kênh 3 | 0,6531 | 0,8163 |
+
+Khớp A54 (trần 0,8654 ở cùng cấu hình, chênh do A51 đã đổi cách hợp nhất mệnh
+đề sau đó). **Khoảng trống còn ~0,35** — và hơn 20 hướng xếp lại đã thử, chưa
+hướng nào lấy quá 2,3% của nó (A55–A62, A72, A81, A82).
+
+⚠️ **Trần tính trên 49 câu KIS/QA, điểm thật tính trên 52 câu gồm 3 câu TRAKE**
+(chấm ở tầng KÊNH, xem cảnh báo tự động). Hai con số **không trừ thẳng cho
+nhau** được — dùng A54 nếu cần con số trống chính xác trên cùng mẫu số.
+
+#### Đọc ra ba điều
+
+1. **Đổi model là thay đổi lớn nhất từng đo**, gấp nhiều lần mọi tinh chỉnh
+   hậu xử lý cộng lại. Cả A51 + A52 + A79 gộp lại được ~0,09; đổi model được
+   +0,3096.
+2. **Trần của bản cũ (0,6531) còn thấp hơn ĐIỂM THẬT của bản mới (0,5317) chưa
+   nhiều** — nghĩa là mọi công sức xếp lại trên nền SigLIP2-1152 có trần thấp
+   hơn hẳn thứ ta đang có sẵn mà không cần xếp lại gì.
+3. **Trần ±15s là 0,9592.** Gần như mọi câu đều có đáp án trong bể khi cửa sổ
+   rộng. Vấn đề của hệ thống này chưa bao giờ là *tìm không ra*, mà là *xếp
+   không lên*.
+
 ## PHẦN B — QUYẾT ĐỊNH HẠ TẦNG
 
 ### B1. Không dùng Supabase / Postgres / Milvus / Elasticsearch — ĐÃ KIỂM CHỨNG
