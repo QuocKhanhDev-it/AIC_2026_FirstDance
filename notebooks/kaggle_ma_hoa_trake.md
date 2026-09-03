@@ -63,7 +63,11 @@ json.dump({"model": "ViT-gopt-16-SigLIP2-384", "pretrained": "webli",
            "chieu": 1536}, open("index/clip_gopt.json", "w"))
 
 # KHONG co --gop: co tinh. File nay dung mot minh, may co index/ moi gop.
-chay("python scripts/25_ma_hoa_truy_van.py --tap dev/tap_dev_trake.jsonl "
+# Ma hoa CA HAI file co cau TRAKE. `tap_de_thi_thu.jsonl` vua them 3 cau
+# TRAKE de THAT (10 chuoi moi); phan da co trong cache se bi `67_` bo qua khi
+# gop, nen ma hoa thua vai chuoi khong ton gi — con thieu thi tac ca phep do.
+chay("python scripts/25_ma_hoa_truy_van.py "
+     "--tap dev/tap_dev_trake.jsonl --tap dev/tap_de_thi_thu.jsonl "
      "--matrix clip_gopt.npy --ra index/truy_van_trake.npz")
 
 shutil.copy("index/truy_van_trake.npz", "/kaggle/working/")
@@ -73,7 +77,7 @@ z = np.load("/kaggle/working/truy_van_trake.npz", allow_pickle=False)
 print(f"\n✅ {len(z['cau']):,} chuoi, {z['vec'].shape[1]} chieu")
 print("   ghi chu:", json.loads(str(z["ghi_chu"])))
 assert z["vec"].shape[1] == 1536, "sai so chieu — sai model?"
-assert len(z["cau"]) == 219, f"cho 219 chuoi, nhan {len(z['cau'])}"
+assert len(z["cau"]) >= 219, f"cho it nhat 219 chuoi, nhan {len(z['cau'])}"
 print(f"   kich thuoc: "
       f"{os.path.getsize('/kaggle/working/truy_van_trake.npz')/1024:.0f} KB")
 ```
