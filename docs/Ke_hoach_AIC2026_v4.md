@@ -5193,6 +5193,132 @@ Danh sách hướng TRAKE **đã cạn**. Thứ chặn tiếp theo không phải
 mà là **số câu TRAKE**: 20 câu, trong đó 14 tự soạn, và 8–9 câu không đổi gì
 giữa các cấu hình nên n hiệu dụng chỉ khoảng 11.
 
+### A81. "Cluster flooding" **không có**, và 6 câu ngoài bể **không có tín hiệu chung**
+
+Hai chẩn đoán trên cùng một lượt chạy (`94_soi_cau_that_bai.py`, 66 câu KIS/QA,
+bể 1.000).
+
+#### 1. Top-20 KHÔNG bị khung lân cận chiếm chỗ
+
+Giả thuyết: R@20 đứng yên ở 0,6122 qua mọi cỡ bể (A54) vì top-20 bị các
+keyframe lân cận của cùng một shot SAI chiếm hết; lọc phi cực đại theo thời
+gian sẽ giải phóng 8–12 chỗ.
+
+**Lập luận đó không đứng vững trước khi đo.** R@20 không đổi khi bể đi từ 100
+lên 1.000 chỉ nói **ứng viên mới đều xếp dưới hạng 20** — nó không nói gì về
+thứ ĐANG chiếm top-20. Đo thẳng:
+
+| trong top-20 | trung vị | min | max |
+| --- | ---: | ---: | ---: |
+| video khác nhau | **10/20** | 1 | 20 |
+| hàng xóm thời gian ≤4s | **2/20** | 0 | 10 |
+| *câu có ≥10 hàng xóm* | **1/66** | | |
+
+Top-20 điển hình gồm **10 video khác nhau** và chỉ **2** ứng viên là khung lân
+cận. Lọc phi cực đại sẽ giải phóng khoảng 2 chỗ, không phải 8–12.
+
+> Và nó giải thích luôn **vì sao A18 thất bại**: ràng buộc đa dạng (tối đa 2
+> ứng viên mỗi video) làm tệ đi vì **không có dư thừa để dọn** — cắt theo video
+> chỉ xoá mất ứng viên tốt. Hai phép đo cách nhau nhiều tuần, cùng một nguyên
+> nhân.
+
+#### 2. Sáu câu ngoài top-1.000 — và một kết luận suýt bị công bố
+
+| câu | chữ ở khung đúng | có dấu | dài câu |
+| --- | ---: | :---: | ---: |
+| kis-DE1-11 | 168 ký tự | có | 57 |
+| kis-DE1-02 | 1.318 ký tự | có | 45 |
+| kis-DE1-23 | 5.002 ký tự | có | 112 |
+| qa-DE2-27 | 147 ký tự | — | 62 |
+| qa-DE2-28 | 499 ký tự | có | 72 |
+| qa-DE2-30 | 33 ký tự | — | 74 |
+
+**6/6 đều là câu dài >40 từ** — trông như một phát hiện. **Tỷ lệ nền giết nó:**
+55/66 câu (83%) của cả tập đã dài >40 từ, nên xác suất cả 6 đều dài khi chọn
+ngẫu nhiên là **0,335**. Trung vị 67 từ so với 62 của toàn tập.
+
+> Suýt nữa tôi ghi "câu dài là nguyên nhân" vào tài liệu. Thứ chặn lại là một
+> phép tính hai dòng: **luôn tính tỷ lệ nền trước khi gọi một tương quan là
+> phát hiện.** Với n = 6 thì gần như mọi thuộc tính phổ biến đều xuất hiện ở
+> cả 6.
+
+Thứ nói được, và chỉ thế thôi:
+
+* **Cả 6 câu đều CÓ chữ ở khung đúng** (4/6 có dấu). Nên chúng không thất bại
+  vì thiếu dữ liệu văn bản, và **A76 (VietOCR) sẽ không cứu được câu nào trong
+  số này**. Đó là câu trả lời cho câu hỏi "6 câu này có cùng lý do với Q&A
+  không": **không**.
+* Kênh 3 có văn bản trong tay mà vẫn không đưa chúng lên -> chữ ở khung đúng
+  không khớp cách diễn đạt của truy vấn. Khoảng cách **từ vựng**, không phải
+  khoảng cách dữ liệu.
+* **n = 6 quá nhỏ để nói thêm gì** (A74: "n=3 không phải một phép đo").
+
+### A82. Khuếch tán điểm kênh 3 theo thời gian — cơ chế bị bác **bởi chính phép đo cơ chế**
+
+A71 đo chồng@20 giữa kênh 1 và kênh 3 chỉ 3,4%. Có một cách đọc rất thuyết
+phục: **chữ và hình không xuất hiện cùng một mili-giây** — người nói nhắc chủ
+đề ở giây 10, hình minh hoạ hiện ở giây 14, biển hiệu lướt qua ở giây 8. RRF
+cộng theo `row_id` nên ba sự kiện đó không bao giờ gặp nhau.
+
+Cách chữa: trước khi hợp nhất, cho điểm BM25 lan sang keyframe cùng video theo
+Gauss thời gian `S'(t) = Σ_k S(k)·exp(−(t_k−t)²/2τ²)`, giữ nguyên vector ảnh
+sắc nét. Dự đoán kèm theo: **chồng@20 tăng từ 4% lên 25–35%**.
+
+#### Dự đoán đó là thứ làm phép đo này dứt khoát
+
+`95_do_khuech_tan_thoi_gian.py` đo **hai** thứ: điểm cuối, và chồng@20. Ghi rõ
+trong docstring trước khi chạy: *nếu điểm tăng mà chồng KHÔNG tăng thì cơ chế
+giả thuyết sai dù kết quả đúng, và không được ghi cơ chế đó vào tài liệu.*
+
+| | chồng@20 |
+| --- | ---: |
+| gốc (τ = 0) | **2,8%** |
+| τ = 2s | **1,5%** |
+| τ = 4s | **1,5%** |
+| τ = 6s | 1,7% |
+
+**Chồng GIẢM gần một nửa**, không tăng gấp tám. Dự đoán sai cả về hướng.
+
+Lý do: khuếch tán đổi **thứ hạng** của kênh 3. Sau khi làm mềm, top-20 của kênh
+3 bị các vùng dày chữ chiếm — nơi nhiều khung có điểm nằm sát nhau nên cộng dồn
+lên cao — mà đó không phải chỗ top-20 của kênh 1 đang đứng. Hai kênh **đồng ý
+ít hơn**, không phải nhiều hơn.
+
+#### Điểm cuối (72 câu, mốc là kênh 3 gốc)
+
+| cấu hình | ±2s | ±15s | hiệu ±2s | T-B-H | |
+| --- | ---: | ---: | ---: | :---: | :---: |
+| **MỐC: kênh 3 gốc** | **0,5611** | **0,6514** | — | — | |
+| chỉ kênh 1 *(chẩn đoán)* | 0,5326 | 0,6264 | −0,0285 | 3-10-59 | ✅ |
+| khuếch tán τ=2s | 0,5583 | 0,6514 | −0,0028 | 2-3-67 | ❌ ĐẢO DẤU |
+| khuếch tán τ=4s | 0,5528 | 0,6597 | −0,0083 | 1-4-67 | ❌ ĐẢO DẤU |
+| khuếch tán τ=6s | 0,5528 | 0,6542 | −0,0083 | 1-4-67 | ❌ ĐẢO DẤU |
+
+Cả ba mức ❌ đảo dấu — không dùng để quyết được, và cơ chế thì đã đổ.
+
+#### Kèm theo: đóng góp của kênh 3 nay ✅ ỔN ĐỊNH
+
+Dòng chẩn đoán trên 72 câu: bỏ kênh 3 mất **−0,0285 với ngưỡng 0,0260, 3 thắng
+/ 10 thua -> ✅**. Trước đây con số này luôn 🟡. Tập lớn lên đúng như A65 dự
+đoán, và **giá trị của kênh 3 giờ là kết luận vững** chứ không còn là ứng viên.
+
+#### Vì sao A82 khác A57 và A70 — và vì sao vẫn thua
+
+Ba thứ cùng họ "làm mềm theo thời gian", đã bác cả ba, nhưng mỗi cái một cơ chế:
+
+* **A57** làm mượt *vector kênh 1* -> san phẳng phần dư dùng để phân biệt khung
+  đáp án với hàng xóm.
+* **A70** gộp vector theo *đoạn ASR* (~39 giây) -> mọi khung trong đoạn nhận
+  cùng một biểu diễn, mất khả năng xếp hạng bên trong đoạn.
+* **A82** chỉ làm mềm *trường điểm kênh 3*, τ = 2–6 giây, không đụng kênh 1 —
+  tránh được cả hai khuyết tật trên, và **vẫn thua**, vì nó phá thứ khác: thứ
+  hạng nội bộ của chính kênh 3.
+
+> Ba lần cùng một họ ý tưởng, ba cơ chế hỏng khác nhau. Kết luận dùng được:
+> **trục thời gian của kho này không có dư thừa để khai thác** — A81 đo được
+> top-20 chỉ có 2/20 hàng xóm, tức các khung gần nhau vốn đã không chen chỗ
+> nhau. Làm mềm theo thời gian không có gì để dọn, chỉ có thứ để phá.
+
 ## PHẦN B — QUYẾT ĐỊNH HẠ TẦNG
 
 ### B1. Không dùng Supabase / Postgres / Milvus / Elasticsearch — ĐÃ KIỂM CHỨNG
