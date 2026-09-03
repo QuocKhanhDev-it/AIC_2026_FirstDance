@@ -987,10 +987,28 @@ def main():
             if loai == "qa" and not a.khong_dao_dap_an:
                 from dap_an import gan_cho_moi_dong
                 if "van_qa" not in locals():
+                    # ⚠️ CÙNG MỘT FILE, HAI LƯỢC ĐỒ. `quet_van_ban` ở trên đọc
+                    # cột `text` và docstring của nó ghi "TV4 sinh ra
+                    # ocr_asr.parquet với cột row_id + text". Chỗ này lại đòi
+                    # `ocr_text` + `asr_text`. File hiện có cả ba cột nên chạy
+                    # được — nhưng ai sinh lại ĐÚNG NHƯ TÀI LIỆU GHI thì mọi
+                    # gói Q&A chết bằng AttributeError. Test khói bắt được.
+                    #
+                    # Tách hai cột khi có (đào đáp án cần biết đâu là chữ trên
+                    # màn hình, đâu là lời nói — A84), lùi về `text` khi không.
                     _b = pd.read_parquet(a.index / "ocr_asr.parquet")
-                    van_qa = {int(r): f"{o} {s}".strip() for r, o, s in zip(
-                        _b.row_id.values, _b.ocr_text.fillna("").values,
-                        _b.asr_text.fillna("").values)}
+
+                    def _cot(ten):
+                        return (_b[ten].fillna("").astype(str).values
+                                if ten in _b.columns else [""] * len(_b))
+
+                    if "ocr_text" in _b.columns or "asr_text" in _b.columns:
+                        van_qa = {int(r): f"{o} {s}".strip() for r, o, s
+                                  in zip(_b.row_id.values, _cot("ocr_text"),
+                                         _cot("asr_text"))}
+                    else:
+                        van_qa = {int(r): t.strip() for r, t
+                                  in zip(_b.row_id.values, _cot("text"))}
                 if a.rai_bien_the > 1:
                     from dap_an import rai_bien_the
                     uv, n_dao = rai_bien_the(
