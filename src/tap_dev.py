@@ -56,11 +56,26 @@ class CauHoi:
         return self.video_id(master)[:3]
 
 
-def doc(f=MAC_DINH) -> list[CauHoi]:
+def doc(f=MAC_DINH, giu_nhan_sai: bool = False) -> list[CauHoi]:
+    """Đọc một tập câu hỏi, MẶC ĐỊNH bỏ những câu có nhãn đã biết là sai.
+
+    A89: 20 câu `de_thi_thu` mang đáp án hái từ chính đầu ra hệ thống, và bảng
+    điểm thật của BTC bác 6 trong số đó. Chấm một cấu hình mới trên nhãn sai
+    không phải là "đo khắt khe hơn" — nó là cộng nhiễu CÓ CHIỀU, vì nhãn hái từ
+    cấu hình cũ thì bênh đúng cấu hình cũ. Loại ở đây để 18 script đo khỏi phải
+    nhớ tự loại; `giu_nhan_sai=True` cho công cụ nào cần soi lại chính nhãn đó.
+    """
     f = Path(f)
     if not f.exists():
         return []
-    return [CauHoi(**json.loads(d)) for d in f.read_text("utf-8").splitlines() if d.strip()]
+    tat = [json.loads(d) for d in f.read_text("utf-8").splitlines() if d.strip()]
+    if giu_nhan_sai:
+        return [CauHoi(**d) for d in tat]
+    giu = [d for d in tat if "do_chac: sai" not in (d.get("ghi_chu") or "")]
+    if len(giu) < len(tat):
+        print(f"⚠️ {f.name}: bỏ {len(tat) - len(giu)}/{len(tat)} câu có "
+              f"`do_chac: sai` (A89). Dùng giu_nhan_sai=True để giữ lại.")
+    return [CauHoi(**d) for d in giu]
 
 
 def ghi(cau: list[CauHoi], f=MAC_DINH) -> None:
@@ -220,7 +235,10 @@ def gop(cac_file: list, index_dir=GOC / "index") -> tuple[list[CauHoi], list[str
     # ⚠️ CHỐNG RÒ TẬP TEST. Không có đoạn này thì `--gop` chạy lại từ file thành
     # viên sẽ dựng lại ĐỦ cả trăm câu và nuốt mất tập giữ kín — im lặng, không
     # báo gì. Từ đó mọi con số "kiểm trên tập chưa từng nhìn" thành vô nghĩa.
-    giu_kin = {c.id for c in doc(MAC_DINH_TEST)}
+    # giu_nhan_sai=True: một câu test bị hạ nhãn mà rơi khỏi tập chắn này
+    # thì nó LỌT NGƯỢC vào tập dev — đúng kiểu rò mà khối chú thích trên
+    # đang chống.
+    giu_kin = {c.id for c in doc(MAC_DINH_TEST, giu_nhan_sai=True)}
 
     # ⚠️ SOÁT TRÙNG `id` TRƯỚC, LỌC TẬP TEST SAU — thứ tự này quan trọng.
     #
@@ -231,7 +249,8 @@ def gop(cac_file: list, index_dir=GOC / "index") -> tuple[list[CauHoi], list[str
     # nó dễ bị đọc lướt qua.
     ra, thay, loi, bo = [], {}, [], 0
     for f in _bung(cac_file):
-        for c in doc(f):
+        # giu_nhan_sai=True: `gop()` DỰNG LẠI file. Lọc ở đây là XOÁ khỏi đĩa.
+        for c in doc(f, giu_nhan_sai=True):
             if c.id in thay:
                 loi.append(f"id '{c.id}' có ở cả {thay[c.id]} và {Path(f).name}")
                 continue
@@ -284,7 +303,7 @@ def main():
                 "'chưa từng nhìn', và con số kiểm cuối thành vô nghĩa.\n\n"
                 "Thêm câu mới thì cứ `--gop` bình thường: câu mới vào tập dev,\n"
                 "tập test giữ nguyên.")
-        cau = doc(a.file)
+        cau = doc(a.file, giu_nhan_sai=True)
         if not cau:
             raise SystemExit(f"Chưa có câu nào trong {a.file}")
         master = pd.read_parquet(Path(a.index) / "master.parquet")
@@ -315,7 +334,7 @@ def main():
         # Đã cắn thật (30/08): gộp 63 câu mới, tập dev từ 260 tụt còn 63. May
         # là `tap_dev.jsonl` nằm trong git nên khôi phục được — nhưng chỉ vì
         # nó ở trong git, không phải vì có gì chặn.
-        cu = len(doc(a.file)) if Path(a.file).exists() else 0
+        cu = len(doc(a.file, giu_nhan_sai=True)) if Path(a.file).exists() else 0
         if cu and len(cau) < cu and not a.cho_nho_di:
             raise SystemExit(
                 f"\n❌ TẬP DEV SẼ NHỎ ĐI: {cu} -> {len(cau)} câu. DỪNG, không ghi.\n\n"
@@ -329,7 +348,9 @@ def main():
         print(f"Gộp {len(a.gop)} file -> {len(cau)} câu -> {a.file}"
               + (f"  (trước: {cu})" if cu else "") + "\n")
 
-    cau = doc(a.file)
+    # Đường quản lý FILE (--kiem, --no-cum, --phan-bo) phải nhìn ĐỦ câu:
+    # `--no-cum` ghi đè chính file này.
+    cau = doc(a.file, giu_nhan_sai=True)
     if not cau:
         raise SystemExit(f"Chưa có câu nào trong {a.file}.\n"
                          f"Xem docs/07_lam_tap_dev.md để bắt đầu.")
