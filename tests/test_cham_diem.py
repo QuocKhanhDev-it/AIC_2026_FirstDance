@@ -264,3 +264,63 @@ def test_bao_cao_tu_bang_in_nguong_nhieu_va_ket_luan():
     assert "ngưỡng" in ra                      # co in nguong nhieu
     assert "10-0-0" in ra                      # thang-thua-hoa
     assert "ON DINH" in ra
+
+
+# ── phan biet hai TANG cham diem TRAKE ────────────────────────────────
+
+def test_la_bai_nop_trake_phan_biet_dung():
+    from cham_diem import la_bai_nop_trake
+    from schema import Candidate
+    assert la_bai_nop_trake([[1, 2, 3], [4, 5, 6]])          # dong bai nop
+    assert la_bai_nop_trake([({1}, {2})])                     # dong dang set
+    assert not la_bai_nop_trake([Candidate(1, "V0", 0, 0.9)])  # ung vien
+    assert not la_bai_nop_trake([])
+
+
+def test_cham_TRAKE_tu_nhan_ra_tang_NOP_khi_duoc_dua_dong():
+    """Ham cau hinh tra ve DONG DA LAP -> cham tang NOP, khong phai tang KENH.
+
+    Day la ca A63: kenh tim ra du su kien ma xep sai vi tri thi tang KENH cho
+    diem cao con BTC cho 0.
+    """
+    import pandas as pd
+    from cham_diem import cham
+    from schema import Candidate
+    from tap_dev import CauHoi
+
+    c = CauHoi(id="t1", loai="TRAKE", cau_hoi="x", row_id_dung=[[0], [1]])
+    m = pd.DataFrame({"row_id": [0, 1], "video_id": ["V0", "V0"],
+                      "pts_time": [0.0, 10.0], "frame_idx": [0, 250]})
+
+    dung = cham([c], lambda _: [[0, 1]], master=m, dung_sai_giay=None)
+    assert dung.tang.iloc[0] == "nộp" and dung.diem.iloc[0] == 1.0
+
+    nguoc = cham([c], lambda _: [[1, 0]], master=m, dung_sai_giay=None)
+    assert nguoc.tang.iloc[0] == "nộp" and nguoc.diem.iloc[0] == 0.0
+
+    # Cung bo ung vien do, cham o tang KENH thi KHONG thay van de xep nguoc:
+    # 0,9 (su kien 2 o hang 2 nen mat R@1) — trong khi bai nop xep nguoc la 0,0.
+    # Do la khoang cach A63 do duoc, va la ly do phai phan biet hai tang.
+    kenh = cham([c], lambda _: [Candidate(0, "V0", 0, 0.9),
+                                Candidate(1, "V0", 250, 0.8)],
+                master=m, dung_sai_giay=None)
+    assert kenh.tang.iloc[0] == "kênh"
+    assert kenh.diem.iloc[0] == 0.9 > nguoc.diem.iloc[0]
+
+
+def test_bao_cao_keu_to_khi_TRAKE_cham_o_tang_KENH():
+    """Sai lech AM THAM phai thanh sai lech NHIN THAY DUOC."""
+    import pandas as pd
+    from cham_diem import bao_cao_tu_bang
+
+    def bang_diem(tang):
+        return pd.DataFrame({"id": ["a", "b"], "loai": ["TRAKE", "KIS"],
+                             "tang": tang, "diem": [0.5, 0.5]})
+
+    co = {"moc": {2.0: bang_diem(["kênh", "nộp"]),
+                  15.0: bang_diem(["kênh", "nộp"])}}
+    assert "tầng KÊNH" in bao_cao_tu_bang(co, moc=(2.0, 15.0))
+
+    khong = {"moc": {2.0: bang_diem(["nộp", "nộp"]),
+                     15.0: bang_diem(["nộp", "nộp"])}}
+    assert "tầng KÊNH" not in bao_cao_tu_bang(khong, moc=(2.0, 15.0))

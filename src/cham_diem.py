@@ -119,7 +119,7 @@ def cham_trake_nhieu_muc(cau, lam_dong, master, moc=None,
         dong = []
         for c in cau:
             dung = [no_cua_so(b, master, ds) for b in c.row_id_dung]
-            dong.append({"id": c.id, "loai": c.loai,
+            dong.append({"id": c.id, "loai": c.loai, "tang": "nộp",
                          "diem": diem_trake_bai_nop(lam_dong(c), dung,
                                                     gioi_han)})
         ra[ds] = pd.DataFrame(dong)
@@ -220,16 +220,46 @@ def cham(tap_dev, chay, gioi_han: int = 100,
 
     dong = []
     for c in tap_dev:
+        kq = chay(c)
         if c.loai == "TRAKE":
-            kq = chay(c)
-            hang = [_hang(kq, _dung(b), gioi_han) for b in c.row_id_dung]
-            d, h = diem_trake(hang), None
+            if la_bai_nop_trake(kq):
+                # Hàm cấu hình đã LẮP SẴN các dòng -> chấm đúng tầng NỘP.
+                d, h, tang = diem_trake_bai_nop(
+                    kq, [_dung(b) for b in c.row_id_dung], gioi_han), None, "nộp"
+            else:
+                hang = [_hang(kq, _dung(b), gioi_han) for b in c.row_id_dung]
+                d, h, tang = diem_trake(hang), None, "kênh"
         else:
-            kq = chay(c)
             h = _hang(kq, _dung(c.row_id_dung), gioi_han, _dung_dap_an(c))
-            d = diem_cau(h)
-        dong.append({"id": c.id, "loai": c.loai, "hang": h, "diem": d})
+            d, tang = diem_cau(h), "nộp"
+        dong.append({"id": c.id, "loai": c.loai, "hang": h, "diem": d,
+                     "tang": tang})
     return pd.DataFrame(dong)
+
+
+def la_bai_nop_trake(kq) -> bool:
+    """`kq` là các DÒNG bài nộp TRAKE, hay một danh sách ứng viên phẳng?
+
+    Phân biệt bằng phần tử đầu: dòng bài nộp là **list/tuple các row_id** (hoặc
+    các `set` row_id), còn danh sách ứng viên gồm các `Candidate`.
+
+    VÌ SAO CẦN PHÂN BIỆT — hai TẦNG chấm điểm khác hẳn nhau (A63):
+
+    * tầng **KÊNH**: "kênh có tìm ra các sự kiện không" — `diem_trake()`
+    * tầng **NỘP**: "nộp cái này thì được mấy điểm", vị trí i chỉ so với sự
+      kiện i — `diem_trake_bai_nop()`
+
+    Kênh tìm đủ ba sự kiện mà khâu lắp ráp xếp sai vị trí thì tầng kênh cho
+    điểm cao còn BTC cho 0. A63 đo được chênh lệch đó là **37% ở ±2s**.
+
+    `cham()` chỉ nhận một danh sách ứng viên phẳng nên **tự nó không lắp chuỗi
+    được** — muốn chấm tầng nộp thì hàm cấu hình phải trả về dòng đã lắp (xem
+    `kbest_trake.lap_dong`). Hàm này để `cham()` nhận ra và chấm cho đúng, thay
+    vì lặng lẽ chấm nhầm tầng.
+    """
+    if not kq:
+        return False
+    return isinstance(kq[0], (list, tuple))
 
 
 def tom_tat(bang: pd.DataFrame) -> pd.DataFrame:
@@ -308,9 +338,23 @@ def bao_cao_tu_bang(bang: dict, moc=MOC_DUNG_SAI) -> str:
     được**, không phải vì chúng sai mà vì không biết chúng có vượt nhiễu không.
     """
     ten_moc = next(iter(bang))
-    n_cau = len(next(iter(bang[ten_moc].values())))
+    d_moc = next(iter(bang[ten_moc].values()))
+    n_cau = len(d_moc)
 
     ra = [f"{n_cau} câu | mốc nền: {ten_moc}", ""]
+
+    # ⚠️ TRAKE chấm ở tầng KÊNH là một sai lệch ÂM THẦM: nó không làm sai phép
+    # so (mọi cấu hình chịu cùng sai lệch) nhưng con số tuyệt đối không phải
+    # điểm nộp — A63 đo chênh 37% ở ±2s. Nói to ra thay vì để người đọc tự nhớ.
+    if "tang" in d_moc.columns:
+        n_kenh = int((d_moc.tang == "kênh").sum())
+        if n_kenh:
+            ra += [f"⚠️ {n_kenh}/{n_cau} câu TRAKE chấm ở tầng KÊNH, không phải "
+                   f"tầng NỘP.",
+                   "   Điểm tuyệt đối của chúng CAO HƠN điểm nộp thật (A63: "
+                   "37% ở ±2s).",
+                   "   Muốn đúng tầng thì hàm cấu hình phải trả về DÒNG đã lắp "
+                   "(kbest_trake.lap_dong).", ""]
     ra.append("ĐIỂM TRUNG BÌNH")
     ra.append(f"  {'cấu hình':<22}" + "".join(f"{'±' + str(ds) + 's':>12}" for ds in moc))
     ra.append("  " + "-" * (22 + 12 * len(moc)))
