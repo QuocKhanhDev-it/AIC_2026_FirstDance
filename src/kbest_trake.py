@@ -94,8 +94,35 @@ def cham_video(theo_video: dict) -> dict:
     return ra
 
 
+def phat_bac(gan: float = 1.0, nang: float = 1.0,
+             xa: float = 60.0, beta: float = 0.0005):
+    """Hàm phạt dạng BẬC — khác hẳn phạt tỷ lệ thuận đã bị bác ở A80.
+
+        Δt < `gan`        -> phạt `nang`   (hai sự kiện khác nhau không thể
+                                            rơi vào cùng một tích tắc)
+        `gan` ≤ Δt ≤ `xa` -> KHÔNG phạt
+        Δt > `xa`         -> phạt `beta · (Δt − xa)`
+
+    A80 bác phạt **tỷ lệ thuận với khoảng cách ở mọi Δt**, và lý do đo được là:
+    khoảng cách thật giữa hai sự kiện có trung vị 12,0s nhưng trải từ 1,5s tới
+    259,3s, nên phạt đều tay trừng phạt cả những chuỗi ĐÚNG có khoảng cách dài
+    thật.
+
+    Hàm bậc này **né đúng chỗ đó**: vùng [1s, 60s] chứa phần lớn khoảng cách
+    thật thì không bị đụng tới. A80 KHÔNG bác được nó — phải đo riêng.
+    """
+    def f(dt: float) -> float:
+        if dt < gan:
+            return nang
+        if dt > xa:
+            return beta * (dt - xa)
+        return 0.0
+    return f
+
+
 def beam_video(uv_theo_su_kien: list, pts, k_chuoi: int,
-               cach_nhau: float = CACH_NHAU, phat_giay: float = 0.0) -> list:
+               cach_nhau: float = CACH_NHAU, phat_giay: float = 0.0,
+               phat=None) -> list:
     """Sinh tối đa `k_chuoi` chuỗi TĂNG DẦN NGẶT, khác nhau về thời gian.
 
     `uv_theo_su_kien[i]` = `[(row_id, điểm)]` của sự kiện i TRONG một video.
@@ -123,8 +150,12 @@ def beam_video(uv_theo_su_kien: list, pts, k_chuoi: int,
         for chuoi, d, t_cuoi in beam:
             for rid, s in uv:
                 if pts[rid] > t_cuoi:
-                    p = (phat_giay * (pts[rid] - t_cuoi)
-                         if phat_giay and chuoi else 0.0)
+                    if not chuoi:                  # sự kiện đầu, chưa có Δt
+                        p = 0.0
+                    elif phat is not None:
+                        p = phat(pts[rid] - t_cuoi)
+                    else:
+                        p = phat_giay * (pts[rid] - t_cuoi)
                     moi.append((chuoi + [rid], d + s - p, pts[rid]))
         if not moi:                                # không nối tiếp được nữa
             return [c for c, _, _ in beam if len(c) == len(uv_theo_su_kien)]
@@ -144,7 +175,7 @@ def beam_video(uv_theo_su_kien: list, pts, k_chuoi: int,
 def lap_dong(cac_su_kien: list, master, so_dong: int = 100,
              ty_le=TY_LE, n_duoi: int = N_DUOI,
              cach_nhau: float = CACH_NHAU,
-             phat_giay: float = 0.0) -> list:
+             phat_giay: float = 0.0, phat=None) -> list:
     """N danh sách ứng viên (mỗi sự kiện một danh sách) -> `list[list[row_id]]`.
 
     Trả `row_id` chứ không phải `frame_idx`: `lap_trake()` mới đổi sang
@@ -166,7 +197,7 @@ def lap_dong(cac_su_kien: list, master, so_dong: int = 100,
         for x in uv:
             x.sort(key=lambda t: -t[1])
         return beam_video([x[:TOI_DA_UV] for x in uv], pts, k,
-                          cach_nhau, phat_giay)
+                          cach_nhau, phat_giay, phat)
 
     n_tren = max(1, so_dong - n_duoi)
     ra = []

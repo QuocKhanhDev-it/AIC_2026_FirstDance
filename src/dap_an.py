@@ -111,6 +111,46 @@ def dao(van: str, cau_hoi: str) -> str:
     return uu_tien_co_dau(chon, moi_uv)
 
 
+def dao_nhieu(van: str, cau_hoi: str, k: int = 3) -> list[str]:
+    """Tối đa `k` chuỗi `answer` ứng viên, xếp theo độ gần từ khoá câu hỏi.
+
+    VÌ SAO CẦN NHIỀU HƠN MỘT — BTC cho 100 dòng và **không phạt dòng sai**, mà
+    `dao()` chỉ trả về một chuỗi. Nếu chuỗi đó sai thì cả 100 dòng cùng sai,
+    dù ứng viên thứ hai có thể đúng. Rải các biến thể ra nhiều dòng là cách
+    khai thác đúng luật chấm — đo ở `96_do_rai_bien_the.py`.
+
+    Trả về theo cùng tiêu chí `dao()`: gần từ khoá câu hỏi nhất đứng trước, và
+    ưu tiên bản CÓ DẤU khi có cả hai bản của cùng một chuỗi (A76).
+    """
+    if not van or k <= 0:
+        return []
+    hoi_so = bool(HOI_SO.search(cau_hoi))
+    mau = SO if hoi_so else TEN
+    q = bo_dau(cau_hoi)
+    uv = [(m.group().strip(), m.start()) for m in mau.finditer(van)
+          if len(m.group().strip()) > (0 if hoi_so else 2)
+          and bo_dau(m.group().strip()) not in q]
+    if not uv:
+        return []
+
+    v = bo_dau(van)
+    khoa = [w for w in bo_dau(cau_hoi).split() if len(w) > 2 and w not in DUNG]
+    vi_tri = [m.start() for w in khoa for m in re.finditer(re.escape(w), v)]
+    if vi_tri:
+        uv.sort(key=lambda x: min(abs(x[1] - p) for p in vi_tri))
+
+    moi_uv = [x[0] for x in uv]
+    ra, da = [], set()
+    for s, _ in uv:
+        s = uu_tien_co_dau(s, moi_uv)
+        if bo_dau(s) not in da:              # trùng sau khi bỏ dấu -> bỏ qua
+            da.add(bo_dau(s))
+            ra.append(s)
+        if len(ra) >= k:
+            break
+    return ra
+
+
 def gan_cho_moi_dong(ung_vien: list, cau_hoi: str, van_theo_row: dict,
                      mac_dinh: str = "") -> int:
     """Gắn `answer` vào `meta` của TỪNG ứng viên. Trả số dòng đào được.

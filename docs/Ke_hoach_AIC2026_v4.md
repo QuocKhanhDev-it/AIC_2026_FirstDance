@@ -5319,6 +5319,87 @@ Ba thứ cùng họ "làm mềm theo thời gian", đã bác cả ba, nhưng m�
 > top-20 chỉ có 2/20 hàng xóm, tức các khung gần nhau vốn đã không chen chỗ
 > nhau. Làm mềm theo thời gian không có gì để dọn, chỉ có thứ để phá.
 
+### A83. Hai cách khai thác **luật chấm**: phạt bậc hết hại nhưng vô ích; rải biến thể đáp án **gấp đôi điểm Q&A**
+
+#### 1. Phạt khoảng cách dạng BẬC — chẩn đoán đúng, cách chữa không đủ
+
+A80 bác phạt **tỷ lệ thuận** với khoảng cách, và chỉ ra lý do: khoảng cách thật
+có trung vị 12,0s nhưng trải từ 1,5s tới 259,3s, nên phạt đều tay trừng phạt cả
+những chuỗi ĐÚNG có khoảng cách dài thật.
+
+Hàm bậc né đúng chỗ đó: phạt nặng khi Δt < 1s, **không phạt trong [1s, 60s]**,
+phạt tuyến tính khi Δt > 60s. A80 không bác được nó, nên đo riêng (`93_`):
+
+| hàm phạt | ±2s | ±15s | |
+| --- | ---: | ---: | :---: |
+| **λ = 0 (TẮT) — mốc** | **0,3490** | **0,5740** | |
+| tỷ lệ thuận λ=0,001 | −0,0205 | −0,0510 | ✅ TỆ HƠN |
+| tỷ lệ thuận λ=0,005 | −0,0915 | −0,0650 | ✅ TỆ HƠN |
+| bậc `<1s:1 >60s:0,0005` | −0,0035 | −0,0110 | 🟡 |
+| bậc `<1s:1 >60s:0,002` | +0,0040 | −0,0110 | ❌ ĐẢO DẤU |
+| bậc `<1,5s:1 >60s:0,0005` | +0,0055 | −0,0085 | ❌ ĐẢO DẤU |
+| bậc `<1s:0,02 >60s:0,0002` | −0,0035 | −0,0110 | 🟡 |
+| bậc `<1s:1 >30s:0,0005` | +0,0030 | −0,0160 | ❌ ĐẢO DẤU |
+
+**Chẩn đoán đúng, và sửa đúng chỗ:** phạt tỷ lệ thuận ✅ ổn định có hại, còn
+phạt bậc thì **hết hại** — không cấu hình nào vượt nhiễu theo hướng xấu, ba
+trong năm còn nhỉnh lên ở ±2s.
+
+**Nhưng bỏ được cái hại không tạo ra cái lợi.** Ba cấu hình ❌ đảo dấu, và cả
+năm đều âm ở ±15s.
+
+> Kết luận dùng được: giả thuyết *"chuỗi có khoảng cách đều và mạch lạc thì
+> đáng tin hơn"* **không mang tín hiệu** trên kho này. Không phải hàm phạt sai
+> hình dạng — hình dạng đã sửa đúng — mà là **bản thân khoảng cách thời gian
+> không nói gì về việc chuỗi đúng hay sai**. Khác biệt giữa *"đo sai"* và
+> *"không có gì để đo"*.
+
+#### 2. Rải nhiều biến thể `answer` qua nhiều dòng — 🟡 mạnh nhất của Q&A
+
+BTC cho 100 dòng và **không phạt dòng sai**, nhưng `dap_an.dao()` chỉ trả về
+MỘT chuỗi cho mỗi khung — chuỗi đó sai thì cả 100 dòng cùng sai. `dao_nhieu()`
+trả về nhiều biến thể; `96_do_rai_bien_the.py` rải chúng ra nhiều dòng.
+
+13 câu Q&A có đáp án vàng:
+
+| cấu hình | điểm | hiệu | T-B-H | ngưỡng |
+| --- | ---: | ---: | :---: | ---: |
+| **MỐC: 1 biến thể/dòng** | **0,0462** | — | — | — |
+| **rải 2 biến thể, 10 khung đầu** | **0,1077** | **+0,0615** | **1-0-12** | 0,1231 |
+| rải 3 biến thể, 10 khung đầu | 0,1077 | +0,0615 | 1-0-12 | 0,1231 |
+| rải 2 biến thể, 30 khung đầu | 0,1077 | +0,0615 | 1-0-12 | 0,1231 |
+| rải 3 biến thể, 30 khung đầu | 0,1077 | +0,0615 | 1-0-12 | 0,1231 |
+| **TRẦN: mọi biến thể** *(chẩn đoán)* | **0,1231** | +0,0769 | 1-0-12 | 0,1538 |
+
+**Gấp 2,3 lần điểm mốc, 0 câu thua.** Nhưng số học nói thẳng: `+0,0615 = 0,8/13`
+— **đúng MỘT câu** đi từ 0 lên 0,8. Trần `+0,0769 = 1,0/13` cũng là câu đó lên
+hạng 1. **Toàn bộ hiệu ứng là một câu trên mười ba**, nên không kết luận được
+dù không câu nào thua.
+
+Cả bốn cấu hình cho kết quả **giống hệt nhau** — 2 hay 3 biến thể, 10 hay 30
+khung đều như nhau. Nếu bật thì `2 biến thể / 10 khung đầu` là đủ.
+
+#### Dòng TRẦN trả lời câu quan trọng hơn cả kết quả
+
+Rải biến thể đạt **0,1077 trên trần 0,1231 — lấy được 87% khoảng cách**. Cơ chế
+rải hoạt động gần như hoàn hảo; thứ chặn là **khâu ĐÀO**, không phải khâu rải.
+
+Nên hướng đáng đầu tư tiếp không phải chia dòng khéo hơn, mà là **đào ra đúng
+chuỗi hơn** — tức bảng tra thực thể cấp video từ ASR (chưa làm).
+
+#### Kèm theo: một hạn chế của A76 lộ ra khi viết `dao_nhieu`
+
+    văn bản  : "… Ta Pua vừa hoàn thành … Tại Tà Pứa hôm nay."
+    dao()    : 'Ta Pua'          <- KHÔNG đổi sang bản có dấu
+
+`uu_tien_co_dau()` so hai chuỗi sau khi bỏ dấu, mà mẫu tên riêng bắt tới **3 từ
+viết hoa liên tiếp** nên bản có dấu bị bắt thành `"Tại Tà Pứa"` —
+`bỏ_dấu("Tại Tà Pứa") ≠ bỏ_dấu("Ta Pua")`, không khớp, phép ưu tiên không nổ.
+
+Không làm sai kết quả A76 (0/5 -> 2/5 vẫn đúng), nhưng nó nói phép ưu tiên
+**yếu hơn tôi tưởng**: chỉ bắt được khi hai bản có **cùng số từ**. Đây đúng là
+chỗ bảng tra n-gram 1–4 từ từ ASR mạnh hơn hẳn.
+
 ## PHẦN B — QUYẾT ĐỊNH HẠ TẦNG
 
 ### B1. Không dùng Supabase / Postgres / Milvus / Elasticsearch — ĐÃ KIỂM CHỨNG
