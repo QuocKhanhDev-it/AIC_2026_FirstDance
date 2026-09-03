@@ -204,6 +204,50 @@ def main():
               + "".join(f"{x/n:>13.4f}" for x in tong[1:-1])
               + f"{tong[-1]/n:>9.4f}\n")
 
+    print(bao_cao(giu, nen, master, a.cach_nhau))
+
+
+def bao_cao(giu, nen, master, cach_nhau):
+    """Bảng có NGƯỠNG NHIỄU và kết luận ✅/🟡/❌, như mọi phép đo khác.
+
+    Trước đây script này chỉ in điểm trung bình. Hệ quả: A74 đo được K-best
+    +0,1029 ở ±2s mà **không bật được**, vì không biết con số đó có vượt nhiễu
+    hay không — chứ không phải vì nó sai.
+    """
+    tra = {}
+    for r_, v_, f_ in zip(master.row_id.values, master.video_id.values,
+                          master.frame_idx.values):
+        tra.setdefault((v_, int(f_)), set()).add(int(r_))
+
+    def nho(f):
+        c_ = {}
+
+        def g(c):
+            if c.id not in c_:
+                c_[c.id] = f(c)
+            return c_[c.id]
+        return g
+
+    def cu_(c):
+        return [[tra.get((d.video_id, f), set()) for f in d.frame_idxs]
+                for d in R.dung_trake(nen[c.id], master)]
+
+    def kbest(g):
+        def f(c):
+            CACH_NHAU[0] = g
+            return lap_kbest(nen[c.id], master)
+        return f
+
+    # MỐC phải đứng ĐẦU — `bao_cao_tu_bang` lấy mục đầu tiên làm mốc nền.
+    cau_hinh = {"CŨ 1 dòng/video ← MỐC": nho(cu_)}
+    for g in cach_nhau:
+        cau_hinh[f"K-best {g:g}s"] = nho(kbest(g))
+    CACH_NHAU[0] = cach_nhau[0]
+
+    bang = {ten: cham_trake_nhieu_muc(giu, f, master)
+            for ten, f in cau_hinh.items()}
+    return bao_cao_tu_bang(bang)
+
 
 if __name__ == "__main__":
     main()

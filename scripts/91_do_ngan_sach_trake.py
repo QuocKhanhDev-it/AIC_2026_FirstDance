@@ -39,7 +39,8 @@ sys.path.insert(0, str(GOC / "src"))
 import run as R                                       # noqa: E402
 import tap_dev                                        # noqa: E402
 from bm25 import KenhVanBan                           # noqa: E402
-from cham_diem import no_cua_so                       # noqa: E402
+from cham_diem import (bao_cao_tu_bang,               # noqa: E402
+                       cham_trake_nhieu_muc)
 from dense import KenhAnhCache                        # noqa: E402
 from rrf import hop_nhat                              # noqa: E402
 
@@ -57,14 +58,15 @@ W3 = 0.5
 DUNG_SAI = (2.0, 15.0)
 
 # Các cách chia 100 dòng cho top-N video, từ dồn nhất tới trải nhất.
+# ⚠️ MỐC phải đứng ĐẦU — `bao_cao_tu_bang()` lấy mục đầu tiên làm mốc nền.
 NGAN_SACH = {
-    "1. dồn hết hạng 1        (100)": [1.0],
-    "2. 70/30                       ": [0.7, 0.3],
-    "3. 50/30/20                    ": [0.5, 0.3, 0.2],
-    "4. 50/25/15/7/3   ← MỐC        ": [0.5, 0.25, 0.15, 0.07, 0.03],
-    "5. 40/25/15/12/8               ": [0.4, 0.25, 0.15, 0.12, 0.08],
-    "6. trải đều 5 (20 mỗi video)   ": [0.2] * 5,
-    "7. trải đều 10 (10 mỗi video)  ": [0.1] * 10,
+    "50/25/15/7/3 ← MỐC": [0.5, 0.25, 0.15, 0.07, 0.03],
+    "dồn hết hạng 1": [1.0],
+    "70/30": [0.7, 0.3],
+    "50/30/20": [0.5, 0.3, 0.2],
+    "40/25/15/12/8": [0.4, 0.25, 0.15, 0.12, 0.08],
+    "trải đều 5": [0.2] * 5,
+    "trải đều 10": [0.1] * 10,
 }
 
 
@@ -132,32 +134,26 @@ def main():
           "  ".join(f"h{h}:{hang.count(h)}" for h in sorted(set(hang))))
     print()
 
-    for ds in DUNG_SAI:
-        print(f"── dung sai ±{ds:g}s " + "─" * 34)
-        print(f"{'ngân sách':<33}{'điểm':>9}{'hiệu':>9}")
-        moc = None
-        for ten, tl in NGAN_SACH.items():
-            tong = 0.0
-            for c in giu:
-                dung = [no_cua_so(b, master, ds) for b in c.row_id_dung]
-                tong += m78.diem_bai_nop(
-                    [[{r} for r in d] for d in lap(nen[c.id], master, tl)],
-                    dung)
-            d = tong / len(giu)
-            if "MỐC" in ten:
-                moc = d
-            print(f"{ten:<33}{d:>9.4f}" +
-                  ("" if moc is None or "MỐC" in ten else f"{d - moc:>+9.4f}"))
-        # oracle: cả 100 dòng vào ĐÚNG video chứa đáp án
-        tong = 0.0
-        for c in giu:
-            dung = [no_cua_so(b, master, ds) for b in c.row_id_dung]
-            tong += m78.diem_bai_nop(
-                [[{r} for r in d] for d in
-                 m78.lap_kbest(nen[c.id], master, oracle=v_dung[c.id])], dung)
-        print(f"{'oracle (100 dòng vào video đúng)':<33}"
-              f"{tong / len(giu):>9.4f}{tong / len(giu) - moc:>+9.4f}")
-        print()
+    # Nhớ theo id — mỗi cấu hình bị chấm lại ở hai mức dung sai.
+    def voi(tl):
+        nho = {}
+
+        def g(c):
+            if c.id not in nho:
+                nho[c.id] = lap(nen[c.id], master, tl)
+            return nho[c.id]
+        return g
+
+    bang = {ten: cham_trake_nhieu_muc(giu, voi(tl), master)
+            for ten, tl in NGAN_SACH.items()}
+
+    # oracle: cả 100 dòng vào ĐÚNG video chứa đáp án. KHÔNG phải "dư địa với
+    # tới được" — nó biết trước video nào đúng (xem A78).
+    bang["oracle (biết trước video đúng)"] = cham_trake_nhieu_muc(
+        giu, lambda c: m78.lap_kbest(nen[c.id], master, oracle=v_dung[c.id]),
+        master)
+
+    print(bao_cao_tu_bang(bang))
 
 
 if __name__ == "__main__":

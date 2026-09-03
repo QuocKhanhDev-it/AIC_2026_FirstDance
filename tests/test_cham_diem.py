@@ -214,3 +214,53 @@ def test_trake_bai_nop_rong_thi_khong_no_loi():
     from cham_diem import diem_trake_bai_nop
     assert diem_trake_bai_nop([], [{1}, {2}]) == 0.0
     assert diem_trake_bai_nop([[1, 2]], []) == 0.0
+
+
+# ── tang NOP cua TRAKE: nhan ca row_id lan set row_id ─────────────────
+
+def test_diem_trake_bai_nop_nhan_ca_row_id_lan_set():
+    """A5.7: 614 keyframe dung chung frame_idx, nen mot vi tri co the la SET.
+
+    `run.dung_trake()` tra frame_idx -> tra ra nhieu row_id; `78_`/`91_` tra
+    thang row_id. Mot ban phai lo ca hai, khong thi hai script tu viet hai ban
+    va chung se troi khoi nhau.
+    """
+    from cham_diem import diem_trake_bai_nop
+    dung = [{10, 11}, {20}]
+    assert diem_trake_bai_nop([[10, 20]], dung) == 1.0        # row_id tran
+    assert diem_trake_bai_nop([[{11}, {20}]], dung) == 1.0     # set
+    assert diem_trake_bai_nop([[{99, 11}, {20}]], dung) == 1.0  # set co lan
+    assert diem_trake_bai_nop([[10, 99]], dung) == 0.5         # sai mot vi tri
+    assert diem_trake_bai_nop([[20, 10]], dung) == 0.0         # dung khung,
+    #                                                            SAI vi tri
+
+
+def test_diem_trake_bai_nop_cham_theo_VI_TRI_chu_khong_theo_tap():
+    """Cho phan biet tang NOP voi tang KENH — day la ca A63 do duoc mat 52%."""
+    from cham_diem import diem_trake, diem_trake_bai_nop
+    dung = [{1}, {2}, {3}]
+    # Kenh tim ra du ba su kien, nhung xep nguoc thu tu.
+    assert diem_trake_bai_nop([[3, 2, 1]], dung) < 1.0
+    # Tang KENH thi khong thay van de do: no nhan HANG cua tung su kien, va
+    # ca ba su kien deu tim thay o hang 1.
+    assert diem_trake([1, 1, 1]) == 1.0
+
+
+def test_bao_cao_tu_bang_in_nguong_nhieu_va_ket_luan():
+    """Phan bao cao dung lai duoc cho bang dung san — khong qua `cham()`."""
+    import pandas as pd
+    from cham_diem import bao_cao_tu_bang
+
+    def bang_diem(diem):
+        return pd.DataFrame({"id": [f"c{i}" for i in range(len(diem))],
+                             "loai": ["TRAKE"] * len(diem), "diem": diem})
+
+    bang = {
+        "moc": {2.0: bang_diem([0.0] * 10), 15.0: bang_diem([0.0] * 10)},
+        "tot hon": {2.0: bang_diem([1.0] * 10), 15.0: bang_diem([1.0] * 10)},
+    }
+    ra = bao_cao_tu_bang(bang, moc=(2.0, 15.0))
+    assert "10 câu | mốc nền: moc" in ra
+    assert "ngưỡng" in ra                      # co in nguong nhieu
+    assert "10-0-0" in ra                      # thang-thua-hoa
+    assert "ON DINH" in ra
