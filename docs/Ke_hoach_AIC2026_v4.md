@@ -5913,6 +5913,60 @@ chế hợp nhất khai thác được kênh ít chồng lấn thì nó đã s�
 `71_do_kenh5_caption.py` bỏ dòng cảnh báo "bể bị khoá" khi độ phủ đạt 100% —
 một cảnh báo luôn hiện là một cảnh báo không ai còn đọc.
 
+### A91. Quét lại TOÀN BỘ kết luận cũ trên nhãn sạch — và hai ứng viên 🟡 thì giẫm lên nhau chứ không cộng
+
+A89 để lại một việc: mọi kết luận 🟡/❌ đo trên 68–72 câu đều có nhãn nhiễm,
+phải chạy lại trên 52 câu `tap_de_that`. Đã quét xong.
+
+| mục | trên tập NHIỄM | trên 52 câu SẠCH | đổi |
+| --- | :---: | :---: | --- |
+| A88 kênh 3 văn bản gộp | ❌ đảo dấu | **🟡** +0,0144 | lật, hiệu gấp đôi |
+| A73 kênh 5 caption | ❌ đảo dấu | **❌/✅ TỆ HƠN** | không lật, mạnh hơn (A90) |
+| A72 hợp nhất bằng điểm | ✅ tệ hơn | **✅ tệ hơn, cả 8/8 biến thể** | không lật, dứt khoát hơn |
+| A82 khuếch tán τ=2s | ❌ đảo dấu | **🟡** +0,0038 | lật, nhưng bé xíu |
+
+**Nhiễm nhãn không lật mọi thứ — nó lật đúng những thứ ở sát ngưỡng.** Ba mục
+kết luận mạnh (A72, A73, A90) đứng nguyên hoặc mạnh lên; hai mục sát ngưỡng
+(A88, A82) đều lật sang dương. Đúng như cơ chế A89 mô tả: nhãn hái từ cấu hình
+cũ tạo một lực đẩy CÓ CHIỀU chống cấu hình mới, và lực đó chỉ đủ đổi kết luận ở
+vùng biên.
+
+#### Hai ứng viên 🟡 cùng nằm trên kênh 3 — cộng lại thì sao? (`106_`, lưới 2×2)
+
+A88 đổi **văn bản đầu vào** của kênh 3; A82 đổi **cách điểm lan ra khung lân
+cận**. Hai khâu khác nhau, không cái nào bao cái nào, nên hiệu *có thể* cộng —
+và cộng lại thì `+0,0144 + 0,0038 = +0,0182` sẽ **vượt ngưỡng 0,0151**.
+
+| cấu hình | ±2s | ±15s | hiệu ±2s | T-B-H | |
+| --- | ---: | ---: | ---: | :---: | :---: |
+| **1. MỐC: ocr cũ, không khuếch tán** | **0,5173** | **0,6096** | — | — | |
+| 2. + văn bản GỘP (A88) | **0,5317** | 0,6096 | +0,0144 | 4-1-47 | 🟡 |
+| 3. + khuếch tán τ=2s (A82) | 0,5212 | **0,6135** | +0,0038 | 2-1-49 | 🟡 |
+| **4. CẢ HAI** | 0,5288 | 0,6058 | +0,0115 | 3-1-48 | **❌ ĐẢO DẤU** |
+
+**Không cộng — trừ.** Ô "cả hai" thấp hơn ô "chỉ A88" ở **cả hai** mức dung
+sai, và ±15s đi xuống dưới mốc nền. Đây là lý do lưới 2×2 phải có đủ bốn ô:
+nếu chỉ đo "cả hai" so với mốc thì thấy +0,0115 và tưởng hai cải tiến đang
+cộng vào nhau, trong khi thật ra chúng đang huỷ nhau.
+
+Cơ chế hợp lý nhất (chưa đo riêng, nên ghi là giả thuyết): khuếch tán làm mềm
+trường điểm để một đỉnh nhọn lan sang khung lân cận. Văn bản gộp làm kênh 3
+**bắn ra nhiều khung hơn và nhiều token hơn mỗi khung** — nên khuếch tán không
+còn một đỉnh để trải, nó trộn nhiều nguồn gần nhau thành một mảng phẳng. Đó là
+A70 (gộp vector theo đoạn ASR, đã bị bác) ở quy mô nhỏ hơn.
+
+> **Dự đoán ghi TRƯỚC khi chạy** (nằm trong docstring `106_`): *"tôi cho rằng
+> hiệu sẽ KHÔNG cộng đủ để qua ngưỡng"*. Đúng chiều. Ghi dự đoán trước là cách
+> rẻ nhất để không tự chấm điểm mình sau khi đã biết kết quả — và lần này nó
+> cũng chặn được cám dỗ đọc `+0,0115` của dòng 4 thành "gần thắng rồi".
+
+#### Kết luận đợt quét
+
+**Vẫn không có gì bật được.** Cấu hình mạnh nhất không đổi: ảnh (gopt) + kênh 3
+OCR cũ, w=0,5, RRF hạng k=60, K-best TRAKE — **0,5173 / 0,6096** trên 52 câu
+nhãn sạch. A88 giữ nguyên trạng thái 🟡 (thiếu 5% để qua ngưỡng) và giờ đã biết
+thêm: **đừng chờ A82 đẩy nó qua**.
+
 ## PHẦN B — QUYẾT ĐỊNH HẠ TẦNG
 
 ### B1. Không dùng Supabase / Postgres / Milvus / Elasticsearch — ĐÃ KIỂM CHỨNG
