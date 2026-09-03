@@ -4931,6 +4931,111 @@ video (L23: 25 video/2.326 khung; L25: 88 video/37.445 khung):
 Chia mới ở đây hợp lệ vì OCR chưa ai chạy phần nào; bài học "đừng chia lại" nói
 về bản chia **đang có người chạy dở**. `88_chia_viec_ocr.py` tự từ chối ghi đè.
 
+### A77. ASR viết số bằng chữ — **nhưng đáp án số không có trong ASR ở dạng nào cả**. Đóng.
+
+A68 nêu hai rào cản của việc đào đáp án Q&A từ văn bản. A76 vá rào cản 1 (OCR
+không dấu). Rào cản 2 là *"asr_text 100% có dấu nhưng viết SỐ bằng CHỮ"*, và
+**7/13 đáp án Q&A là số** (`46`, `2,15`, `7`, `20`, `2`, `200g`, `1204`). Đề
+xuất: dùng `vietnam-number` chuyển chữ -> số trước khi đưa vào BM25/đào đáp án.
+
+#### Đo chiều NGƯỢC trước khi cài gì (`90_do_so_bang_chu.py`)
+
+Thư viện làm chiều *chữ -> số*, nhưng để biết có ĐÁNG cài thì chiều ngược trả
+lời rẻ hơn và chắc hơn: sinh cách đọc tiếng Việt của đáp án rồi tìm trong ASR.
+Viết số thành chữ dễ hơn và không mơ hồ; và nếu dạng chữ **không** có trong ASR
+thì không thư viện nào cứu được.
+
+Sinh **nhiều biến thể** để không đếm thiếu — phép đo chỉ có nghĩa nếu nó rộng
+lượng với hướng đang xét: `mười lăm`/`mười nhăm`, `hai mươi tư`/`hai mươi bốn`,
+`linh`/`lẻ`, `nghìn`/`ngàn`, và cả cách đọc rời từng chữ số.
+
+| | |
+| --- | ---: |
+| đáp án có chứa số | **7/13** |
+| khớp bằng **chữ số** trong ASR | **0/7** |
+| tìm thấy **dạng chữ** trong ASR | **1/7** |
+
+1/7 đó là `7` -> `"bảy"`, một từ quá phổ biến để tin là trùng thật.
+
+#### Nhưng chúng CÓ trong OCR — nên rào cản này không tồn tại
+
+Cột CŨ của `83_do_vietocr.py` cho thấy `46`, `200g`, `1204` đều khớp trong OCR.
+Đáp án số đến từ **chữ trên màn hình**, không phải lời nói. Chuyển số-bằng-chữ
+trong ASR sẽ không cứu được câu nào.
+
+> Giá trị của A77: một rào cản có thật ở mức thống kê (ASR đúng là viết số bằng
+> chữ) hoá ra **không chặn thứ ta cần**, vì thứ ta cần nằm ở kênh khác. Đo
+> "rào cản có tồn tại không" và đo "rào cản có chặn ĐƯỜNG ĐI CỦA TA không" là
+> hai câu hỏi khác nhau.
+
+### A78. TRAKE: cách chấm video **trơ**, và dòng `oracle` đã bị tôi đọc sai
+
+A74 đo được K-best lấy lại +0,1029 ở ±2s nhưng vẫn cách oracle đúng 0,1029, và
+tôi kết luận *"vẫn còn ngần ấy nằm ở khâu CHỌN VIDEO"*. Hai phép đo dưới đây
+cho thấy kết luận đó sai.
+
+#### 1. Bốn cách chấm điểm video: gần như trơ hoàn toàn (`89_do_chon_video_trake.py`)
+
+Giả thuyết: video đúng có TẤT CẢ sự kiện khớp ở mức chấp nhận được; video nhiễu
+chỉ có 1–2 sự kiện khớp tình cờ rất mạnh. Nên càng phạt nặng **mắt xích yếu**
+càng chọn đúng.
+
+Vì mọi video có cùng số sự kiện, `Σ log(max)` **tương đương đơn điệu với trung
+bình NHÂN**. Bốn cách xếp thành họ đơn điệu theo độ khắt khe, nên kết quả đọc
+được dù đi hướng nào:
+
+| cách chấm | hạng 1 | top-5 | top-20 | ngoài bể |
+| --- | ---: | ---: | ---: | ---: |
+| tổng (trung bình cộng) | 10/17 | 15/17 | 16/17 | 0/17 |
+| **tổng-log (trung bình nhân) ← đang dùng** | **10/17** | **15/17** | **16/17** | 0/17 |
+| điều hoà | 10/17 | 15/17 | 16/17 | 0/17 |
+| min (mắt xích yếu nhất) | 9/17 | 15/17 | 16/17 | 0/17 |
+
+Ba cách đầu **giống hệt nhau tới từng câu**. Không phải hình chuông quanh trung
+bình nhân — **phẳng**. `min` còn tệ hơn: nó cũng phạt cả video ĐÚNG có một sự
+kiện khó. Giả thuyết bị bác.
+
+Và **15/17 video đúng đã nằm trong top-5**, mà thuật toán lấy đúng top-5. Khâu
+chọn video **không phải nút thắt**.
+
+#### 2. Ngân sách dòng: dồn hết là TỆ NHẤT (`91_do_ngan_sach_trake.py`)
+
+Hạng của video đúng: **h1:10, h2:3, h3:1, h5:1, h8:1, h23:1**
+
+| ngân sách 100 dòng | ±2s | ±15s |
+| --- | ---: | ---: |
+| **dồn hết hạng 1** | **0,2976** | **0,4382** |
+| 70/30 | 0,3318 | 0,5106 |
+| 50/30/20 | 0,3494 | 0,5341 |
+| *50/25/15/7/3 — mốc* | *0,3465* | *0,5341* |
+| **40/25/15/12/8** | **0,3571** (+0,0106) | **0,5476** (+0,0135) |
+| trải đều 5 | 0,3435 (−0,0029) | 0,5476 (+0,0135) |
+| trải đều 10 | 0,3206 (−0,0259) | 0,5641 (+0,0300) |
+| *oracle* | *0,4606* | *0,6747* |
+
+#### Đọc lại `oracle`: nó KHÔNG phải "dư địa với tới được"
+
+Oracle dồn 100 dòng vào đúng video **vì nó biết trước video nào đúng**. Khi
+không biết, làm y hệt thao tác đó — "dồn hết hạng 1" — cho kết quả **tệ nhất
+bảng**: 0,2976 so với 0,3465.
+
+> **Bài học chung, không riêng TRAKE:** một dòng `oracle` đo *"nếu biết trước
+> thì được bao nhiêu"*, **không** đo *"còn lấy được bao nhiêu"*. Hai thứ chỉ
+> trùng nhau khi cái oracle biết là thứ có thể suy ra được. Ở đây nó không
+> phải, và trải ngân sách chính là **cái giá bắt buộc phải trả cho việc không
+> biết**. Câu "vẫn còn 0,1029 nằm ở khâu chọn video" (A74) nói quá.
+
+#### Ứng viên còn sống, và vì sao vẫn chưa bật
+
+`40/25/15/12/8` — trải phẳng hơn mốc một chút — dương ở **cả hai** mức dung sai
+(+0,0106 / +0,0135). `trải đều 10` cao hơn ở ±15s nhưng **âm ở ±2s**: đảo dấu,
+không dùng được.
+
+Nhưng `91_` chưa in ngưỡng nhiễu, và trên 17 câu thì hiệu 0,01 rất dễ là nhiễu.
+**Chưa đổi mặc định** — cùng lý do đã giữ K-best chưa bật ở A74. Việc cần làm
+trước: cho `78_`, `89_`, `91_` báo cáo qua `bao_cao_do_nhay()` như mọi phép đo
+khác, để có ngưỡng nhiễu và kết luận ✅/🟡/❌.
+
 ## PHẦN B — QUYẾT ĐỊNH HẠ TẦNG
 
 ### B1. Không dùng Supabase / Postgres / Milvus / Elasticsearch — ĐÃ KIỂM CHỨNG
