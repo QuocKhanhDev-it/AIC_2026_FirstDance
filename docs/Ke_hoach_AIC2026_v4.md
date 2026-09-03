@@ -5777,6 +5777,83 @@ văn bản của khung, cụm nào là đáp án*. Đường còn lại là LLM 
 
 Trong lúc chờ, `--rai-bien-the 2` (A83) vẫn là thứ rẻ nhất còn dùng được.
 
+### A89. Bảng điểm THẬT của BTC kiểm chính **thước đo** — và bắt được một vòng lặp khép kín
+
+Lần đầu repo có **nhãn vàng thật**: bảng điểm từng câu của bài nộp Sơ tuyển 1
+(**14,5/25**). Mọi con số 88 mục trước đo trên đáp án **tự soi**; nhãn của BTC
+là thứ duy nhất kiểm được cách soi đó có đúng không.
+
+#### Đối chiếu (`104_doi_chieu_diem_that.py`, 20/25 câu có nhãn, bể 1.000)
+
+| gói | BTC | hạng đáp án ta soi |
+| --- | ---: | ---: |
+| p1-12 | **0** | **1** |
+| p1-13 | **0** | **2** |
+| p1-18 | **0** | **2** |
+| p1-11 | **0** | 6 |
+| p1-23 | **0** | 6 |
+| p1-16 | 0 | 131 |
+| **p1-6** | **1** | **152** |
+
+**Không một câu nào có đáp án ngoài bể**; 18/20 nằm trong top-20. Nhưng thứ
+hạng của ta **không phân biệt được** câu BTC cho 1 với câu BTC cho 0 — thậm chí
+ngược dấu ở hai đầu bảng.
+
+#### Nguyên nhân: nhãn được hái từ chính đầu ra của hệ thống
+
+`66_soat_de_thi_thu.py` tìm đáp án bằng cách cho người soi **top ứng viên của
+chính hệ thống** rồi bấm chọn khung trông đúng. Docstring của nó đã tự cảnh báo
+*"ĐÁP ÁN TÌM THẤY LÀ NIỀM TIN, KHÔNG PHẢI SỰ THẬT"*, và **cả 20 câu** dừng ở
+nhãn `do_chac: kha — CHUA doi chieu anh goc`.
+
+Khi đáp án thật không nằm trong top-20, người soi chọn một khung *trông hợp lý*
+nhưng sai. Nên hạng 1 của p1-12 **không đo gì cả**: hệ thống được chấm bằng
+chính lựa chọn của nó.
+
+    20/72 câu (28% tập đo) mang nhãn hái từ hệ thống
+    6/20 trong số đó bị BTC bác thẳng
+
+#### Thiên vị CÓ CHIỀU, và đo được nó đổi kết luận
+
+Nhãn hái từ top-20 của cấu hình **hiện tại** thì bênh đúng cấu hình đó, nên mọi
+cấu hình MỚI bị đẩy xuống. Chạy lại A88 (kênh 3 trên văn bản gộp VietOCR) chỉ
+trên 52 câu `tap_de_that` (nhãn sạch):
+
+| tập đo | ±2s | ±15s | T-B-H | kết luận |
+| --- | ---: | ---: | :---: | :---: |
+| 72 câu (có nhiễm) | +0,0076 | −0,0028 | 4-2-66 | ❌ ĐẢO DẤU |
+| **52 câu sạch** | **+0,0144** | **+0,0000** | **4-1-47** | **🟡 YẾU** |
+
+**Hiệu ở ±2s tăng gấp đôi, ±15s hết âm, kết luận đi từ "không dùng được" sang
+"ứng viên sống".** Vẫn 🟡 (+0,0144 so với ngưỡng 0,0151, thiếu 5%) nên chưa
+bật — nhưng nó chứng minh nhiễm nhãn **không phải rủi ro lý thuyết**.
+
+#### Ba điều phải làm, và một điều đã làm
+
+* **Đã làm:** `105_danh_dau_nhan_sai.py` hạ 6 nhãn bị BTC bác xuống
+  `do_chac: sai`. **Không xoá câu** — soi lại từ ảnh gốc thì dùng lại được.
+* 14 câu còn lại vẫn ở `do_chac: kha`: **chưa có bằng chứng phản bác không
+  phải là bằng chứng đúng**. Chúng vẫn hái từ cùng một quy trình.
+* Mọi kết luận 🟡/❌ đo trên 68–72 câu (A64, A71, A72, A82, A88) **cần chạy lại
+  trên 52 câu sạch** trước khi tin.
+* **Đổi quy trình soi**: đáp án phải soi từ **ẢNH GỐC theo mô tả**, không phải
+  chọn từ danh sách hệ thống trả về. Bắt buộc dùng danh sách thì phải lấy từ
+  **cấu hình KHÁC** với cấu hình sắp đo.
+
+#### Điều KHÔNG bị ảnh hưởng
+
+**A87 dùng đúng 52 câu `tap_de_that`** (tập khoá theo độ phủ hai cache), tức
+nhãn sạch. Kết luận lớn nhất của repo — gopt gấp **2,4 lần** SigLIP2-1152
+(+0,3096, ✅ ổn định, 31 thắng / 5 thua) và trần **0,8776 / 0,9592** — đứng
+nguyên.
+
+> **Bài học lớn nhất của cả dự án, và nó không nói về mô hình.** Repo này dựng
+> cả một bộ máy để chống tự lừa mình: hai mức dung sai, so theo cặp, ngưỡng
+> nhiễu, mốc nền mạnh nhất, chỉ đổi một thứ, nhóm đối chứng. Bộ máy đó kiểm
+> **kết luận**, nhưng **không kiểm được NHÃN** — và một nhãn hái từ hệ thống
+> làm mọi tầng phía trên trở thành trang trí. 88 mục đo không phát hiện ra;
+> một bảng điểm 25 dòng của BTC phát hiện ra trong mười phút.
+
 ## PHẦN B — QUYẾT ĐỊNH HẠ TẦNG
 
 ### B1. Không dùng Supabase / Postgres / Milvus / Elasticsearch — ĐÃ KIỂM CHỨNG
