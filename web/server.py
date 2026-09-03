@@ -152,6 +152,10 @@ class Kho:
         # Tra ngược row_id -> dòng, để đọc kf_path/pts_time trong O(1).
         # `row_id` trùng vị trí dòng (kiểm ở A39), nên dùng .values trực tiếp.
         self.kf_path = self.master.kf_path.values
+        # ⚠️ CÓ ẢNH KHÔNG = ảnh gốc **HOẶC** bản thu nhỏ. Hỏi mỗi
+        # `kf_path.notna()` là bỏ trắng cả L26 (79.590 dòng, 45% kho) —
+        # không máy nào giữ ảnh gốc L26, nhưng bản thu nhỏ thì có.
+        self.co_anh = ANH.ban_do_co_anh(self.master)
         self.pts = self.master.pts_time.values
         self.fps = self.master.fps.values
         self.vid = self.master.video_id.values
@@ -250,7 +254,7 @@ class Kho:
             "kf_n": int(self.kf_n[r]),
             "diem": round(float(c.score), 4),
             "nguon": c.source,
-            "co_anh": bool(pd.notna(self.kf_path[r])),
+            "co_anh": bool(self.co_anh[r]),
             "van_ban": self.van_ban.get(r, ""),
         }
 
@@ -286,7 +290,7 @@ class Kho:
                     "frame_idx": int(f),
                     "that": r is not None,
                     "row_id": r,
-                    "co_anh": r is not None and bool(pd.notna(self.kf_path[r])),
+                    "co_anh": r is not None and bool(self.co_anh[r]),
                     # Chỉ đọc pts_time của khung THẬT. Khung nội suy thì để
                     # trống, không suy `frame_idx / fps` — con số đó trông như
                     # số đo mà thật ra là phỏng đoán chồng phỏng đoán.
@@ -350,7 +354,7 @@ class Handler(BaseHTTPRequestHandler):
             return self._json({
                 "so_video": int(k.master.video_id.nunique()),
                 "so_khung": int(len(k.master)),
-                "so_co_anh": int(k.master.kf_path.notna().sum()),
+                "so_co_anh": int(k.co_anh.sum()),
                 **{"anh": ANH.thong_ke(k.master)},
                 "kenh": list(k.kenh),
                 "ghi_chu": k.ghi_chu,

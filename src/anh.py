@@ -70,3 +70,41 @@ def thong_ke(master, goc=MAC_DINH_NHO) -> dict:
                   for v, n in co.items()))
     return {"anh_goc": co_goc, "ban_nho": nho,
             "tong_soi_duoc": co_goc + nho, "tong_dong": len(master)}
+
+
+def ban_do_co_anh(master, goc=MAC_DINH_NHO):
+    """Mảng bool theo `row_id`: dòng này có ảnh soi được (gốc HOẶC thu nhỏ)?
+
+    VÌ SAO CẦN, VÀ VÌ SAO KHÔNG DÙNG `tim()` CHO TỪNG DÒNG
+
+    `web/server.py` từng hỏi `kf_path.notna()` để quyết định có ảnh hay không.
+    Sai, và sai theo cách im lặng: L26 có `kf_path` rỗng ở **cả 79.590 dòng**
+    (không máy nào trong nhóm giữ 12,13 GB ảnh gốc), nên giao diện vẽ ô "máy
+    này không có ảnh" và **không bao giờ gọi `/api/anh`** — trong khi endpoint
+    đó gọi `tim()` và sẽ trả về bản thu nhỏ ngon lành.
+
+    Nghĩa là luật lùi có ở đường PHỤC VỤ ảnh nhưng thiếu ở đường BÁO có ảnh.
+    Hàm này bịt chỗ đó, và giữ đúng nguyên tắc của module: **luật lùi chỉ nằm ở
+    một nơi**.
+
+    Không gọi `tim()` 177.321 lần: mỗi lần là một `exists()`, và trên Windows
+    ngần đó lần mất hàng chục giây mỗi lần khởi động. Bản thu nhỏ sinh trọn vẹn
+    theo video (`scripts/49_sinh_anh_nho.py`) nên đếm file trong thư mục là đủ
+    — cùng cách `thong_ke()` đang làm.
+    """
+    import numpy as np
+
+    co = master.kf_path.notna().values.copy()
+    goc = Path(goc)
+    if not goc.is_dir():
+        return co
+
+    so_file = {d.name: len(list(d.glob("*.jpg")))
+               for d in goc.iterdir() if d.is_dir()}
+    vid = master.video_id.values
+    kf_n = master.kf_n.values
+    for i in np.flatnonzero(~co):
+        n = so_file.get(str(vid[i]), 0)
+        if n and 1 <= int(kf_n[i]) <= n:
+            co[i] = True
+    return co
