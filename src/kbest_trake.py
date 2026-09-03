@@ -95,7 +95,7 @@ def cham_video(theo_video: dict) -> dict:
 
 
 def beam_video(uv_theo_su_kien: list, pts, k_chuoi: int,
-               cach_nhau: float = CACH_NHAU) -> list:
+               cach_nhau: float = CACH_NHAU, phat_giay: float = 0.0) -> list:
     """Sinh tối đa `k_chuoi` chuỗi TĂNG DẦN NGẶT, khác nhau về thời gian.
 
     `uv_theo_su_kien[i]` = `[(row_id, điểm)]` của sự kiện i TRONG một video.
@@ -103,6 +103,19 @@ def beam_video(uv_theo_su_kien: list, pts, k_chuoi: int,
     Tăng dần ngặt vì BTC đòi *"thứ tự phải tuân theo thứ tự thời gian của các
     events"*. Lọc đa dạng ở cuối để 100 dòng không phải 100 biến thể lệch nhau
     vài phần trăm giây — chúng sẽ cùng đúng hoặc cùng sai, tức phí 99 dòng.
+
+    `phat_giay` trừ `λ × (khoảng cách giây tới sự kiện trước)` mỗi lần nối —
+    ý tưởng "phạt mềm": chuỗi có các sự kiện cách nhau đều và gần thì đáng tin
+    hơn chuỗi nhảy cóc qua nửa video.
+
+    **Mặc định 0,0 (TẮT) — A80 đo và BÁC.** Năm mức λ, hại đơn điệu theo cường
+    độ; λ=0,001 và 0,005 đều ✅ ỔN ĐỊNH theo hướng xấu. Lý do nằm ở phân bố
+    thật: khoảng cách giữa hai sự kiện liền kề có trung vị **12,0s** nhưng trải
+    từ **1,5s tới 259,3s** — rộng gấp 170 lần. Phạt theo khoảng cách trừng phạt
+    đúng những chuỗi ĐÚNG mà có khoảng cách dài thật, vì nó không phân biệt
+    được "nhảy cóc vì đoán bừa" với "hai sự kiện cách nhau 4 phút".
+
+    Giữ tham số lại để lần sau ai đó nghĩ ra ý này thì thấy nó đã được đo.
     """
     beam = [([], 0.0, -1e9)]                       # (chuỗi, điểm, pts cuối)
     for uv in uv_theo_su_kien:
@@ -110,7 +123,9 @@ def beam_video(uv_theo_su_kien: list, pts, k_chuoi: int,
         for chuoi, d, t_cuoi in beam:
             for rid, s in uv:
                 if pts[rid] > t_cuoi:
-                    moi.append((chuoi + [rid], d + s, pts[rid]))
+                    p = (phat_giay * (pts[rid] - t_cuoi)
+                         if phat_giay and chuoi else 0.0)
+                    moi.append((chuoi + [rid], d + s - p, pts[rid]))
         if not moi:                                # không nối tiếp được nữa
             return [c for c, _, _ in beam if len(c) == len(uv_theo_su_kien)]
         moi.sort(key=lambda x: -x[1])
@@ -128,7 +143,8 @@ def beam_video(uv_theo_su_kien: list, pts, k_chuoi: int,
 
 def lap_dong(cac_su_kien: list, master, so_dong: int = 100,
              ty_le=TY_LE, n_duoi: int = N_DUOI,
-             cach_nhau: float = CACH_NHAU) -> list:
+             cach_nhau: float = CACH_NHAU,
+             phat_giay: float = 0.0) -> list:
     """N danh sách ứng viên (mỗi sự kiện một danh sách) -> `list[list[row_id]]`.
 
     Trả `row_id` chứ không phải `frame_idx`: `lap_trake()` mới đổi sang
@@ -149,7 +165,8 @@ def lap_dong(cac_su_kien: list, master, so_dong: int = 100,
         uv = theo_video[v]
         for x in uv:
             x.sort(key=lambda t: -t[1])
-        return beam_video([x[:TOI_DA_UV] for x in uv], pts, k, cach_nhau)
+        return beam_video([x[:TOI_DA_UV] for x in uv], pts, k,
+                          cach_nhau, phat_giay)
 
     n_tren = max(1, so_dong - n_duoi)
     ra = []

@@ -5125,6 +5125,74 @@ hai bản sẽ trôi khỏi nhau, đúng bài học vừa gặp với `diem_bai_
   kiện và số Frame ID là ràng buộc **hình thức**, không phụ thuộc câu dễ hay
   khó — lập luận đó vẫn đứng, nhưng nó là lập luận, không phải phép đo.
 
+### A80. Phạt **mềm** theo khoảng cách thời gian — bác, và phân bố thật giải thích vì sao
+
+Hướng TRAKE cuối cùng trong danh sách chưa đo. Đề xuất gốc: thay *"ép tăng dần
+NGẶT + nội suy chỗ thiếu"* bằng `DP[i,t] = S[i,t] + max_τ(DP[i-1,τ] − λ(t−τ))`.
+
+#### Nửa đề xuất đã tự hết hiệu lực
+
+A79 bật K-best, mà K-best **vốn không nội suy**: beam sinh chuỗi tăng dần thật,
+không chèn khung đoán vào chỗ thiếu. Nửa "bỏ nội suy" của đề xuất **đã có sẵn**
+trước khi đo. Phần còn áp dụng được là phạt theo độ dài khoảng cách khi nối:
+
+    điểm chuỗi = Σ điểm ứng viên − λ · Σ (khoảng cách giây tới sự kiện trước)
+
+#### Chọn dải λ bằng ĐƠN VỊ, và tôi vẫn ước sai
+
+Đề xuất gợi ý λ ∈ [0,001; 0,01]. Dải đó phụ thuộc thang điểm của hệ thống khác,
+nên tôi tự tính lại: điểm ở đây là RRF (**0,008–0,03**), khoảng cách giữa hai
+sự kiện tôi đoán ~50s, vậy λ ≈ 0,0002 để hai vế sánh nhau.
+
+Script in luôn phân bố **thật** để kiểm chính giả định đó, và nó sai:
+
+    khoảng cách giữa hai sự kiện liền kề (n=63):
+        trung vị 12,0s   |   min 1,5s   |   max 259,3s
+
+Trung vị 12s chứ không phải 50s. Nên ngay ở λ = 0,0002 phép phạt đã bằng
+**24%** một điểm RRF điển hình — đủ để lấn át.
+
+#### Kết quả: hại đơn điệu theo cường độ (20 câu TRAKE)
+
+| λ | ±2s | ±15s | hiệu ±2s | T-B-H | |
+| ---: | ---: | ---: | ---: | :---: | :---: |
+| **0 (TẮT) — mốc** | **0,3490** | **0,5740** | — | — | |
+| 5e-05 | 0,3495 | 0,5705 | +0,0005 | 2-2-16 | ❌ ĐẢO DẤU |
+| 0,0002 | 0,3390 | 0,5605 | −0,0100 | 2-5-13 | 🟡 |
+| 0,001 | 0,3285 | 0,5230 | −0,0205 | 3-9-8 | ✅ TỆ HƠN |
+| 0,005 | 0,2575 | 0,5090 | −0,0915 | 2-12-6 | ✅ TỆ HƠN |
+
+#### Vì sao — và câu trả lời nằm ngay trong phân bố vừa in
+
+Khoảng cách thật trải từ **1,5s tới 259,3s**, rộng gấp **170 lần**. Phạt theo
+khoảng cách giả định các sự kiện nằm gần nhau, nhưng dữ liệu nói khoảng cách
+thật cực kỳ tản mạn — nên phép phạt **trừng phạt đúng những chuỗi ĐÚNG mà có
+khoảng cách dài thật**. Nó không phân biệt được *"nhảy cóc vì đoán bừa"* với
+*"hai sự kiện thật sự cách nhau 4 phút"*.
+
+> Giá trị của A80: script in **phân bố thật của đại lượng bị phạt** trước khi
+> in kết quả. Nhờ vậy con số âm không dừng ở "không hiệu quả" mà nói được vì
+> sao — và nó cũng bắt luôn chỗ tôi ước sai gấp bốn lần khi chọn dải tham số.
+
+Mốc nền là cấu hình `run.py` vừa bật ở A79, tức mốc mạnh nhất hiện có. Tham số
+`phat_giay` giữ lại trong `kbest_trake.beam_video`, mặc định 0,0 — để lần sau
+ai nghĩ ra ý này thì thấy nó đã được đo.
+
+#### Trạng thái các hướng TRAKE sau A80
+
+| hướng | kết cục |
+| --- | --- |
+| K-best beam search thay 1-dòng/video | ✅ **ĐÃ BẬT** (A79) |
+| ngân sách dòng 40/25/15/12/8 | ✅ **ĐÃ BẬT** cùng A79 |
+| lưới an toàn 20 dòng đuôi | ✅ **ĐÃ BẬT** cùng A79 |
+| cách chấm điểm video (4 biến thể) | nút **trơ** (A78) |
+| phạt mềm theo khoảng cách | **bác** (A80) |
+| dồn hết ngân sách cho hạng 1 | **bác**, ✅ tệ hơn (A78) |
+
+Danh sách hướng TRAKE **đã cạn**. Thứ chặn tiếp theo không phải thiếu ý tưởng
+mà là **số câu TRAKE**: 20 câu, trong đó 14 tự soạn, và 8–9 câu không đổi gì
+giữa các cấu hình nên n hiệu dụng chỉ khoảng 11.
+
 ## PHẦN B — QUYẾT ĐỊNH HẠ TẦNG
 
 ### B1. Không dùng Supabase / Postgres / Milvus / Elasticsearch — ĐÃ KIỂM CHỨNG
