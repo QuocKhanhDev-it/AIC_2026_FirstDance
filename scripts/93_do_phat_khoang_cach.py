@@ -47,7 +47,7 @@ from bm25 import KenhVanBan                           # noqa: E402
 from cham_diem import (bao_cao_tu_bang,               # noqa: E402
                        cham_trake_nhieu_muc)
 from dense import KenhAnhCache                        # noqa: E402
-from kbest_trake import lap_dong                      # noqa: E402
+from kbest_trake import lap_dong, phat_bac            # noqa: E402
 from rrf import hop_nhat                              # noqa: E402
 
 W3 = 0.5
@@ -115,10 +115,22 @@ def main():
 
     cau_hinh = {}
     for lam in a.lamda:
-        ten = ("λ = 0 (TẮT) ← MỐC" if lam == 0 else f"λ = {lam:g}")
+        ten = ("λ = 0 (TẮT) ← MỐC" if lam == 0 else f"tỷ lệ thuận λ={lam:g}")
         cau_hinh[ten] = nho(
             (lambda lam: lambda c: lap_dong(nen[c.id], master,
                                             phat_giay=lam))(lam))
+
+    # Hàm phạt dạng BẬC — A80 bác phạt TỶ LỆ THUẬN, không bác cái này. Vùng
+    # [gần, xa] không bị phạt, mà đó là nơi chứa phần lớn khoảng cách thật.
+    for gan, nang, xa, beta in ((1.0, 1.0, 60.0, 0.0005),
+                                (1.0, 1.0, 60.0, 0.002),
+                                (1.5, 1.0, 60.0, 0.0005),
+                                (1.0, 0.02, 60.0, 0.0002),
+                                (1.0, 1.0, 30.0, 0.0005)):
+        ten = f"bậc <{gan:g}s:{nang:g} >{xa:g}s:{beta:g}"
+        cau_hinh[ten] = nho(
+            (lambda g, n_, x, b: lambda c: lap_dong(
+                nen[c.id], master, phat=phat_bac(g, n_, x, b)))(gan, nang, xa, beta))
 
     bang = {ten: cham_trake_nhieu_muc(giu, f, master)
             for ten, f in cau_hinh.items()}

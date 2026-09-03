@@ -5193,6 +5193,290 @@ Danh sách hướng TRAKE **đã cạn**. Thứ chặn tiếp theo không phải
 mà là **số câu TRAKE**: 20 câu, trong đó 14 tự soạn, và 8–9 câu không đổi gì
 giữa các cấu hình nên n hiệu dụng chỉ khoảng 11.
 
+### A81. "Cluster flooding" **không có**, và 6 câu ngoài bể **không có tín hiệu chung**
+
+Hai chẩn đoán trên cùng một lượt chạy (`94_soi_cau_that_bai.py`, 66 câu KIS/QA,
+bể 1.000).
+
+#### 1. Top-20 KHÔNG bị khung lân cận chiếm chỗ
+
+Giả thuyết: R@20 đứng yên ở 0,6122 qua mọi cỡ bể (A54) vì top-20 bị các
+keyframe lân cận của cùng một shot SAI chiếm hết; lọc phi cực đại theo thời
+gian sẽ giải phóng 8–12 chỗ.
+
+**Lập luận đó không đứng vững trước khi đo.** R@20 không đổi khi bể đi từ 100
+lên 1.000 chỉ nói **ứng viên mới đều xếp dưới hạng 20** — nó không nói gì về
+thứ ĐANG chiếm top-20. Đo thẳng:
+
+| trong top-20 | trung vị | min | max |
+| --- | ---: | ---: | ---: |
+| video khác nhau | **10/20** | 1 | 20 |
+| hàng xóm thời gian ≤4s | **2/20** | 0 | 10 |
+| *câu có ≥10 hàng xóm* | **1/66** | | |
+
+Top-20 điển hình gồm **10 video khác nhau** và chỉ **2** ứng viên là khung lân
+cận. Lọc phi cực đại sẽ giải phóng khoảng 2 chỗ, không phải 8–12.
+
+> Và nó giải thích luôn **vì sao A18 thất bại**: ràng buộc đa dạng (tối đa 2
+> ứng viên mỗi video) làm tệ đi vì **không có dư thừa để dọn** — cắt theo video
+> chỉ xoá mất ứng viên tốt. Hai phép đo cách nhau nhiều tuần, cùng một nguyên
+> nhân.
+
+#### 2. Sáu câu ngoài top-1.000 — và một kết luận suýt bị công bố
+
+| câu | chữ ở khung đúng | có dấu | dài câu |
+| --- | ---: | :---: | ---: |
+| kis-DE1-11 | 168 ký tự | có | 57 |
+| kis-DE1-02 | 1.318 ký tự | có | 45 |
+| kis-DE1-23 | 5.002 ký tự | có | 112 |
+| qa-DE2-27 | 147 ký tự | — | 62 |
+| qa-DE2-28 | 499 ký tự | có | 72 |
+| qa-DE2-30 | 33 ký tự | — | 74 |
+
+**6/6 đều là câu dài >40 từ** — trông như một phát hiện. **Tỷ lệ nền giết nó:**
+55/66 câu (83%) của cả tập đã dài >40 từ, nên xác suất cả 6 đều dài khi chọn
+ngẫu nhiên là **0,335**. Trung vị 67 từ so với 62 của toàn tập.
+
+> Suýt nữa tôi ghi "câu dài là nguyên nhân" vào tài liệu. Thứ chặn lại là một
+> phép tính hai dòng: **luôn tính tỷ lệ nền trước khi gọi một tương quan là
+> phát hiện.** Với n = 6 thì gần như mọi thuộc tính phổ biến đều xuất hiện ở
+> cả 6.
+
+Thứ nói được, và chỉ thế thôi:
+
+* **Cả 6 câu đều CÓ chữ ở khung đúng** (4/6 có dấu). Nên chúng không thất bại
+  vì thiếu dữ liệu văn bản, và **A76 (VietOCR) sẽ không cứu được câu nào trong
+  số này**. Đó là câu trả lời cho câu hỏi "6 câu này có cùng lý do với Q&A
+  không": **không**.
+* Kênh 3 có văn bản trong tay mà vẫn không đưa chúng lên -> chữ ở khung đúng
+  không khớp cách diễn đạt của truy vấn. Khoảng cách **từ vựng**, không phải
+  khoảng cách dữ liệu.
+* **n = 6 quá nhỏ để nói thêm gì** (A74: "n=3 không phải một phép đo").
+
+### A82. Khuếch tán điểm kênh 3 theo thời gian — cơ chế bị bác **bởi chính phép đo cơ chế**
+
+A71 đo chồng@20 giữa kênh 1 và kênh 3 chỉ 3,4%. Có một cách đọc rất thuyết
+phục: **chữ và hình không xuất hiện cùng một mili-giây** — người nói nhắc chủ
+đề ở giây 10, hình minh hoạ hiện ở giây 14, biển hiệu lướt qua ở giây 8. RRF
+cộng theo `row_id` nên ba sự kiện đó không bao giờ gặp nhau.
+
+Cách chữa: trước khi hợp nhất, cho điểm BM25 lan sang keyframe cùng video theo
+Gauss thời gian `S'(t) = Σ_k S(k)·exp(−(t_k−t)²/2τ²)`, giữ nguyên vector ảnh
+sắc nét. Dự đoán kèm theo: **chồng@20 tăng từ 4% lên 25–35%**.
+
+#### Dự đoán đó là thứ làm phép đo này dứt khoát
+
+`95_do_khuech_tan_thoi_gian.py` đo **hai** thứ: điểm cuối, và chồng@20. Ghi rõ
+trong docstring trước khi chạy: *nếu điểm tăng mà chồng KHÔNG tăng thì cơ chế
+giả thuyết sai dù kết quả đúng, và không được ghi cơ chế đó vào tài liệu.*
+
+| | chồng@20 |
+| --- | ---: |
+| gốc (τ = 0) | **2,8%** |
+| τ = 2s | **1,5%** |
+| τ = 4s | **1,5%** |
+| τ = 6s | 1,7% |
+
+**Chồng GIẢM gần một nửa**, không tăng gấp tám. Dự đoán sai cả về hướng.
+
+Lý do: khuếch tán đổi **thứ hạng** của kênh 3. Sau khi làm mềm, top-20 của kênh
+3 bị các vùng dày chữ chiếm — nơi nhiều khung có điểm nằm sát nhau nên cộng dồn
+lên cao — mà đó không phải chỗ top-20 của kênh 1 đang đứng. Hai kênh **đồng ý
+ít hơn**, không phải nhiều hơn.
+
+#### Điểm cuối (72 câu, mốc là kênh 3 gốc)
+
+| cấu hình | ±2s | ±15s | hiệu ±2s | T-B-H | |
+| --- | ---: | ---: | ---: | :---: | :---: |
+| **MỐC: kênh 3 gốc** | **0,5611** | **0,6514** | — | — | |
+| chỉ kênh 1 *(chẩn đoán)* | 0,5326 | 0,6264 | −0,0285 | 3-10-59 | ✅ |
+| khuếch tán τ=2s | 0,5583 | 0,6514 | −0,0028 | 2-3-67 | ❌ ĐẢO DẤU |
+| khuếch tán τ=4s | 0,5528 | 0,6597 | −0,0083 | 1-4-67 | ❌ ĐẢO DẤU |
+| khuếch tán τ=6s | 0,5528 | 0,6542 | −0,0083 | 1-4-67 | ❌ ĐẢO DẤU |
+
+Cả ba mức ❌ đảo dấu — không dùng để quyết được, và cơ chế thì đã đổ.
+
+#### Kèm theo: đóng góp của kênh 3 nay ✅ ỔN ĐỊNH
+
+Dòng chẩn đoán trên 72 câu: bỏ kênh 3 mất **−0,0285 với ngưỡng 0,0260, 3 thắng
+/ 10 thua -> ✅**. Trước đây con số này luôn 🟡. Tập lớn lên đúng như A65 dự
+đoán, và **giá trị của kênh 3 giờ là kết luận vững** chứ không còn là ứng viên.
+
+#### Vì sao A82 khác A57 và A70 — và vì sao vẫn thua
+
+Ba thứ cùng họ "làm mềm theo thời gian", đã bác cả ba, nhưng mỗi cái một cơ chế:
+
+* **A57** làm mượt *vector kênh 1* -> san phẳng phần dư dùng để phân biệt khung
+  đáp án với hàng xóm.
+* **A70** gộp vector theo *đoạn ASR* (~39 giây) -> mọi khung trong đoạn nhận
+  cùng một biểu diễn, mất khả năng xếp hạng bên trong đoạn.
+* **A82** chỉ làm mềm *trường điểm kênh 3*, τ = 2–6 giây, không đụng kênh 1 —
+  tránh được cả hai khuyết tật trên, và **vẫn thua**, vì nó phá thứ khác: thứ
+  hạng nội bộ của chính kênh 3.
+
+> Ba lần cùng một họ ý tưởng, ba cơ chế hỏng khác nhau. Kết luận dùng được:
+> **trục thời gian của kho này không có dư thừa để khai thác** — A81 đo được
+> top-20 chỉ có 2/20 hàng xóm, tức các khung gần nhau vốn đã không chen chỗ
+> nhau. Làm mềm theo thời gian không có gì để dọn, chỉ có thứ để phá.
+
+### A83. Hai cách khai thác **luật chấm**: phạt bậc hết hại nhưng vô ích; rải biến thể đáp án **gấp đôi điểm Q&A**
+
+#### 1. Phạt khoảng cách dạng BẬC — chẩn đoán đúng, cách chữa không đủ
+
+A80 bác phạt **tỷ lệ thuận** với khoảng cách, và chỉ ra lý do: khoảng cách thật
+có trung vị 12,0s nhưng trải từ 1,5s tới 259,3s, nên phạt đều tay trừng phạt cả
+những chuỗi ĐÚNG có khoảng cách dài thật.
+
+Hàm bậc né đúng chỗ đó: phạt nặng khi Δt < 1s, **không phạt trong [1s, 60s]**,
+phạt tuyến tính khi Δt > 60s. A80 không bác được nó, nên đo riêng (`93_`):
+
+| hàm phạt | ±2s | ±15s | |
+| --- | ---: | ---: | :---: |
+| **λ = 0 (TẮT) — mốc** | **0,3490** | **0,5740** | |
+| tỷ lệ thuận λ=0,001 | −0,0205 | −0,0510 | ✅ TỆ HƠN |
+| tỷ lệ thuận λ=0,005 | −0,0915 | −0,0650 | ✅ TỆ HƠN |
+| bậc `<1s:1 >60s:0,0005` | −0,0035 | −0,0110 | 🟡 |
+| bậc `<1s:1 >60s:0,002` | +0,0040 | −0,0110 | ❌ ĐẢO DẤU |
+| bậc `<1,5s:1 >60s:0,0005` | +0,0055 | −0,0085 | ❌ ĐẢO DẤU |
+| bậc `<1s:0,02 >60s:0,0002` | −0,0035 | −0,0110 | 🟡 |
+| bậc `<1s:1 >30s:0,0005` | +0,0030 | −0,0160 | ❌ ĐẢO DẤU |
+
+**Chẩn đoán đúng, và sửa đúng chỗ:** phạt tỷ lệ thuận ✅ ổn định có hại, còn
+phạt bậc thì **hết hại** — không cấu hình nào vượt nhiễu theo hướng xấu, ba
+trong năm còn nhỉnh lên ở ±2s.
+
+**Nhưng bỏ được cái hại không tạo ra cái lợi.** Ba cấu hình ❌ đảo dấu, và cả
+năm đều âm ở ±15s.
+
+> Kết luận dùng được: giả thuyết *"chuỗi có khoảng cách đều và mạch lạc thì
+> đáng tin hơn"* **không mang tín hiệu** trên kho này. Không phải hàm phạt sai
+> hình dạng — hình dạng đã sửa đúng — mà là **bản thân khoảng cách thời gian
+> không nói gì về việc chuỗi đúng hay sai**. Khác biệt giữa *"đo sai"* và
+> *"không có gì để đo"*.
+
+#### 2. Rải nhiều biến thể `answer` qua nhiều dòng — 🟡 mạnh nhất của Q&A
+
+BTC cho 100 dòng và **không phạt dòng sai**, nhưng `dap_an.dao()` chỉ trả về
+MỘT chuỗi cho mỗi khung — chuỗi đó sai thì cả 100 dòng cùng sai. `dao_nhieu()`
+trả về nhiều biến thể; `96_do_rai_bien_the.py` rải chúng ra nhiều dòng.
+
+13 câu Q&A có đáp án vàng:
+
+| cấu hình | điểm | hiệu | T-B-H | ngưỡng |
+| --- | ---: | ---: | :---: | ---: |
+| **MỐC: 1 biến thể/dòng** | **0,0462** | — | — | — |
+| **rải 2 biến thể, 10 khung đầu** | **0,1077** | **+0,0615** | **1-0-12** | 0,1231 |
+| rải 3 biến thể, 10 khung đầu | 0,1077 | +0,0615 | 1-0-12 | 0,1231 |
+| rải 2 biến thể, 30 khung đầu | 0,1077 | +0,0615 | 1-0-12 | 0,1231 |
+| rải 3 biến thể, 30 khung đầu | 0,1077 | +0,0615 | 1-0-12 | 0,1231 |
+| **TRẦN: mọi biến thể** *(chẩn đoán)* | **0,1231** | +0,0769 | 1-0-12 | 0,1538 |
+
+**Gấp 2,3 lần điểm mốc, 0 câu thua.** Nhưng số học nói thẳng: `+0,0615 = 0,8/13`
+— **đúng MỘT câu** đi từ 0 lên 0,8. Trần `+0,0769 = 1,0/13` cũng là câu đó lên
+hạng 1. **Toàn bộ hiệu ứng là một câu trên mười ba**, nên không kết luận được
+dù không câu nào thua.
+
+Cả bốn cấu hình cho kết quả **giống hệt nhau** — 2 hay 3 biến thể, 10 hay 30
+khung đều như nhau. Nếu bật thì `2 biến thể / 10 khung đầu` là đủ.
+
+#### Dòng TRẦN trả lời câu quan trọng hơn cả kết quả
+
+Rải biến thể đạt **0,1077 trên trần 0,1231 — lấy được 87% khoảng cách**. Cơ chế
+rải hoạt động gần như hoàn hảo; thứ chặn là **khâu ĐÀO**, không phải khâu rải.
+
+Nên hướng đáng đầu tư tiếp không phải chia dòng khéo hơn, mà là **đào ra đúng
+chuỗi hơn** — tức bảng tra thực thể cấp video từ ASR (chưa làm).
+
+#### Kèm theo: một hạn chế của A76 lộ ra khi viết `dao_nhieu`
+
+    văn bản  : "… Ta Pua vừa hoàn thành … Tại Tà Pứa hôm nay."
+    dao()    : 'Ta Pua'          <- KHÔNG đổi sang bản có dấu
+
+`uu_tien_co_dau()` so hai chuỗi sau khi bỏ dấu, mà mẫu tên riêng bắt tới **3 từ
+viết hoa liên tiếp** nên bản có dấu bị bắt thành `"Tại Tà Pứa"` —
+`bỏ_dấu("Tại Tà Pứa") ≠ bỏ_dấu("Ta Pua")`, không khớp, phép ưu tiên không nổ.
+
+Không làm sai kết quả A76 (0/5 -> 2/5 vẫn đúng), nhưng nó nói phép ưu tiên
+**yếu hơn tôi tưởng**: chỉ bắt được khi hai bản có **cùng số từ**. Đây đúng là
+chỗ bảng tra n-gram 1–4 từ từ ASR mạnh hơn hẳn.
+
+### A84. Bảng tra dấu từ ASR: **0/5 ở mọi phạm vi** — và lý do gốc không phải chuyện dấu
+
+A68: `ocr_text` chỉ **31% có dấu**, `asr_text` **100%**. Nên ASR của chính kho
+này là **một cuốn từ điển có dấu của chính nó** — không cần model phục hồi dấu,
+chỉ cần tra. A83 còn chỉ ra chỗ này là nút thắt: rải biến thể đã lấy 87% khoảng
+cách tới trần, phần chặn nằm ở **khâu ĐÀO**.
+
+`dap_an.bang_tra_ngram()` dựng `{dạng bỏ dấu: dạng có dấu}` cho mọi n-gram 1–4
+từ. Nó khắc phục đúng hạn chế A83 phát hiện ở `uu_tien_co_dau()` (chỉ bắt được
+khi hai bản **cùng số từ**): `"tà pứa"` là một 2-gram riêng nên khớp được
+`"Ta Pua"` dù ASR viết `"tại Tà Pứa"`.
+
+    cả kho : 1.803.158 n-gram có dấu
+    video  : 847 video có ASR, trung bình 4.021 n-gram/video
+
+#### Ba phạm vi, và cả ba đều 0/5 (`97_do_bang_tra_asr.py`)
+
+| phạm vi bảng tra | khớp đúng chuỗi |
+| --- | ---: |
+| không bảng tra (A76) | **0/5** |
+| cùng KHUNG | **0/5** |
+| cùng VIDEO | **0/5** |
+| cả KHO | **0/5** |
+
+Mẫu số là **5 câu có đáp án CHỨA DẤU** — 8/13 câu còn lại không có dấu nào nên
+chúng không nói gì về phép phục hồi dấu.
+
+#### Chẩn đoán: hỏng nằm TRƯỚC khâu dấu
+
+| câu | đáp án | có trong văn bản (bỏ dấu)? | bộ đào ra |
+| --- | --- | :---: | --- |
+| qa-DE2-28 | Cá lóc | **có** | `['Nam', 'Nuoc', 'Gao']` |
+| qa-DE2-09 | Cá sòng | **có** | `['Online']` |
+| qa-DE1-17 | Tà Pứa | **có** | `['Binh Thuan', 'Som']` |
+
+**3/5 câu có sẵn chuỗi đúng trong văn bản mà bộ đào không bao giờ chọn nó.**
+Bảng tra không cứu được vì nó **không bao giờ được đưa cho ứng viên đúng**.
+
+#### Lý do gốc: bộ đào chỉ nhìn cụm bắt đầu bằng chữ HOA
+
+    TEN = [HOA][thường]+ (\s+[HOA][thường]+){0,2}
+
+Nguyên văn ở khung đúng:
+
+    qa-DE2-28  'NGUYEN LIEU Thit ca loc 300g Gao deo 100g …'   <- toàn chữ thường
+    qa-DE2-09  '…để làm lần lượt cho nó hết cá sòng nướng…'      <- thường, CÓ dấu
+
+Đáp án Q&A ở đây là **danh từ thường nằm giữa câu**, không phải tên riêng. Điều
+kiện đầu tiên của mẫu là chữ hoa, nên chúng **về mặt cấu trúc không bao giờ đào
+ra được**.
+
+Đã thử nới: `TEN_RONG` (1 từ hoa + tối đa 2 từ thường) cộng phát ra mọi **đoạn
+con** 1–3 từ. Vẫn **0/5** — vì điều kiện chữ hoa ở từ ĐẦU vẫn còn.
+
+> Nới regex thêm nữa là đi tới *"mọi cụm 1–3 từ bất kỳ"*, tức nổ tung tập ứng
+> viên và biến bài toán thành **xếp hạng cụm**, không phải trích cụm. Đó là
+> thiết kế khác, không phải một bản vá. Dừng ở đây và ghi lại, thay vì đẩy một
+> nửa lời giải vào đường chạy.
+
+#### Ba thứ được giải thích cùng lúc
+
+* **A83** trần thấp — vì mọi biến thể đều đến từ cùng một mẫu hỏng.
+* **A76** được 2/5 — vì VietOCR viết hoa đầu cụm, tình cờ lọt qua mẫu.
+* **A77** đáp án số nằm trong OCR chứ không trong ASR — cùng một chuyện: đáp án
+  Q&A của kho này phần lớn là **chữ trên màn hình dạng danh sách nguyên liệu**,
+  không phải tên riêng trong lời nói.
+
+#### Việc cần làm tiếp, và nó không phải regex
+
+Bài toán đúng là: *cho câu hỏi + văn bản của khung, chọn cụm nào là đáp án*.
+Đó là **đọc hiểu**, và hai đường khả dĩ đều cần model — VLM đọc ảnh (A60 đã đo
+là không hơn thứ tự sẵn có) hoặc LLM đọc `câu hỏi + văn bản`. Chưa đo đường thứ
+hai.
+
+Trong lúc chờ, `--rai-bien-the 2` (A83) là thứ rẻ nhất còn dùng được: gấp 2,3
+lần điểm Q&A, 0 câu thua, và BTC không phạt dòng sai.
+
 ## PHẦN B — QUYẾT ĐỊNH HẠ TẦNG
 
 ### B1. Không dùng Supabase / Postgres / Milvus / Elasticsearch — ĐÃ KIỂM CHỨNG

@@ -98,3 +98,34 @@ def test_rong_thi_tra_ve_rong_chu_khong_no():
     assert lap_dong([], m) == []
     assert lap_trake([], m) == []
     assert lap_trake([[], []], m) == []
+
+
+def test_phat_bac_dung_hinh_dang():
+    """Vung [gan, xa] KHONG bi phat — do la cho A80 bac phat ty le thuan."""
+    from kbest_trake import phat_bac
+    f = phat_bac(gan=1.0, nang=1.0, xa=60.0, beta=0.0005)
+    assert f(0.5) == 1.0                    # qua gan -> phat nang
+    assert f(1.0) == 0.0                    # dung bien duoi -> khong phat
+    assert f(12.0) == 0.0                   # trung vi that -> khong phat
+    assert f(60.0) == 0.0                   # dung bien tren -> khong phat
+    assert f(160.0) == pytest.approx(0.05)  # 0,0005 * 100
+
+
+def test_phat_bac_khong_dung_toi_su_kien_dau():
+    """Su kien dau chua co Δt nen khong the bi phat."""
+    from kbest_trake import beam_video, phat_bac
+    pts = [0.0, 0.1, 50.0]
+    f = phat_bac(gan=1.0, nang=999.0)       # phat cuc nang neu ap nham
+    ra = beam_video([[(0, 1.0)], [(2, 1.0)]], pts, 5, phat=f)
+    assert ra == [[0, 2]], "chuoi hop le van phai sinh ra duoc"
+
+
+def test_phat_thay_doi_lua_chon_chuoi():
+    """Phat nang o Δt nho phai day beam sang chuoi gian ra."""
+    from kbest_trake import beam_video, phat_bac
+    pts = [0.0, 0.5, 40.0]
+    uv = [[(0, 1.0)], [(1, 0.9), (2, 0.85)]]
+    khong = beam_video(uv, pts, 1)
+    assert khong == [[0, 1]], "khong phat -> lay diem cao hon"
+    co = beam_video(uv, pts, 1, phat=phat_bac(gan=1.0, nang=0.5))
+    assert co == [[0, 2]], "phat Δt<1s -> chuyen sang chuoi gian ra"

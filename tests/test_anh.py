@@ -87,3 +87,39 @@ def test_thong_ke_khong_dem_qua_so_dong_that(tmp_path):
     tk = ANH.thong_ke(m, nho)
     assert tk["ban_nho"] == 1
     assert tk["tong_soi_duoc"] <= tk["tong_dong"]
+
+
+def test_ban_do_co_anh_tinh_ca_ban_THU_NHO(tmp_path):
+    """L26 co kf_path rong o CA 79.590 dong ma van soi duoc bang ban thu nho.
+
+    Hoi moi `kf_path.notna()` la bo trang 45% kho — giao dien ve o "may nay
+    khong co anh" va khong bao gio goi /api/anh, trong khi endpoint do se tra
+    ve anh nho ngon lanh.
+    """
+    import pandas as pd
+    import anh as ANH
+
+    nho = tmp_path / "anh_nho"
+    (nho / "L26_V001").mkdir(parents=True)
+    for i in (1, 2, 3):
+        (nho / "L26_V001" / f"{i:03d}.jpg").write_bytes(b"x")
+
+    m = pd.DataFrame({
+        "video_id": ["L21_V001", "L26_V001", "L26_V001", "L26_V001",
+                     "L26_V001", "L27_V001"],
+        "kf_n":     [1, 1, 2, 3, 4, 1],
+        "kf_path":  ["/co/that.jpg", None, None, None, None, None],
+    })
+    co = ANH.ban_do_co_anh(m, goc=nho)
+    assert list(co) == [True,          # co anh goc
+                        True, True, True,   # co ban thu nho
+                        False,         # kf_n=4 vuot so file co that
+                        False]         # video khong co thu muc thu nho
+
+
+def test_ban_do_co_anh_thieu_thu_muc_thi_lui_ve_kf_path(tmp_path):
+    import pandas as pd
+    import anh as ANH
+    m = pd.DataFrame({"video_id": ["L26_V001"], "kf_n": [1],
+                      "kf_path": [None]})
+    assert list(ANH.ban_do_co_anh(m, goc=tmp_path / "khong_ton_tai")) == [False]

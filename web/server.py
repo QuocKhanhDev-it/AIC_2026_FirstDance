@@ -66,10 +66,19 @@ from schema import AnswerKIS, AnswerQA, AnswerTRAKE    # noqa: E402
 WEB = Path(__file__).resolve().parent
 
 
+# Trọng số hợp nhất kênh — PHẢI khớp `run.py`, xem A52 (kênh 3 = 0,5) và
+# `rrf.K_MAC_DINH` (k = 60, A48 dò và giữ nguyên).
+TRONG_SO = {"anh": 1.0, "ocr": 0.5, "objects": 0.5,
+            "caption": 0.25, "bge": 0.5}
+RRF_K = 60
+
+
 class Kho:
     """Nạp một lần, dùng cho mọi truy vấn. Nạp lại mỗi lần là 20 giây/câu."""
 
-    def __init__(self, index_dir: Path, cache: Path | None, matrix: str):
+    def __init__(self, index_dir: Path, cache: Path | None, matrix: str,
+                 bat_objects: bool = False, bat_caption: bool = False,
+                 bat_bge: bool = False):
         self.index_dir = index_dir
         self.master = pd.read_parquet(index_dir / "master.parquet")
         self.kenh = {}
@@ -93,15 +102,60 @@ class Kho:
                 self.master, pd.read_parquet(p), cot="text", ten="ocr_asr")
             self.ghi_chu.append("kênh 3 (OCR+ASR) — 0,1183 trên dev")
 
-        try:
-            self.kenh["objects"] = KenhObjects(str(index_dir), self.master)
-            self.ghi_chu.append("kênh 4 (objects) — 0,0417 trên dev")
-        except Exception as e:                       # thiếu objects.parquet
-            self.ghi_chu.append(f"kênh 4 tắt: {e}")
+        # ── BA KÊNH MẶC ĐỊNH TẮT, và lý do nằm ở phép đo ─────────────────
+        #
+        # Mặc định của giao diện = **đúng cấu hình `run.py` nộp thật**, không
+        # phải "bật càng nhiều càng tốt". Bật thêm kênh ở đây làm người soát
+        # nhìn một bể ứng viên rồi gửi đi một bể khác — đó là chỗ lệch nguy
+        # hiểm nhất giữa hai đường chạy.
+        #
+        #   kênh 4 objects  — A62: sửa hai lỗi công thức, mạnh lên gấp 2,5 lần
+        #                     (0,0125 -> 0,0317), VẪN làm tệ đi khi hợp nhất
+        #   kênh 5 caption  — A73: ở độ phủ 76% thì đóng góp ❌ ĐẢO DẤU
+        #   kênh 6 BGE-M3   — A59/A70: +0,0140 nhưng 🟡, chưa vượt nhiễu
+        #
+        # Ba cờ `--co-*` để soi từng kênh khi cần, kèm cảnh báo hiện lên giao
+        # diện. Kênh 6 còn tốn ~360 MB RAM nên trên máy 7,7 GB đừng bật kèm.
+        if bat_objects:
+            try:
+                self.kenh["objects"] = KenhObjects(str(index_dir), self.master)
+                self.ghi_chu.append("⚠️ kênh 4 (objects) BẬT TAY — A62 đo là "
+                                    "làm TỆ ĐI khi hợp nhất")
+            except Exception as e:                   # thiếu objects.parquet
+                self.ghi_chu.append(f"kênh 4 tắt: {e}")
+
+        if bat_caption:
+            p_cap = index_dir / "caption.parquet"
+            if p_cap.exists():
+                self.kenh["caption"] = KenhVanBan.tu_bang_khung(
+                    self.master, pd.read_parquet(p_cap), cot="caption",
+                    ten="caption")
+                self.ghi_chu.append("⚠️ kênh 5 (caption) BẬT TAY — A73 đo là "
+                                    "❌ ĐẢO DẤU ở độ phủ 76%")
+            else:
+                self.ghi_chu.append(f"kênh 5 tắt: thiếu {p_cap.name}")
+
+        if bat_bge:
+            p_bge = next((index_dir / x for x in
+                          ("van_ban_bge.npz", "van_ban_bge_doan.npz")
+                          if (index_dir / x).exists()), None)
+            if p_bge and cache:
+                from van_ban_dense import KenhVanBanDense
+                self.kenh["bge"] = KenhVanBanDense(
+                    str(index_dir), str(p_bge), str(cache), ten="bge")
+                self.ghi_chu.append("⚠️ kênh 6 (BGE-M3) BẬT TAY — A59 đo "
+                                    "+0,0140 nhưng 🟡, chưa vượt nhiễu")
+            else:
+                self.ghi_chu.append("kênh 6 tắt: thiếu van_ban_bge.npz "
+                                    "hoặc thiếu --cache")
 
         # Tra ngược row_id -> dòng, để đọc kf_path/pts_time trong O(1).
         # `row_id` trùng vị trí dòng (kiểm ở A39), nên dùng .values trực tiếp.
         self.kf_path = self.master.kf_path.values
+        # ⚠️ CÓ ẢNH KHÔNG = ảnh gốc **HOẶC** bản thu nhỏ. Hỏi mỗi
+        # `kf_path.notna()` là bỏ trắng cả L26 (79.590 dòng, 45% kho) —
+        # không máy nào giữ ảnh gốc L26, nhưng bản thu nhỏ thì có.
+        self.co_anh = ANH.ban_do_co_anh(self.master)
         self.pts = self.master.pts_time.values
         self.fps = self.master.fps.values
         self.vid = self.master.video_id.values
@@ -139,7 +193,7 @@ class Kho:
         for ten in dung_kenh:
             kn = self.kenh[ten]
             try:
-                cac.append(kn.tim(R.tach_truy_van(cau), k=k))
+                cac.append(self._hoi(kn, cau, k))
                 da_dung.append(ten)
             except KeyError:
                 # Kênh 1 chạy từ cache vector, nên câu GÕ TAY gần như chắc chắn
@@ -154,14 +208,38 @@ class Kho:
             except Exception:
                 traceback.print_exc()
 
-        cac = [c for c in cac if c]
-        if not cac:
+        giu = [(t, c) for t, c in zip(da_dung, cac) if c]
+        if not giu:
             return {"ung_vien": [], "kenh": da_dung, "canh_bao": canh_bao}
 
         # Một kênh thì khỏi RRF — hợp nhất một danh sách chỉ làm mất điểm gốc.
-        ket = cac[0] if len(cac) == 1 else hop_nhat(cac, k=k)
+        if len(giu) == 1:
+            ket = giu[0][1]
+        else:
+            # ⚠️ TRỌNG SỐ PHẢI GIỐNG `run.py`, không phải 1:1. A52 đo kênh 3 ở
+            # trọng số 0,5; để mặc định 1:1 thì giao diện và bài nộp nhìn thấy
+            # HAI bể ứng viên khác nhau — đúng loại lệch khiến người soát tin
+            # vào một thứ rồi nộp một thứ khác.
+            ket = hop_nhat([c for _, c in giu], k=RRF_K,
+                           trong_so=[TRONG_SO.get(t, 1.0) for t, _ in giu])
         return {"ung_vien": [self._the(c, i) for i, c in enumerate(ket[:k])],
                 "tho": ket[:k], "kenh": da_dung, "canh_bao": canh_bao}
+
+    def _hoi(self, kenh, cau: str, sl: int):
+        """Một truy vấn -> ứng viên, hợp nhất mệnh đề bằng **RRF HẠNG**.
+
+        ⚠️ KHÔNG gọi `kenh.tim(danh_sách_mệnh_đề)`. Hàm đó lấy **max cosine**
+        trên từng keyframe qua các mệnh đề, mà A51 đo được cách đó THUA RRF
+        hạng **−0,0721 / −0,0971, ✅ ổn định**: cosine của hai mệnh đề khác nhau
+        không so được với nhau, nên mệnh đề dễ nuốt mệnh đề đặc trưng.
+
+        Giao diện trước đây gọi đúng cách đã bị bác, tức nó vẽ ra một bể ứng
+        viên **yếu hơn bài nộp thật**. Đây là bản sao đúng của `run.hoi()`.
+        """
+        md = R.tach_truy_van(cau)
+        if len(md) == 1:
+            return kenh.tim(md, k=sl)
+        return hop_nhat([kenh.tim(m, k=sl) for m in md])[:sl]
 
     def _the(self, c, i: int) -> dict:
         r = int(c.row_id)
@@ -176,24 +254,33 @@ class Kho:
             "kf_n": int(self.kf_n[r]),
             "diem": round(float(c.score), 4),
             "nguon": c.source,
-            "co_anh": bool(pd.notna(self.kf_path[r])),
+            "co_anh": bool(self.co_anh[r]),
             "van_ban": self.van_ban.get(r, ""),
         }
 
-    def lap_chuoi(self, cac_su_kien: list, so_dong: int, **cau_hinh) -> list[dict]:
-        """N danh sách ứng viên -> các dòng TRAKE, qua chính `run.dung_trake`.
+    def lap_chuoi(self, cac_su_kien: list, so_dong: int, trake_cu: bool = False,
+                  **cau_hinh) -> list[dict]:
+        """N danh sách ứng viên -> các dòng TRAKE, qua đúng đường của `run.py`.
 
-        Không tự lắp chuỗi ở đây. `dung_trake` giữ đúng chỉ số sự kiện bằng
-        quy hoạch động (`dong_hang_dp`) và ép tăng dần theo thời gian —
-        dựng từ danh sách phẳng sẽ hoán đổi khung giữa các sự kiện, và
-        `nop_bai.soat` chặn thẳng.
+        Không tự lắp chuỗi ở đây — dựng từ danh sách phẳng sẽ hoán đổi khung
+        giữa các sự kiện, và `nop_bai.soat` chặn thẳng.
 
-        Mỗi vị trí trong chuỗi được đánh dấu `that`: khung có mặt trong bảng
-        cái, hay là khung **DP bịa ra** bằng nội suy / rải đều. Người soát
-        phải thấy khác biệt đó — khung nội suy không có ảnh để soi, và nó là
-        phỏng đoán chứ không phải kết quả truy hồi.
+        ⚠️ MẶC ĐỊNH LÀ K-BEST (A79), không phải `run.dung_trake`. Trên 20 câu
+        TRAKE, cách cũ (1 dòng mỗi video) thua K-best **−0,0990 ở ±2s, 2 thắng
+        / 11 thua, vượt ngưỡng nhiễu -> ✅ ỔN ĐỊNH**. `run.py` đã đổi sang
+        K-best; giao diện phải đi cùng đường, không thì người soát nhìn một
+        bài nộp rồi gửi đi một bài nộp khác.
+
+        Hệ quả dễ chịu: K-best **không nội suy** — beam sinh chuỗi tăng dần
+        thật, nên mọi vị trí đều là khung THẬT, không còn ô viền vàng "DP bịa
+        ra". Cờ `that` vẫn giữ để bản `--trake-cu` hiển thị đúng.
         """
-        dong = R.dung_trake(cac_su_kien, self.master, so_dong=so_dong, **cau_hinh)
+        if trake_cu:
+            dong = R.dung_trake(cac_su_kien, self.master, so_dong=so_dong,
+                                **cau_hinh)
+        else:
+            from kbest_trake import lap_trake
+            dong = lap_trake(cac_su_kien, self.master, so_dong=so_dong)
         ra = []
         for i, d in enumerate(dong):
             khung = []
@@ -203,7 +290,7 @@ class Kho:
                     "frame_idx": int(f),
                     "that": r is not None,
                     "row_id": r,
-                    "co_anh": r is not None and bool(pd.notna(self.kf_path[r])),
+                    "co_anh": r is not None and bool(self.co_anh[r]),
                     # Chỉ đọc pts_time của khung THẬT. Khung nội suy thì để
                     # trống, không suy `frame_idx / fps` — con số đó trông như
                     # số đo mà thật ra là phỏng đoán chồng phỏng đoán.
@@ -267,7 +354,7 @@ class Handler(BaseHTTPRequestHandler):
             return self._json({
                 "so_video": int(k.master.video_id.nunique()),
                 "so_khung": int(len(k.master)),
-                "so_co_anh": int(k.master.kf_path.notna().sum()),
+                "so_co_anh": int(k.co_anh.sum()),
                 **{"anh": ANH.thong_ke(k.master)},
                 "kenh": list(k.kenh),
                 "ghi_chu": k.ghi_chu,
@@ -388,15 +475,37 @@ class Handler(BaseHTTPRequestHandler):
 def main():
     ap = argparse.ArgumentParser(description="may chu cuc bo cho giao dien")
     ap.add_argument("--index", default=GOC / "index", type=Path)
+    # ⚠️ MẶC ĐỊNH BẬT SẴN KÊNH 1. Trước đây `--cache` mặc định None nên chạy
+    # `server.py` trần là mở giao diện KHÔNG có kênh mạnh nhất — và người dùng
+    # chỉ biết qua một băng cảnh báo. Nay tự tìm cache; muốn tắt thì
+    # `--cache ""`.
     ap.add_argument("--cache", default=None, type=Path,
-                    help="index/truy_van.npz — BẬT KÊNH 1 mà không nạp model. "
-                         "Thiếu nó thì bể ứng viên yếu hơn ~3 lần")
-    ap.add_argument("--matrix", default="clip_siglip2.npy")
+                    help="mặc định index/truy_van_gopt.npz nếu có. BẬT KÊNH 1 "
+                         "mà không nạp model")
+    # A47: gopt thắng đậm SigLIP2 cũ, và `run.py` cũng mặc định gopt.
+    ap.add_argument("--matrix", default="clip_gopt.npy")
+    ap.add_argument("--co-objects", action="store_true",
+                    help="bật kênh 4 (objects). MẶC ĐỊNH TẮT — A62 đo là làm "
+                         "TỆ ĐI khi hợp nhất, dù đã sửa hai lỗi công thức")
+    ap.add_argument("--co-caption", action="store_true",
+                    help="bật kênh 5 (caption). MẶC ĐỊNH TẮT — A73 đo là "
+                         "❌ ĐẢO DẤU ở độ phủ 76%%")
+    ap.add_argument("--co-bge", action="store_true",
+                    help="bật kênh 6 (BGE-M3). MẶC ĐỊNH TẮT — A59 đo "
+                         "+0,0140 nhưng 🟡. Tốn ~360 MB RAM")
     ap.add_argument("--cong", type=int, default=8000)
     a = ap.parse_args()
 
+    # Tự tìm cache theo đúng thứ tự `run.py` ưu tiên.
+    if a.cache is None:
+        for ten in ("truy_van_gopt.npz", "truy_van.npz"):
+            if (a.index / ten).exists():
+                a.cache = a.index / ten
+                break
+
     print("Đang nạp bảng cái và các kênh...", flush=True)
-    Handler.kho = Kho(a.index, a.cache, a.matrix)
+    Handler.kho = Kho(a.index, a.cache, a.matrix, a.co_objects,
+                      a.co_caption, a.co_bge)
     for g in Handler.kho.ghi_chu:
         print("  •", g)
     print(f"\n  http://127.0.0.1:{a.cong}\n")
