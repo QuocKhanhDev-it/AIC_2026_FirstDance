@@ -5036,6 +5036,95 @@ Nhưng `91_` chưa in ngưỡng nhiễu, và trên 17 câu thì hiệu 0,01 rấ
 trước: cho `78_`, `89_`, `91_` báo cáo qua `bao_cao_do_nhay()` như mọi phép đo
 khác, để có ngưỡng nhiễu và kết luận ✅/🟡/❌.
 
+### A79. TRAKE: **thứ đầu tiên qua ngưỡng kể từ A52** — và nó đã BẬT trong `run.py`
+
+Tập TRAKE đo được lên **20 câu** (6 đề thật + 14 tự soạn) sau khi 3 câu TRAKE
+mới của `de_thi_thu` được soi xong. Soát trước khi dùng: cả ba cùng MỘT video,
+mốc thời gian TĂNG DẦN, số sự kiện tách ra khớp số đáp án.
+
+#### Trước tiên: hai ứng viên 🟡 riêng lẻ
+
+| trên 20 câu | ±2s | ngưỡng | T-B-H | |
+| --- | ---: | ---: | :---: | :---: |
+| K-best 3s (ngân sách CŨ) | +0,0900 | 0,0937 | 9-2-9 | 🟡 thiếu 4% |
+| ngân sách 40/25/15/12/8 | +0,0090 | 0,0101 | 3-0-17 | 🟡 thiếu 11% |
+
+Ba câu mới **không phản đối**: 1 thắng, 0 thua, 2 hoà. Hiệu K-best giảm từ
+0,1029 (17 câu) xuống 0,0900 chỉ vì chúng là câu điểm thấp, delta gần 0 — kéo
+trung bình về 0 mà không giảm phương sai. **Thêm câu DỄ không giúp vượt ngưỡng.**
+
+#### Chỗ thật sự chặn: K-best đổi BỀ RỘNG lấy CHIỀU SÂU
+
+Bảng từng câu chỉ ra một câu ăn một phần tư hiệu ứng:
+
+    trake-L25-004   CŨ 0,4800  ->  K-best 0,0000   (oracle 0,8000)
+
+Hạng của video ĐÚNG trên 20 câu: **14 câu hạng 1, 4 câu hạng 2–5, 2 câu NGOÀI
+top-5** — `trake-L25-002` hạng 8 và `trake-L25-004` **hạng 23**.
+
+K-best chỉ xét top-5 video nên với hai câu đó nó sinh **không một giả thuyết
+nào** -> đúng 0 điểm, trong khi cách cũ rải 1 dòng cho mỗi trong 100 video vẫn
+chạm tới hạng 23. Một câu đó vừa ăn mất hiệu ứng vừa **thổi phồng phương sai**,
+tức tự đẩy ngưỡng nhiễu lên chống lại chính nó.
+
+#### Lưới an toàn, và cơ chế TỰ XÁC NHẬN (`92_do_lai_ghep_trake.py`)
+
+Dành `n` dòng cuối cho **1 chuỗi tốt nhất mỗi video từ hạng 6 trở đi**:
+
+| | ±2s | ±15s | T-B-H ±2s | |
+| --- | ---: | ---: | :---: | :---: |
+| *K-best thuần — mốc* | 0,3355 | 0,5555 | — | |
+| **CŨ 1 dòng/video** | 0,2365 | 0,5090 | **2-11-7** | **✅ TỆ HƠN −0,0990** |
+| + 10 dòng đuôi | 0,3305 | 0,5555 | 0-1-19 | 🟡 −0,0050 |
+| **+ 20 dòng đuôi** | **0,3490** | **0,5740** | 2-1-17 | 🟡 +0,0135 |
+| + 30 dòng đuôi | 0,3490 | 0,5740 | 2-1-17 | 🟡 +0,0135 |
+| + 50 dòng đuôi | 0,3495 | 0,5870 | 2-4-14 | 🟡 +0,0140 |
+
+`n = 10` **âm**, `n = 20` dương. Chỗ nhảy tính ra được: top-5 cộng `n` dòng đuôi
+phủ tới hạng `5+n`. `n=10` phủ tới hạng 15 — **chưa chạm hạng 23**, nên trả giá
+mà không được gì. `n=20` phủ tới hạng 25, chạm được, và lãi hiện ra.
+
+> Hiệu ứng xuất hiện **đúng chỗ cơ chế nói nó phải xuất hiện**. Đó là loại xác
+> nhận đáng tin hơn con số, vì nó không thể đến từ nhiễu — nhiễu không biết
+> hạng 23 nằm ở đâu.
+
+`n = 50` không hơn `n = 20` mà lại 2-4-14: cắt quá nhiều chiều sâu của top-5.
+
+#### Hai cải tiến 🟡 cộng lại thành một cải tiến ✅
+
+Với ngân sách 40/25/15/12/8, K-best thuần lên 0,3355 (so với 0,3265 ở ngân sách
+cũ), và hiệu so với cách CŨ thành **−0,0990 với ngưỡng 0,0932 -> ✅ ỔN ĐỊNH**,
+2 thắng / 11 thua.
+
+⚠️ Điều này chạm vào luật *"chỉ đổi MỘT thứ mỗi lần"*, nên phải nói rõ: ✅ ở đây
+là của **tổ hợp**, còn từng thành phần đứng riêng đều 🟡 — và ta biết vậy vì đã
+đo riêng từng cái (A74, A78). **Quy công không bị nhầm**, chỉ là thứ đem bật là
+cả cặp. Luật đó tồn tại để chống quy công nhầm, không phải để cấm ghép.
+
+#### ĐÃ BẬT — `src/kbest_trake.py`, mặc định trong `run.py`
+
+    cach_nhau = 3,0s          A74: 0,5 / 1,5 / 3,0 đều dương, 3,0 tốt nhất
+    ty_le = 40/25/15/12/8     A78: dồn hết hạng 1 là TỆ NHẤT (✅), trải đều hẳn
+                              thì ❌ đảo dấu; tối ưu sát ngay cạnh cách cũ
+    n_duoi = 20               A79: cơ chế trên
+
+`--trake-cu` quay lại cách cũ để dựng lại bài nộp cũ khi cần đối chiếu.
+
+**`run.dung_trake()` KHÔNG bị đổi** — nó là mốc nền "CŨ" mà `75_`, `78_`, `92_`
+đang so với. Đổi nó là làm mốc nền trôi theo và mọi phép đo TRAKE cũ thành
+không so lại được. Chỉ CHỖ GỌI trong `run.py` đổi.
+
+`beam_video` cũng được dời từ `scripts/78_` sang `src/` — hai bản song song là
+hai bản sẽ trôi khỏi nhau, đúng bài học vừa gặp với `diem_bai_nop`.
+
+#### Hai điều phải nhớ khi đọc lại kết luận này
+
+* ✅ dựa trên **±2s**; ở ±15s hiệu cùng dấu (−0,0465) nhưng **chưa vượt nhiễu**
+  (0,0900). Kết luận mạnh ở cửa hẹp, yếu ở cửa rộng.
+* **14/20 câu TRAKE là câu tự soạn.** A63 lập luận dùng được ở đây vì thứ tự sự
+  kiện và số Frame ID là ràng buộc **hình thức**, không phụ thuộc câu dễ hay
+  khó — lập luận đó vẫn đứng, nhưng nó là lập luận, không phải phép đo.
+
 ## PHẦN B — QUYẾT ĐỊNH HẠ TẦNG
 
 ### B1. Không dùng Supabase / Postgres / Milvus / Elasticsearch — ĐÃ KIỂM CHỨNG

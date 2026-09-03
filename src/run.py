@@ -812,6 +812,12 @@ def main():
                          "chỉ tắt để dựng lại số cũ")
     ap.add_argument("--so-su-kien", type=int, default=0,
                     help="ép số sự kiện TRAKE, thay vì tự tách từ đề")
+    ap.add_argument("--trake-cu", action="store_true",
+                    help="quay lại cách lắp TRAKE CŨ (1 dòng mỗi video). Mặc "
+                         "định dùng K-best beam search (A79): trên 20 câu, "
+                         "cách cũ thua −0,0990 ở ±2s, 2 thắng / 11 thua, vượt "
+                         "ngưỡng nhiễu -> ✅ ỔN ĐỊNH. Cờ này để dựng lại bài "
+                         "nộp cũ khi cần đối chiếu")
     # --- Mũi nhọn 1 (Giai đoạn 2). Cả ba mặc định TẮT — xem A22 ------------
     ap.add_argument("--uu-tien-video", type=int, default=0, metavar="N",
                     help="BƯỚC 1: đưa ứng viên thuộc top-N video của BM25 "
@@ -912,11 +918,20 @@ def main():
             if a.so_su_kien and len(ds) != a.so_su_kien:
                 ds = (ds + [ds[-1]] * a.so_su_kien)[:a.so_su_kien]
                 sk = (sk + [sk[-1]] * a.so_su_kien)[:a.so_su_kien]
-            if giu_kenh:
-                goi[ten] = dung_trake(ds, master, a.k, su_kien_text=sk,
-                                      kenh1=kenh1_obj)
+            # A79: 100 dòng = 100 GIẢ THUYẾT về video tốt nhất, không phải 100
+            # VIDEO khác nhau. Trên 20 câu TRAKE, cách cũ thua −0,0990 ở ±2s
+            # (2 thắng / 11 thua, vượt ngưỡng nhiễu) -> ✅ ỔN ĐỊNH.
+            #
+            # ⚠️ `dung_trake()` KHÔNG bị đổi — nó là mốc nền "CŨ" mà `75_`,
+            # `78_`, `92_` đang so với. Đổi nó là làm mốc nền trôi theo, và
+            # mọi phép đo TRAKE cũ thành không so lại được.
+            if a.trake_cu:
+                goi[ten] = (dung_trake(ds, master, a.k, su_kien_text=sk,
+                                       kenh1=kenh1_obj) if giu_kenh
+                            else dung_trake(ds, master, a.k))
             else:
-                goi[ten] = dung_trake(ds, master, a.k)
+                from kbest_trake import lap_trake
+                goi[ten] = lap_trake(ds, master, a.k)
             so_su_kien[ten] = len(ds)
         else:
             uv = kq1[ten]
