@@ -43,8 +43,35 @@ except ImportError:
     from schema import Candidate
 
 
+def _mo(f_vec):
+    """Đọc `van_ban_gopt.npz`, HOẶC một thư mục cùng tên đã bị giải nén.
+
+    `.npz` chỉ là một file zip chứa `vec.npy` / `row_id.npy` / `ghi_chu.npy`.
+    Trên đường đi Kaggle → Google Drive → máy thành viên, nó hay bị bung thành
+    thư mục — đã xảy ra thật với bản 1,32 GB đầu tiên. Ma trận vẫn nguyên vẹn,
+    chỉ là hình dạng trên đĩa khác; bắt cả nhóm nén lại 1,3 GB chỉ để `np.load`
+    vui lòng là phí công vô ích.
+
+    Dạng thư mục còn HƠN dạng nén ở đây: `vec.npy` mở được bằng `mmap`, nên
+    ma trận 1,32 GB nằm trên đĩa chứ không nằm trong RAM. Máy 7,7 GB của nhóm
+    đã treo cứng một lần vì nạp thẳng nó cùng lúc với chỉ mục BM25 kênh 3.
+    """
+    p = Path(f_vec)
+    if not p.exists() and p.with_suffix("").is_dir():
+        p = p.with_suffix("")
+    if p.is_dir():
+        return {
+            "vec": np.load(p / "vec.npy", mmap_mode="r"),
+            "row_id": np.load(p / "row_id.npy"),
+            "ghi_chu": np.load(p / "ghi_chu.npy", allow_pickle=True),
+        }
+    return np.load(p, allow_pickle=False)
+
+
 class KenhVanBanDense:
     """Truy hồi OCR/ASR bằng vector, gộp theo `row_id` bằng max."""
+
+    LO = 20_000                      # đoạn mỗi lô khi nhân — xem `tim()`
 
     def __init__(self, index_dir="./index", f_vec="index/van_ban_gopt.npz",
                  cache="index/truy_van_gopt.npz", ten="van_ban_dense"):
@@ -52,8 +79,10 @@ class KenhVanBanDense:
         self.ten = ten
         self.master = pd.read_parquet(d / "master.parquet")
 
-        z = np.load(f_vec, allow_pickle=False)
-        self.vec = np.asarray(z["vec"], dtype=np.float16)
+        z = _mo(f_vec)
+        # KHÔNG `np.asarray(..., dtype=)` — với mmap nó sao chép cả 1,32 GB
+        # vào RAM, đúng thứ dạng thư mục sinh ra để tránh.
+        self.vec = z["vec"]
         self.row_id = np.asarray(z["row_id"], dtype=np.int64)
         self.ghi_chu = json.loads(str(z["ghi_chu"]))
         if len(self.vec) != len(self.row_id):
@@ -73,6 +102,12 @@ class KenhVanBanDense:
                 f"văn bản bằng {self.ghi_chu.get('model')}.")
         self._cache = {str(c): v[i] for i, c in enumerate(zc["cau"])}
         self.nguon_cache = str(cache)
+
+        # Nhóm theo `row_id` — tính MỘT LẦN, dùng lại cho mọi truy vấn.
+        self._sx = np.argsort(self.row_id, kind="stable")
+        rid = self.row_id[self._sx]
+        self._dau = np.flatnonzero(np.r_[True, rid[1:] != rid[:-1]])
+        self._r_duy = rid[self._dau]
 
     def co_du(self, cac_cau) -> list[str]:
         """Câu CHƯA có trong cache. Gọi trước khi chạy để hỏng sớm."""
@@ -95,22 +130,25 @@ class KenhVanBanDense:
         return v / (np.linalg.norm(v) + 1e-9)
 
     def tim(self, cau, k: int = 100, be=None) -> list[Candidate]:
-        q = self._vec_truy_van(cau).astype(np.float16)
-        diem = self.vec @ q                        # điểm TỪNG ĐOẠN
+        q = self._vec_truy_van(cau).astype(np.float32)
+
+        # Nhân theo LÔ: `vec` là mmap 1,32 GB. `self.vec @ q` một phát sẽ kéo
+        # nguyên ma trận vào RAM — trên máy 7,7 GB là treo máy, không phải
+        # chậm. Mỗi lô 20.000 đoạn ~123 MB ở float32.
+        diem = np.empty(len(self.row_id), dtype=np.float32)
+        for i in range(0, len(diem), self.LO):
+            j = min(i + self.LO, len(diem))
+            diem[i:j] = np.asarray(self.vec[i:j], dtype=np.float32) @ q
 
         if be is not None:
             # Khoá bể ứng viên: loại đoạn thuộc row_id ngoài bể.
             diem = np.where(be[self.row_id], diem, -9.0)
 
-        # Gộp theo row_id bằng MAX. `np.maximum.at` chậm trên mảng lớn; xếp
-        # theo (row_id, -điểm) rồi lấy phần tử đầu mỗi nhóm thì nhanh hơn
-        # nhiều và cho cùng kết quả.
-        thu_tu = np.lexsort((-diem, self.row_id))
-        rid = self.row_id[thu_tu]
-        dau = np.ones(len(rid), dtype=bool)
-        dau[1:] = rid[1:] != rid[:-1]
-        r_duy = rid[dau]
-        d_duy = diem[thu_tu][dau]
+        # Gộp theo row_id bằng MAX. Thứ tự sắp theo `row_id` KHÔNG đổi giữa các
+        # truy vấn nên tính sẵn một lần trong `__init__`; ở đây chỉ còn
+        # `reduceat`, không phải `lexsort` 462k phần tử cho mỗi truy vấn.
+        d_duy = np.maximum.reduceat(diem[self._sx], self._dau)
+        r_duy = self._r_duy
 
         if k < len(r_duy):
             lay = np.argpartition(-d_duy, k)[:k]

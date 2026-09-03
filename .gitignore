@@ -108,3 +108,7 @@ vqa/
 
 # Ma nguon cua doi khac — KHONG commit len repo cong khai
 AIC-2026-Different groups/
+
+# Trang soi sinh ra tu 66_soat_de_thi_thu.py: anh tham chieu bang duong dan
+# TUYET DOI cua may sinh no, nen may khac mo ra chi thay o trong.
+dev/soat_de_thi_thu.html

@@ -790,12 +790,12 @@ def main():
                     help="quay lại gộp mệnh đề bằng MAX COSINE. A51 đo trên 52 "
                          "câu đề thật: RRF hạng + kênh 3 hơn max-cosine + kênh 3 "
                          "+0,0721/+0,0971 ✅ ỔN ĐỊNH. Chỉ tắt để tái lập số cũ")
-    ap.add_argument("--trong-so-phu", type=float, default=0.75,
-                    help="trọng số kênh phụ trong RRF. MẶC ĐỊNH 0,75 (A50). "
-                         "Trên 52 câu đề THẬT, 1:0,75 hơn gopt trần +0,0471 "
-                         "✅ ỔN ĐỊNH, còn 1:1 chỉ +0,0346 🟡. A45 từng đo hiệu "
-                         "tăng đơn điệu tới 1,0 — nhưng đó là với kênh 1 cũ "
-                         "(SigLIP2). Đổi kênh 1 sang gopt thì tối ưu dịch xuống")
+    ap.add_argument("--trong-so-phu", type=float, default=0.5,
+                    help="trọng số kênh phụ trong RRF. MẶC ĐỊNH 0,5 (A52). "
+                         "0,5 hơn 0,75 ở CẢ BA nhóm câu, không nhóm nào phản "
+                         "đối; và trên đề thật 0,5 hơn BỎ HẲN kênh 3 +0,0394 "
+                         "✅ ỔN ĐỊNH (1-8-43). Từ 1,0 trở lên là có hại ✅ ở cả "
+                         "ba nhóm — 0,75 (A50) chọn khi truy vấn còn bị cắt cụt")
     ap.add_argument("--hop-nhat-chi-cau-ngan", action="store_true",
                     help="CHỈ áp RRF cho câu <=1 mệnh đề. ⚠️ A45 BÁC cờ này: "
                          "đo trên 49 câu đề THẬT (trung vị 62 từ, 2,29 mệnh "
@@ -803,10 +803,21 @@ def main():
                          "loại câu dài mà A34 tưởng là thua. Giữ lại để dựng "
                          "lại phép đo cũ, đừng bật khi đi thi")
     ap.add_argument("--tra-loi", default="",
-                    help="chuỗi `answer` dùng chung cho mọi dòng Q&A khi chưa "
-                         "có VLM. Sai đáp án = 0 điểm, nhưng vẫn phải nộp")
+                    help="chuỗi `answer` DỰ PHÒNG cho dòng Q&A không đào được "
+                         "gì. Sai đáp án = 0 điểm, nhưng vẫn phải nộp")
+    ap.add_argument("--khong-dao-dap-an", action="store_true",
+                    help="TẮT việc đào `answer` riêng cho từng dòng Q&A, quay "
+                         "lại dùng một chuỗi chung (--tra-loi). A67 đo được "
+                         "đào riêng đúng 1/13 câu còn chuỗi chung 0/13, nên "
+                         "chỉ tắt để dựng lại số cũ")
     ap.add_argument("--so-su-kien", type=int, default=0,
                     help="ép số sự kiện TRAKE, thay vì tự tách từ đề")
+    ap.add_argument("--trake-cu", action="store_true",
+                    help="quay lại cách lắp TRAKE CŨ (1 dòng mỗi video). Mặc "
+                         "định dùng K-best beam search (A79): trên 20 câu, "
+                         "cách cũ thua −0,0990 ở ±2s, 2 thắng / 11 thua, vượt "
+                         "ngưỡng nhiễu -> ✅ ỔN ĐỊNH. Cờ này để dựng lại bài "
+                         "nộp cũ khi cần đối chiếu")
     # --- Mũi nhọn 1 (Giai đoạn 2). Cả ba mặc định TẮT — xem A22 ------------
     ap.add_argument("--uu-tien-video", type=int, default=0, metavar="N",
                     help="BƯỚC 1: đưa ứng viên thuộc top-N video của BM25 "
@@ -907,11 +918,20 @@ def main():
             if a.so_su_kien and len(ds) != a.so_su_kien:
                 ds = (ds + [ds[-1]] * a.so_su_kien)[:a.so_su_kien]
                 sk = (sk + [sk[-1]] * a.so_su_kien)[:a.so_su_kien]
-            if giu_kenh:
-                goi[ten] = dung_trake(ds, master, a.k, su_kien_text=sk,
-                                      kenh1=kenh1_obj)
+            # A79: 100 dòng = 100 GIẢ THUYẾT về video tốt nhất, không phải 100
+            # VIDEO khác nhau. Trên 20 câu TRAKE, cách cũ thua −0,0990 ở ±2s
+            # (2 thắng / 11 thua, vượt ngưỡng nhiễu) -> ✅ ỔN ĐỊNH.
+            #
+            # ⚠️ `dung_trake()` KHÔNG bị đổi — nó là mốc nền "CŨ" mà `75_`,
+            # `78_`, `92_` đang so với. Đổi nó là làm mốc nền trôi theo, và
+            # mọi phép đo TRAKE cũ thành không so lại được.
+            if a.trake_cu:
+                goi[ten] = (dung_trake(ds, master, a.k, su_kien_text=sk,
+                                       kenh1=kenh1_obj) if giu_kenh
+                            else dung_trake(ds, master, a.k))
             else:
-                goi[ten] = dung_trake(ds, master, a.k)
+                from kbest_trake import lap_trake
+                goi[ten] = lap_trake(ds, master, a.k)
             so_su_kien[ten] = len(ds)
         else:
             uv = kq1[ten]
@@ -945,6 +965,29 @@ def main():
 
             uv = bu_cho_du(uv, master, a.k)
 
+            # --- Bước 3b: đào `answer` cho TỪNG DÒNG từ OCR/ASR của chính
+            # khung đó (A67). Chạy TRƯỚC VLM để VLM ghi đè được nếu bật.
+            #
+            # ⚠️ VÌ SAO KHÔNG DÙNG MỘT CHUỖI CHUNG. BTC chấm `answer` theo TỪNG
+            # DÒNG. `--tra-loi` một chuỗi cho cả 100 dòng nghĩa là hoặc trúng
+            # cả trăm hoặc trắng cả trăm — vứt đi đúng cơ chế ăn điểm từng dòng.
+            #
+            # ⚠️ ĐÂY LÀ BẢN VÁ, KHÔNG PHẢI LỜI GIẢI. Đo trên 13 câu Q&A đề
+            # thật: đào bằng regex đúng 1/13, trần của mọi cách đào từ văn bản
+            # là 7/13 (sáu câu còn lại phải NHÌN ẢNH). Nhưng BTC không phạt đáp
+            # án sai, nên 1/13 vẫn hơn 0/13 — xem A67.
+            if loai == "qa" and not a.khong_dao_dap_an:
+                from dap_an import gan_cho_moi_dong
+                if "van_qa" not in locals():
+                    _b = pd.read_parquet(a.index / "ocr_asr.parquet")
+                    van_qa = {int(r): f"{o} {s}".strip() for r, o, s in zip(
+                        _b.row_id.values, _b.ocr_text.fillna("").values,
+                        _b.asr_text.fillna("").values)}
+                n_dao = gan_cho_moi_dong(uv[:a.k], de[ten], van_qa,
+                                         mac_dinh=a.tra_loi or "không rõ")
+                print(f"     đào `answer`: {n_dao}/{min(len(uv), a.k)} dòng "
+                      f"có chuỗi từ chính khung đó")
+
             # --- Bước 4: VLM sinh `answer`, chỉ cho gói Q&A ------------------
             if loai == "qa" and a.vlm:
                 from mui_nhon_1 import gan_dap_an
@@ -961,14 +1004,19 @@ def main():
         del kenh1_obj
         gc.collect()
 
-    if any(loai_cua(t) == "qa" for t in de) and not a.tra_loi.strip() and not a.vlm:
+    if (any(loai_cua(t) == "qa" for t in de) and not a.tra_loi.strip()
+            and not a.vlm and a.khong_dao_dap_an):
         raise SystemExit(
             "\n❌ Có gói Q&A nhưng chưa có `answer`.\n"
             "   BTC chấm: khung đúng NHƯNG answer sai -> 0 điểm. Bỏ trống là\n"
             "   chắc chắn 0, và `nop_bai.soat` sẽ chặn.\n\n"
-            "   Tạm thời: --tra-loi \"không rõ\"  (vẫn 0 điểm, nhưng nộp được\n"
-            "   để kiểm định dạng đầu-cuối).\n"
-            "   Đúng cách: cần VLM sinh đáp án — việc 12 của PHẦN H.")
+            "   Bỏ --khong-dao-dap-an để đào `answer` từ OCR/ASR của từng khung,\n"
+            "   hoặc --tra-loi \"không rõ\" để nộp được mà kiểm định dạng.")
+    if any(loai_cua(t) == "qa" for t in de) and not a.vlm:
+        print("\n⚠️ Q&A: `answer` đào bằng regex từ OCR/ASR — A67 đo được ĐÚNG\n"
+              "   1/13 câu, và trần của mọi cách đào từ văn bản là 7/13 (sáu\n"
+              "   câu còn lại phải NHÌN ẢNH). Đây là bản vá để không dòng nào\n"
+              "   bỏ trống, KHÔNG phải lời giải. Có VLM thì bật --vlm.")
 
     d = ghi_goi(goi, a.ra, so_su_kien)
 

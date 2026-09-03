@@ -76,18 +76,54 @@ def diem_trake_bai_nop(cac_dong, dung_moi_su_kien: list,
     R-Score một dòng = tỷ lệ vị trí khớp (A8.1: *"partial credit proportional to
     the number of correctly matched frames"*). Điểm cuối vẫn là trung bình
     `max R-Score trong top-k` trên các mốc R@{1,5,20,50,100}.
+
+    ⚠️ Mỗi vị trí trong `dong` nhận **một `row_id` HOẶC một `set` row_id**.
+    Cần cả hai vì `run.dung_trake()` trả `frame_idx`, mà A5.7 đo được **614
+    keyframe dùng chung `frame_idx`** — một frame_idx tra ra nhiều `row_id`, và
+    trúng bất kỳ cái nào cũng là trúng. Trước đây hai script TRAKE mỗi bên tự
+    viết một bản để xử hai dạng đó; nay một bản lo cả hai.
     """
     n = len(dung_moi_su_kien)
     if not n:
         return 0.0
     r = []
     for dong in cac_dong[:gioi_han]:
-        khop = sum(1 for i, f in enumerate(dong[:n]) if f in dung_moi_su_kien[i])
+        khop = sum(1 for i, f in enumerate(dong[:n])
+                   if (f if isinstance(f, (set, frozenset)) else {f})
+                   & dung_moi_su_kien[i])
         r.append(khop / n)
     if not r:
         return 0.0
     # max R-Score trong top-k, trung bình trên các mốc
     return mean(max(r[:k], default=0.0) for k in MOC)
+
+
+def cham_trake_nhieu_muc(cau, lam_dong, master, moc=None,
+                         gioi_han: int = 100) -> dict:
+    """`{dung_sai: DataFrame(id, loai, diem)}` cho MỘT cấu hình lắp ráp TRAKE.
+
+    `lam_dong(c)` trả về danh sách dòng của bài nộp cho câu `c`. Ghép với
+    `bao_cao_tu_bang()` thì các script TRAKE có đủ ngưỡng nhiễu và kết luận
+    ✅/🟡/❌ như mọi phép đo khác trong repo.
+
+    Chấm ở tầng **NỘP**, không phải tầng KÊNH — xem `diem_trake_bai_nop`.
+
+    ⚠️ `moc=None` chứ không phải `moc=MOC_DUNG_SAI`: hằng số đó định nghĩa ở
+    CUỐI file (cạnh khối cảnh báo về việc đừng đặt trùng tên với `MOC`), mà
+    tham số mặc định thì tính lúc `def`. Dời hằng số lên đầu sẽ tách nó khỏi
+    lời cảnh báo đang giữ cho nó không bị đè — đắt hơn là hoãn một dòng.
+    """
+    moc = moc or MOC_DUNG_SAI
+    ra = {}
+    for ds in moc:
+        dong = []
+        for c in cau:
+            dung = [no_cua_so(b, master, ds) for b in c.row_id_dung]
+            dong.append({"id": c.id, "loai": c.loai,
+                         "diem": diem_trake_bai_nop(lam_dong(c), dung,
+                                                    gioi_han)})
+        ra[ds] = pd.DataFrame(dong)
+    return ra
 
 
 def _hang(ket_qua, dung: set, gioi_han: int = 100, hop_le=None) -> int | None:
@@ -255,9 +291,26 @@ def bao_cao_do_nhay(tap_dev, cau_hinh: dict, master, moc=MOC_DUNG_SAI,
     """
     bang = {ten: cham_nhieu_muc(tap_dev, f, master, moc, gioi_han)
             for ten, f in cau_hinh.items()}
-    ten_moc = next(iter(cau_hinh))
+    return bao_cao_tu_bang(bang, moc)
 
-    ra = [f"{len(tap_dev)} câu | mốc nền: {ten_moc}", ""]
+
+def bao_cao_tu_bang(bang: dict, moc=MOC_DUNG_SAI) -> str:
+    """Phần BÁO CÁO của `bao_cao_do_nhay()`, tách ra để dùng lại.
+
+    `bang` là `{"tên cấu hình": {dung_sai: DataFrame(id, loai, diem)}}`; cấu
+    hình ĐẦU TIÊN làm mốc nền.
+
+    VÌ SAO TÁCH — thước TRAKE tầng NỘP (`diem_trake_bai_nop`) không đi qua
+    `cham()` được, vì `cham()` chấm tầng KÊNH (A63). Nên ba script TRAKE
+    (`78_`, `89_`, `91_`) tự in bảng điểm trung bình và **không có ngưỡng
+    nhiễu** — kết quả là hai ứng viên dương ở cả hai mức dung sai (K-best
+    +0,1029 ở A74, ngân sách 40/25/15/12/8 +0,0106 ở A78) vẫn **không bật
+    được**, không phải vì chúng sai mà vì không biết chúng có vượt nhiễu không.
+    """
+    ten_moc = next(iter(bang))
+    n_cau = len(next(iter(bang[ten_moc].values())))
+
+    ra = [f"{n_cau} câu | mốc nền: {ten_moc}", ""]
     ra.append("ĐIỂM TRUNG BÌNH")
     ra.append(f"  {'cấu hình':<22}" + "".join(f"{'±' + str(ds) + 's':>12}" for ds in moc))
     ra.append("  " + "-" * (22 + 12 * len(moc)))
@@ -265,14 +318,19 @@ def bao_cao_do_nhay(tap_dev, cau_hinh: dict, master, moc=MOC_DUNG_SAI,
         ra.append(f"  {ten:<22}" + "".join(f"{d[ds].diem.mean():>12.4f}" for ds in moc))
 
     ra += ["", f"SO THEO CẶP với `{ten_moc}`  (hiệu / thắng-thua-hòa / ngưỡng nhiễu)"]
-    for ten in list(cau_hinh)[1:]:
+    for ten in list(bang)[1:]:
         ra.append(f"\n  {ten}")
         dau, manh = [], False
         for ds in moc:
             g, h, se = _hieu(bang[ten_moc][ds], bang[ten][ds])
             tb = h.mean()
             dau.append(0 if tb == 0 else (1 if tb > 0 else -1))
-            vuot = abs(tb) > 2 * se > 0
+            # ⚠️ KHÔNG viết `abs(tb) > 2 * se > 0`. Vế `2*se > 0` biến kết quả
+            # NHẤT QUÁN NHẤT có thể — mọi câu đổi đúng cùng một lượng, nên
+            # se = 0 — thành 🟡 YẾU, tức dán nhãn yếu nhất cho tín hiệu mạnh
+            # nhất. Bỏ vế đó thì `tb = 0, se = 0` vẫn cho False, mà nhánh
+            # ⚪ KHÔNG ĐỔI GÌ đã lo ca đó rồi.
+            vuot = abs(tb) > 2 * se
             manh |= vuot
             ra.append(f"    ±{ds:<5g}s  {tb:>+8.4f}   "
                       f"{int((h > 0).sum())}-{int((h < 0).sum())}-{int((h == 0).sum())}"
