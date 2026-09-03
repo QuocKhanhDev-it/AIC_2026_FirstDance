@@ -60,6 +60,7 @@ import pandas as pd
 GOC = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(GOC / "src"))
 
+import anh as ANH                                            # noqa: E402
 import run as R                                              # noqa: E402
 from tra_loi_ocr import (MODEL_GEMINI, _goi_gemini,          # noqa: E402
                          _goi_gemini_anh, nap_khoa, thu_nho)
@@ -109,16 +110,28 @@ class Kho:
 
 def cong_cu_xem_khung(kho: Kho, rows: list[int], cau_hoi: str, key: str,
                       model: str) -> str:
-    """Gửi ảnh cho VLM, hỏi khung nào khớp câu hỏi. Đây là lượt gọi ĐẮT nhất."""
+    """Gửi ảnh cho VLM, hỏi khung nào khớp câu hỏi. Đây là lượt gọi ĐẮT nhất.
+
+    ⚠️ ĐI QUA `anh.tim()`, KHÔNG đọc thẳng `kf_path`. `kf_path` nghĩa là "ảnh
+    GỐC có ở máy này" (A5.5) — nó rỗng ở **cả 79.590 dòng của L26**, 45% kho,
+    vì không máy nào trong nhóm giữ 12,13 GB ảnh gốc đó. Đọc thẳng cột ấy thì
+    tác tử **lặng lẽ bỏ qua gần một nửa kho**: nó không báo lỗi, chỉ không bao
+    giờ nhìn vào những khung đó. Bản thu nhỏ 256px thì phủ **100%** (đo bằng
+    `anh.thong_ke`: 97.731 gốc + 79.590 nhỏ = 177.321) và đủ để NHẬN RA CẢNH —
+    đúng việc công cụ này làm. Cùng lỗi `anh.ban_do_co_anh` đã vá cho
+    `web/server.py`; chỗ này còn sót.
+
+    Ảnh nhỏ KHÔNG đủ để ĐỌC CHỮ nhỏ, nên nhãn nói rõ khung nào là bản nhỏ.
+    """
     anh, nhan = [], []
     for r in rows:
-        p = kho.kfp[r]
-        if not isinstance(p, str):
+        p, la_nho = ANH.tim(kho.kfp[r], kho.vid[r], kho.kfn[r])
+        if p is None:
             continue
-        b = thu_nho(p)
+        b = thu_nho(str(p))
         if b:
             anh.append(b)
-            nhan.append(kho.mo_ta(r))
+            nhan.append(kho.mo_ta(r) + (" [bản thu nhỏ]" if la_nho else ""))
     if not anh:
         return "Không khung nào có ảnh ở máy này."
     nhac = (

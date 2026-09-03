@@ -198,22 +198,35 @@ def khung_ngu_canh(master: pd.DataFrame, row_id: int,
     giây ở video này và 30 giây ở video kia. Câu hỏi đếm mà nhìn sang cảnh khác
     thì đếm ra một con số của cảnh khác.
 
-    Chỉ trả về ảnh **có thật trên máy này**: `kf_path` phụ thuộc máy (A5.5), và
-    trên máy đang chạy chỉ 21.810/177.321 dòng có ảnh. Trả về rỗng là chuyện
-    bình thường, không phải lỗi — `gan_dap_an` xử lý.
+    Chỉ trả về ảnh **có thật trên máy này**, và hỏi qua `anh.tim()` chứ không
+    đọc thẳng `kf_path`. `kf_path` nghĩa là "ảnh GỐC có ở máy này" (A5.5) — nó
+    rỗng ở **cả 79.590 dòng của L26**, 45% kho, vì không máy nào giữ 12,13 GB
+    ảnh gốc đó. Đọc thẳng cột ấy thì `--vlm` **không bao giờ trả lời được câu
+    Q&A rơi vào L26**, mà không có gì báo: `gan_dap_an` chỉ thấy danh sách ảnh
+    rỗng rồi rơi về `mac_dinh`. Bản thu nhỏ 256px phủ **100%** kho và đủ để
+    NHẬN RA CẢNH.
+
+    ⚠️ Bản thu nhỏ KHÔNG đủ để ĐỌC CHỮ nhỏ, mà 10/14 câu Q&A đề thật là câu đọc
+    chữ (docs/15). Nên với câu đọc chữ thì ảnh nhỏ chỉ là đường lùi, không phải
+    câu trả lời — xem cảnh báo ở đầu `src/anh.py`.
+
+    Trả về rỗng vẫn là chuyện bình thường, không phải lỗi — `gan_dap_an` xử lý.
 
     Khung chính (`buoc == 0`) LUÔN đứng đầu nếu có ảnh: VLM đọc ảnh đầu tiên
     kỹ nhất, mà đó mới là khung ta tin.
     """
+    from anh import tim as tim_anh
+
     quanh = lan_can(master, row_id, so_buoc=max(so_khung, 5), bien=bien)
     trong = [c for c in quanh if abs(c.meta["cach_giay"]) <= cua_so_giay]
     trong.sort(key=lambda c: (abs(c.meta["buoc"]), c.meta["buoc"]))
 
     ra = []
     for c in trong:
-        p = master.kf_path.iloc[c.row_id]
-        if isinstance(p, str) and p:
-            ra.append(p)
+        g = master.iloc[c.row_id]
+        p, _ = tim_anh(g.kf_path, g.video_id, g.kf_n)
+        if p is not None:
+            ra.append(str(p))
         if len(ra) >= so_khung:
             break
     return ra

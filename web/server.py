@@ -193,7 +193,7 @@ class Kho:
         for ten in dung_kenh:
             kn = self.kenh[ten]
             try:
-                cac.append(self._hoi(kn, cau, k))
+                cac.append(self._hoi(kn, cau, k, ten))
                 da_dung.append(ten)
             except KeyError:
                 # Kênh 1 chạy từ cache vector, nên câu GÕ TAY gần như chắc chắn
@@ -225,19 +225,30 @@ class Kho:
         return {"ung_vien": [self._the(c, i) for i, c in enumerate(ket[:k])],
                 "tho": ket[:k], "kenh": da_dung, "canh_bao": canh_bao}
 
-    def _hoi(self, kenh, cau: str, sl: int):
-        """Một truy vấn -> ứng viên, hợp nhất mệnh đề bằng **RRF HẠNG**.
+    # Kênh nào gộp mệnh đề bằng RRF HẠNG, kênh nào bằng MAX điểm. Xem `_hoi`.
+    RRF_MENH_DE = {"anh", "bge"}
 
-        ⚠️ KHÔNG gọi `kenh.tim(danh_sách_mệnh_đề)`. Hàm đó lấy **max cosine**
-        trên từng keyframe qua các mệnh đề, mà A51 đo được cách đó THUA RRF
-        hạng **−0,0721 / −0,0971, ✅ ổn định**: cosine của hai mệnh đề khác nhau
-        không so được với nhau, nên mệnh đề dễ nuốt mệnh đề đặc trưng.
+    def _hoi(self, kenh, cau: str, sl: int, ten: str = "anh"):
+        """Một truy vấn -> ứng viên, gộp mệnh đề theo ĐÚNG cách `run.py` gộp.
 
-        Giao diện trước đây gọi đúng cách đã bị bác, tức nó vẽ ra một bể ứng
-        viên **yếu hơn bài nộp thật**. Đây là bản sao đúng của `run.hoi()`.
+        ⚠️ **HAI KÊNH, HAI CÁCH GỘP — và đây là chỗ đã lệch.**
+
+        *Kênh vector (kênh 1, 6): RRF HẠNG.* A51 đo `kenh.tim(danh_sách)` —
+        max **cosine** qua mệnh đề — THUA RRF hạng **−0,0721 / −0,0971 ✅ ổn
+        định**: cosine của hai mệnh đề khác nhau không so được với nhau, nên
+        mệnh đề dễ nuốt mệnh đề đặc trưng.
+
+        *Kênh BM25 (kênh 3, 5): MAX ĐIỂM.* Lập luận trên **không chuyển sang
+        được**, vì điểm BM25 của hai mệnh đề CÙNG THANG (cùng công thức, cùng
+        kho) — không có chuyện "không so được với nhau". Đo trên 49 câu đề
+        thật (A85): áp RRF hạng cho kênh 3 được **−0,0082 / −0,0163, 0-2-47 và
+        1-4-44** — cùng dấu ÂM ở cả hai mức.
+
+        Giao diện trước đây áp RRF cho MỌI kênh, nên nó vẽ ra một bể ứng viên
+        **khác bài nộp thật** — đúng thứ hàm này sinh ra để chặn.
         """
         md = R.tach_truy_van(cau)
-        if len(md) == 1:
+        if len(md) == 1 or ten not in self.RRF_MENH_DE:
             return kenh.tim(md, k=sl)
         return hop_nhat([kenh.tim(m, k=sl) for m in md])[:sl]
 

@@ -304,3 +304,80 @@ def test_tach_su_kien_moc_su_kien_va_scene():
         "Bối cảnh chung.\nSự kiện 1: mở cửa\nSự kiện 2: bước vào")) == 2
     assert len(R.tach_su_kien(
         "Intro.\nScene 1. open\nScene 2. enter\nScene 3. leave")) == 3
+
+
+# ---- kênh 1: cắt mệnh đề rồi hợp nhất bằng RRF (A51) -----------------------
+#
+# ⚠️ CHỖ NÀY TỪNG HỎNG MÀ 328 TEST KHÔNG BẮT ĐƯỢC. `quet_anh.hoi()` gọi
+# `hop_nhat` khi truy vấn bị cắt thành >1 mệnh đề, nhưng `run.py` KHÔNG import
+# nó ở tầng module — nên câu dài ném `NameError` và `main()` chết trước khi ghi
+# file nào. Đo trên đề thật: **19/25 gói** vượt trần 40 từ, tức mất trắng cả
+# bài nộp. Mọi test cũ chỉ chạm các hàm thuần (tách sự kiện, DP, dựng TRAKE);
+# không test nào chạy `quet_anh`.
+
+
+class _KenhAnhGia:
+    """Giả `dense.KenhAnh`: mỗi mệnh đề trả một danh sách ứng viên khác nhau."""
+
+    def __init__(self, master):
+        self.master = master
+        self.mat = type("M", (), {"shape": (len(master), 8)})()
+        self.model_tag = "gia"
+        self.pretrained = "gia"
+        self.da_hoi = []
+
+    def tim(self, cau, k=100, **kw):
+        self.da_hoi.append(cau)
+        # mệnh đề khác nhau -> thứ tự ứng viên khác nhau, để RRF có việc làm
+        lech = len(str(cau)) % len(self.master)
+        return [Candidate(row_id=int(r), video_id=self.master.video_id.iloc[r],
+                          frame_idx=int(self.master.frame_idx.iloc[r]),
+                          score=1.0 - i * 0.01, source="clip")
+                for i, r in enumerate(
+                    [(lech + j) % len(self.master) for j in range(min(k, 30))])]
+
+
+def _cai_kenh_gia(monkeypatch, master):
+    import types
+    kenh = _KenhAnhGia(master)
+    gia = types.ModuleType("dense")
+    gia.KenhAnh = lambda *a, **k: kenh
+    gia.KenhAnhCache = lambda *a, **k: kenh
+    monkeypatch.setitem(sys.modules, "dense", gia)
+    return kenh
+
+
+def test_quet_anh_cau_dai_nhieu_menh_de_khong_no_NameError(monkeypatch):
+    """Câu > TRAN_TOKEN từ đi qua nhánh RRF mệnh đề — nhánh đã từng NameError."""
+    m = master_gia()
+    kenh = _cai_kenh_gia(monkeypatch, m)
+    cau = ". ".join(["mot cau rat dai " + " ".join(f"tu{i}" for i in range(20))
+                     for _ in range(3)])
+    assert len(R.tach_truy_van(cau)) > 1, "câu thử phải bị cắt thành nhiều mệnh đề"
+
+    kq, master = R.quet_anh(Path("index"), "clip.npy", {"query-1-kis": cau}, k=10)
+
+    assert len(kenh.da_hoi) > 1, "mỗi mệnh đề phải được hỏi riêng"
+    assert kq["query-1-kis"], "phải trả về ứng viên"
+    assert all(c.source == "rrf" for c in kq["query-1-kis"])
+    assert master is m
+
+
+def test_quet_anh_cau_ngan_giu_nguyen_mot_lan_hoi(monkeypatch):
+    """Câu ngắn (1 mệnh đề) KHÔNG đi qua RRF — giữ đúng hành vi cũ."""
+    m = master_gia()
+    kenh = _cai_kenh_gia(monkeypatch, m)
+    kq, _ = R.quet_anh(Path("index"), "clip.npy", {"query-1-kis": "cho ngoi"}, k=10)
+    assert kenh.da_hoi == [["cho ngoi"]]
+    assert all(c.source == "clip" for c in kq["query-1-kis"])
+
+
+def test_quet_anh_trake_cat_menh_de_tung_su_kien(monkeypatch):
+    """TRAKE: mỗi sự kiện một danh sách, và sự kiện dài cũng phải qua được."""
+    m = master_gia()
+    _cai_kenh_gia(monkeypatch, m)
+    dai = " ".join(f"tu{i}" for i in range(60))
+    nd = f"E1: {dai}.\nE2: con cho chay"
+    kq, _ = R.quet_anh(Path("index"), "clip.npy", {"query-1-trake": nd}, k=10)
+    assert len(kq["query-1-trake"]) == 2
+    assert all(ds for ds in kq["query-1-trake"])

@@ -47,6 +47,7 @@ sys.path.insert(0, str(GOC / "src"))
 
 from nop_bai import (TOI_DA_DONG, dong_goi, ghi_goi,          # noqa: E402
                      tu_ung_vien)
+from rrf import hop_nhat                                      # noqa: E402
 from schema import AnswerTRAKE                                # noqa: E402
 
 # Tên file đề. Tài liệu BTC ví dụ `query-1-kis`, nhưng bộ đề mẫu thật dùng

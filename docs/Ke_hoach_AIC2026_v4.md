@@ -5477,6 +5477,146 @@ hai.
 Trong lúc chờ, `--rai-bien-the 2` (A83) là thứ rẻ nhất còn dùng được: gấp 2,3
 lần điểm Q&A, 0 câu thua, và BTC không phạt dòng sai.
 
+### A85. Soát toàn bộ đường ống: **`run.py` chết trên 19/25 gói đề thật** — và 328 test không bắt được
+
+Rà lại toàn bộ mã chính (soát ngày 03/09). Bốn lỗi thật, hai phép đo mới.
+
+#### 1. `run.py` ném `NameError` trên mọi truy vấn dài hơn 40 từ — MẤT TRẮNG CẢ BÀI NỘP
+
+`quet_anh.hoi()` gọi `hop_nhat(...)` khi truy vấn bị `tach_truy_van` cắt thành
+hơn một mệnh đề — nhánh A51 bật mặc định. Nhưng `run.py` **không import
+`hop_nhat` ở tầng module**: lời gọi `from rrf import hop_nhat` duy nhất nằm
+*bên trong* `main()`, tức là một tên cục bộ của `main`, không phải biến toàn
+cục. Lỗi vào repo cùng commit A51 (`0b04a7b`).
+
+Hậu quả không phải "một câu hỏng" mà là **không có file nào được ghi**:
+`quet_anh` chạy trước vòng lặp gói, nên gói đầu tiên vượt trần đã giết cả lượt.
+
+| bộ đề | gói làm `run.py` chết |
+| --- | ---: |
+| `De_Thi_Chinh_Thuc` | **19/25** |
+| `de_thi_thu` | **18/24** |
+
+Dựng lại được bằng một lệnh, không phải suy luận:
+
+```
+.venv\Scripts\python.exe src\run.py --de De_Thi_Chinh_Thuc --ra out --cache index\truy_van_gopt.npz
+  File "src\run.py", line 251, in hoi
+    return hop_nhat([kenh.tim(m, k=sl) for m in md])[:sl]
+NameError: name 'hop_nhat' is not defined
+```
+
+**Vì sao 328 test không thấy.** `tests/test_run.py` chỉ chạm các hàm THUẦN —
+`tach_su_kien`, `dong_hang_dp`, `dung_trake`. **Không test nào gọi
+`quet_anh`**, tức hàm chạy kênh 1 và là chỗ duy nhất nhánh RRF mệnh đề đi qua.
+Đã bổ sung ba test (`test_quet_anh_*`) dựng kênh giả, không cần model.
+
+> Bài học chung: test phủ được từng viên gạch không có nghĩa là phủ được chỗ
+> ghép. Chỗ ghép là nơi `run.py` hỏng, và cũng là nơi ba lỗi còn lại ở dưới nằm.
+
+#### 2. `--rai-bien-the` là **VÔ HIỆU** trong `run.py` — A83 đo ở nơi khác
+
+`nop_bai.tu_ung_vien()` bỏ trùng theo khoá `(video_id, frame_idx)`. Nhưng dòng
+nộp Q&A là **bộ ba** `(video, frame, answer)`, và `dap_an.rai_bien_the()` phát
+`k` biến thể `answer` cho CÙNG một khung — nên mọi biến thể trừ cái đầu bị vứt
+lặng lẽ ngay tại đó. Chính `nop_bai.soat()` thì bỏ trùng theo cả ba ô, tức hai
+hàm trong cùng một file bất đồng ý về "thế nào là hai dòng khác nhau".
+
+A83 đo được rải biến thể **gấp 2,3 lần điểm Q&A** (0,0462 → 0,1077) — nhưng đo
+trong `96_do_rai_bien_the.py`, **không đi qua `tu_ung_vien`**. Cờ chưa bao giờ
+làm gì trên bài nộp thật.
+
+Đã sửa: khoá bỏ trùng của Q&A nay gồm cả `answer`; KIS giữ nguyên
+`(video, frame)`.
+
+#### 3. K-best TRAKE nộp được **hai sự kiện cùng một Frame ID**
+
+`beam_video` ép tăng dần theo `pts_time`, `lap_trake` lại nộp `frame_idx` — và
+A5.7 đo được **614 cặp** cùng video có `pts_time` tăng nhưng `frame_idx` BẰNG
+NHAU (0 cặp giảm). Dựng lại được: ba sự kiện ra `[0, 0, 519]`.
+
+`nop_bai.soat` **không bắt** vì nó so với `sorted()`, mà `[0, 0, 519]` đã
+sorted. `run.dung_trake` (đường CŨ) có chốt "phải TĂNG THẬT, không bằng nhau";
+K-best — đường MẶC ĐỊNH từ A79 — thì không. Hai sự kiện là hai khoảnh khắc
+khác nhau, nộp trùng ID là chắc chắn phí một. Đã thêm chốt vào `lap_trake`.
+
+#### 4. Tác tử và `--vlm` **mù 45% kho**, im lặng
+
+`src/tac_tu.py` và `mui_nhon_1.khung_ngu_canh()` đọc thẳng cột `kf_path` để
+tìm ảnh. `kf_path` nghĩa là *"ảnh GỐC có ở máy này"* (A5.5) — nó rỗng ở **cả
+79.590 dòng của L26**, vì không máy nào giữ 12,13 GB ảnh gốc đó.
+
+Nhưng `anh.thong_ke()` trên chính máy này trả về **97.731 gốc + 79.590 bản thu
+nhỏ = 177.321/177.321, tức 100%**. Ảnh có đủ; hai chỗ trên chỉ không hỏi đúng
+cửa. Đúng lỗi `anh.ban_do_co_anh` đã vá cho `web/server.py` — hai chỗ này còn
+sót. Đã cho cả hai đi qua `anh.tim()`, và nhãn nói rõ khung nào là bản nhỏ (ảnh
+nhỏ đủ để NHẬN RA CẢNH, không đủ để ĐỌC CHỮ).
+
+### A86. Hai phép đo mới: bù dòng TRAKE **vô ích**, và kênh 3 **không được gộp mệnh đề bằng RRF**
+
+#### 1. TRAKE bỏ trống trung bình 40/100 dòng — và bù vào **không đổi một câu nào**
+
+`run.py` trên `de_thi_thu` in ra `58`, `37`, **`11`** dòng cho ba gói TRAKE.
+`kbest_trake.cham_video()` loại mọi video thiếu ứng viên cho *bất kỳ* sự kiện
+nào, nên số video sinh được chuỗi có thể rất nhỏ; cách CŨ có nhánh rải cho tròn
+100, K-best bỏ mất lưới đó. Theo PHẦN C mục 1 thì đó là 89 cơ hội vứt đi.
+
+`scripts/98_do_bu_dong_trake.py`, 17 câu TRAKE:
+
+| cấu hình | số dòng TB | ±2s | ±15s | thắng-thua-hoà | kết luận |
+| --- | ---: | ---: | ---: | :---: | --- |
+| K-best ← MỐC | 60,3 | 0,3812 | 0,5753 | — | — |
+| + bù MỀM (video thiếu sự kiện, nội suy) | 95,4 | 0,3812 | 0,5753 | 0-0-17 | ⚪ KHÔNG ĐỔI GÌ |
+| + bù MỀM + RẢI | 100,0 | 0,3812 | 0,5753 | 0-0-17 | ⚪ KHÔNG ĐỔI GÌ |
+
+Không một câu nào đổi điểm, ở cả hai mức dung sai. Cơ chế giải thích được:
+điểm là `max R-Score trong top-k`, mà dòng bù toàn là video kênh đã xếp **dưới
+hạng 25**, với vị trí nội suy. Muốn ăn điểm TRAKE thì phải trúng *nhiều vị trí
+trong cùng một dòng* — xác suất đó ở video hạng 40 là gần 0, khác hẳn KIS nơi
+một dòng chỉ cần trúng một khung.
+
+> **Chỗ này ngược với trực giác "không phạt thì cứ điền cho đủ"**, và ngược có
+> lý do: luật "dòng thứ 100 vẫn đáng 0,2" đúng cho KIS/QA, nơi mỗi dòng là một
+> phỏng đoán ĐỘC LẬP. TRAKE bắt trúng N vị trí cùng lúc nên đuôi danh sách
+> gần như vô giá trị. **Đừng sửa `lap_trake` để bù dòng** — nó chỉ làm chậm và
+> làm bài nộp khó soi hơn. Con số `11/100` trông đáng sợ nhưng vô hại.
+
+#### 2. Ba đường chạy đưa truy vấn vào kênh 3 theo **ba cách khác nhau**
+
+| nơi | cách gộp mệnh đề cho kênh 3 |
+| --- | --- |
+| `src/run.py` | `k3.tim(tach_truy_van(nd))` → **MAX điểm** qua mệnh đề |
+| `scripts/57_, 77_, 86_` | `k3.tim(c.cau_hoi)` → **CẢ CÂU** |
+| `web/server.py` | `hop_nhat([k3.tim(m) …])` → **RRF HẠNG** |
+
+Nghĩa là trọng số 0,5 chốt ở A52 và kết luận A58 (*"kênh 3 cần cả câu"*) đều
+được đo trên cấu hình `run.py` **không chạy**, còn giao diện soát tay thì vẽ ra
+một bể ứng viên thứ ba. Đúng loại lệch A23 đã cắn.
+
+`scripts/99_do_menh_de_kenh3.py`, 49 câu đề thật (80% bị tách >1 mệnh đề), mốc
+nền là `run.py` như nó đang chạy:
+
+| cấu hình | ±2s | ±15s | thắng-thua-hoà (±2s / ±15s) | kết luận |
+| --- | ---: | ---: | :---: | --- |
+| MỐC — run.py (max mệnh đề) | 0,5184 | 0,6082 | — | — |
+| A. cả câu (script đo cũ) | 0,5224 | 0,6122 | 1-0-48 / 2-1-46 | 🟡 +0,0041 |
+| B. RRF hạng (web/server) | 0,5102 | 0,5918 | 0-2-47 / 1-4-44 | 🟡 **−0,0082 / −0,0163** |
+| C. kênh 1 một mình | 0,4939 | 0,5796 | 1-6-42 / 1-6-42 | 🟡 −0,0245 / −0,0286 |
+
+**Hai kết luận dùng được:**
+
+* **Lệch thì có thật nhưng NHỎ** (≤ 0,016). A52 và A58 không bị lật — đó là tin
+  tốt, và nay có số để nói thế thay vì phải tin.
+* **Lập luận A51 KHÔNG chuyển sang được cho kênh 3.** A51 thắng vì *cosine của
+  hai mệnh đề khác nhau không so được với nhau*. Điểm BM25 thì **cùng thang** —
+  cùng công thức, cùng kho — nên tiền đề biến mất, và đo ra RRF hạng là cấu
+  hình **tệ nhất trong ba**, cùng dấu âm ở cả hai mức. Đã sửa `web/server.py`:
+  RRF hạng cho kênh vector (1, 6), MAX điểm cho kênh BM25 (3, 5) — giao diện
+  nay thấy đúng bể ứng viên của bài nộp.
+
+**KHÔNG đổi `run.py`.** "Cả câu" hơn +0,0041 nhưng dưới ngưỡng nhiễu 0,0082 ở
+±2s — chưa đủ căn cứ, và đổi mốc nền thì mọi phép đo cũ hết so được.
+
 ## PHẦN B — QUYẾT ĐỊNH HẠ TẦNG
 
 ### B1. Không dùng Supabase / Postgres / Milvus / Elasticsearch — ĐÃ KIỂM CHỨNG

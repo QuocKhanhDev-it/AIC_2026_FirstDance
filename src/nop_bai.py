@@ -187,20 +187,30 @@ def tu_ung_vien(ung_vien: list, loai: str, dap_an: str | None = None,
     # `frame_idx`** với dòng liền trước. Cắt 100 trước rồi mới bỏ trùng là nộp
     # 99 dòng và phí một chỗ; bỏ trùng trước thì lấy tiếp ứng viên sau để bù.
     # Đã gặp thật trên bộ đề mẫu: `query-p1-2-kis` trùng ở dòng 44.
+    #
+    # ⚠️ VỚI Q&A, KHÓA BỎ TRÙNG PHẢI GỒM CẢ `answer`. Dòng nộp Q&A là bộ ba
+    # `(video, frame, answer)`, nên hai dòng cùng khung mà KHÁC đáp án là hai
+    # dòng khác nhau — `soat()` cũng bỏ trùng theo cả ba ô. Khóa chỉ có
+    # `(video, frame)` thì `dap_an.rai_bien_the()` thành VÔ HIỆU: nó phát k
+    # biến thể cho một khung, và tất cả trừ cái đầu bị vứt lặng lẽ ngay tại
+    # đây. A83 đo được rải biến thể gấp 2,3 lần điểm Q&A, nhưng đo ở
+    # `96_do_rai_bien_the.py` — KHÔNG đi qua hàm này, nên chỗ hỏng không lộ.
     ra, thay = [], set()
     for c in ung_vien:
         if len(ra) >= gioi_han:
             break
-        khoa = (c.video_id, int(c.frame_idx))
+        tra = None
+        if loai == "qa":
+            t = c.meta.get("answer") if getattr(c, "meta", None) else None
+            tra = str(t if t is not None else (dap_an or ""))
+        khoa = (c.video_id, int(c.frame_idx), tra)
         if khoa in thay:
             continue
         thay.add(khoa)
         if loai == "kis":
             ra.append(AnswerKIS(c.video_id, int(c.frame_idx)))
         elif loai == "qa":
-            tra = c.meta.get("answer") if getattr(c, "meta", None) else None
-            ra.append(AnswerQA(c.video_id, int(c.frame_idx),
-                               str(tra if tra is not None else (dap_an or ""))))
+            ra.append(AnswerQA(c.video_id, int(c.frame_idx), tra))
         else:
             raise ValueError(f"loai không hợp lệ: {loai!r}")
     return ra
