@@ -47,7 +47,8 @@ import run as R                                       # noqa: E402
 import tap_dev                                        # noqa: E402
 from bm25 import KenhVanBan                           # noqa: E402
 from cham_diem import (DUNG_SAI_CHINH, DUNG_SAI_KIEM,  # noqa: E402
-                       MOC, no_cua_so)
+                       MOC, bao_cao_tu_bang, cham_trake_nhieu_muc,
+                       no_cua_so)
 from dense import KenhAnhCache                        # noqa: E402
 from rrf import hop_nhat                              # noqa: E402
 
