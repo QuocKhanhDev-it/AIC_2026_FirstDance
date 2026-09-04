@@ -5967,6 +5967,104 @@ OCR cũ, w=0,5, RRF hạng k=60, K-best TRAKE — **0,5173 / 0,6096** trên 52 c
 nhãn sạch. A88 giữ nguyên trạng thái 🟡 (thiếu 5% để qua ngưỡng) và giờ đã biết
 thêm: **đừng chờ A82 đẩy nó qua**.
 
+### A92. Điểm đang mất nằm Ở ĐÂU — phân rã đầu tiên sau 91 mục đo
+
+91 mục trước đều trả lời *"cấu hình A có hơn cấu hình B không"*. Không mục nào
+trả lời **"trong 0,4769 điểm đang mất, phần nào nằm ở đâu"** — mà đó mới là thứ
+quyết định nên đầu tư vào chỗ nào. `107_phan_ra_diem.py`, 52 câu nhãn sạch, ±2s:
+
+| ô | câu | điểm | **mất** | R@1 | R@20 | R@100 | trượt |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| KIS | 37 | 0,5838 | **0,2962** | 0,24 | 0,68 | 0,81 | 7 |
+| QA | 12 | 0,3500 | **0,1500** | 0,08 | 0,42 | 0,58 | 5 |
+| TRAKE | 3 | 0,4667 | 0,0308 | 0,00 | 0,67 | 0,67 | 1 |
+
+Cột `mất` đã nhân với số câu trong ô, nên nó xếp đúng thứ tự nên đầu tư — ô có
+tỷ lệ tệ nhất chưa chắc là ô đáng chữa nhất.
+
+#### Ba điều bảng này nói mà không mục nào trước nói
+
+**1. Chỗ mất là R@1, không phải R@100.** KIS có đáp án trong top-100 ở **81%**
+số câu nhưng chỉ ở hạng 1 ở **24%**. Tức phần lớn điểm mất không phải vì không
+tìm ra, mà vì **không xếp đúng thứ tự**. Thêm kênh truy hồi thứ sáu không chữa
+được điều đó; chỉ **xếp lại hạng trong top-100** mới chữa được. Đây là lý do
+mọi kênh mới đo từ A59 tới A90 đều thất bại — chúng giải sai bài toán.
+
+**2. Q&A hỏng ở khâu TÌM KHUNG, không chỉ ở khâu đọc đáp án.** Con số 0,3500
+trên **chưa xét `answer` đúng hay sai** — nó thuần truy hồi, và vẫn tệ hơn KIS ở
+mọi mốc. Điểm nộp thật của Q&A còn thấp hơn nữa. A83/A88 dồn hết sức vào khâu
+đào đáp án là đúng nhưng mới một nửa bài toán.
+
+**3. Độ dài truy vấn KHÔNG phải thủ phạm — và suýt nữa thì tin là có.**
+`94_soi_cau_that_bai.py` báo *"6/49 câu có đáp án ngoài top-1000, cả sáu đều dài
+>40 từ"*, nghe như một phát hiện. Tỷ lệ nền bác nó ngay: **42/52 câu vốn đã dài
+>40 từ**. Sáu trên sáu là điều gần như chắc chắn xảy ra kể cả khi độ dài chẳng
+liên quan gì.
+
+> Bài học lặp lại A21 ở dạng khác: **một tỷ lệ không có mẫu số thì không phải
+> số liệu.** `107_` từ nay in tỷ lệ nền cạnh mọi ô.
+
+### A93. Mệnh đề HỎI của câu Q&A làm nhiễu kênh 1 — dương ở mọi lát cắt, nhưng 🟡 ở mọi lát cắt
+
+A92 chỉ ra Q&A hỏng ở khâu tìm khung. Nhìn vào chính truy vấn thì thấy ngay
+nguyên nhân khả dĩ: `tach_truy_van` cắt câu Q&A ra, và mệnh đề cuối bao giờ
+cũng là câu HỎI:
+
+    | Đoạn video mô tả quá trình làm bánh, bánh có màu tím...   <- tả cảnh
+    | Mỗi lần khuôn này làm được bao nhiêu cái bánh?            <- HỎI
+
+Mệnh đề thứ hai nói về **thứ cần trả lời**, không nói **cảnh trông thế nào**.
+Đem đi tìm ảnh thì nó kéo về bất cứ gì — mà RRF hạng (A51) cho nó **tiếng nói
+ngang** mệnh đề tốt.
+
+#### Bộ nhận diện tách sạch, nên nhóm đối chứng có sẵn
+
+| loại | câu có mệnh đề hỏi tách riêng |
+| --- | ---: |
+| Q&A | **11/12** |
+| KIS | **0/37** |
+| TRAKE | **0/3** |
+
+0/37 câu KIS bị đụng tới — không phải dựng thêm nhóm đối chứng, nó có sẵn.
+
+#### Kết quả (`108_do_menh_de_hoi.py`) — bốn lát cắt, bảy phép so, không lát nào âm
+
+| lát cắt | n bị ảnh hưởng | hiệu ±2s | hiệu ±15s | T-B-H | ngưỡng |
+| --- | ---: | ---: | ---: | :---: | ---: |
+| 52 câu đề thật | 11 | +0,0154 | +0,0154 | 4-1-47 | 0,0287 |
+| 74 câu Q&A tập dev | 28 | +0,0189 | +0,0189 | 9-3-62 | 0,0245 |
+| **chỉ 11 câu bị ảnh hưởng** | 11 | **+0,0727** | **+0,0727** | 4-1-6 | 0,1351 |
+
+Trên riêng 11 câu đó: **0,3455 -> 0,4182 ở ±2s, 0,4909 -> 0,5636 ở ±15s.**
+
+`w = 0,25` và `bỏ hẳn` cho kết quả y hệt trên đề thật; trên tập dev thì `0,25`
+nhỉnh hơn (0,5243 so với 0,5216). Nếu bật thì bật `0,25`, không bật `0`.
+
+#### Vì sao vẫn KHÔNG bật, dù dương ở cả bảy phép so
+
+Thu hẹp về 11 câu bị ảnh hưởng là **phép thử đúng** — câu không bị bắn thì hoà
+tuyệt đối, không mang thông tin về hiệu nhưng vẫn phình mẫu số. Nhưng nó không
+cứu được kết luận: **hiệu tăng 4,7 lần thì ngưỡng cũng nở 4,7 lần**. 11 câu thì
+không đủ để nói gì, dù đúng chiều.
+
+⚠️ **Và `tap_de_that` là TẬP CON của `tap_dev`** (52/52 câu trùng) — nên hai
+dòng đầu bảng **không phải hai phép nhân bản độc lập**, mà là một tập và tập lớn
+hơn chứa nó. Suýt viết nhầm thành "nhân bản độc lập"; kiểm giao mới thấy.
+
+**Đã cài `--trong-so-hoi`, mặc định `1,0` = không đổi gì.** Có test chốt rằng
+mặc định phải là 1,0, kèm lý do — để lần sau ai muốn bật thì phải sửa test, tức
+phải đối diện với việc nó mới 🟡.
+
+**Thứ sẽ giải quyết: thêm câu Q&A đề thật có nhãn sạch.** 8 gói `de_thi_thu`
+chưa gán nhãn là nguồn gần nhất (A89 việc 4). Đây là lần thứ hai trong ba mục
+liên tiếp mà **thiếu nhãn, chứ không thiếu ý tưởng**, là thứ chặn kết luận.
+
+#### Hạn chế đã biết của bộ nhận diện
+
+Khớp danh sách từ khoá **có dấu** (cộng dấu `?`). Câu vừa không dấu vừa không có
+`?` thì lọt. Cố ý giữ vậy: đổi sang khớp bản bỏ dấu sẽ đổi tập câu bị ảnh hưởng
+và làm A93 không tái lập được. Có test ghi rõ hạn chế này.
+
 ## PHẦN B — QUYẾT ĐỊNH HẠ TẦNG
 
 ### B1. Không dùng Supabase / Postgres / Milvus / Elasticsearch — ĐÃ KIỂM CHỨNG
@@ -6703,6 +6801,62 @@ objects từ "nhiễu nặng, kênh phụ" → **kênh chính thứ tư**.
 ---
 
 ## PHẦN H — VIỆC LÀM NGAY
+
+### H0. TRẠNG THÁI HÔM NAY (04/09) — đọc mục này trước, H1–H4 bên dưới là LỊCH SỬ
+
+`CLAUDE.md` bảo đọc PHẦN H trước khi sửa gì. Nhưng H1–H4 được viết ở Giai đoạn 1
+khi kênh 1 vừa sống lại; phần lớn việc trong đó đã xong hoặc đã bị chính phép đo
+bác bỏ. **Giữ nguyên chúng làm lịch sử, nhưng đừng lấy làm việc phải làm.**
+
+#### Cấu hình đang chạy (và mọi thứ trong đó đều đã thắng trên tập dev)
+
+| thành phần | giá trị | căn cứ |
+| --- | --- | --- |
+| kênh 1 — ảnh | `clip_gopt.npy`, `ViT-gopt-16-SigLIP2-384` (1536 chiều) | A87: gấp **2,4 lần** SigLIP2-1152 |
+| kênh 3 — OCR/ASR | `ocr_asr.parquet`, w = 0,5 | A52 |
+| hợp nhất kênh | RRF hạng, k = 60 | A72 (8/8 biến thể bằng điểm đều tệ hơn) |
+| hợp nhất mệnh đề | RRF hạng cho kênh 1, MAX cho kênh BM25 | A51, A86 |
+| TRAKE | K-best, `cách_nhau` 3,0s, ngân sách 40/25/15/12/8, 20 dòng đuôi | A79 |
+| kênh 2 / 4 / 5 / 6 | **TẮT** | A14.2 / A62 / A73+A90 / A59 |
+
+**Điểm trên 52 câu đề thật nhãn sạch: 0,5173 ở ±2s, 0,6096 ở ±15s** (A91).
+Trần của bể hiện tại: 0,8776 / 0,9592 (A87).
+
+#### Điểm đang mất nằm ở đâu (A92 — `107_phan_ra_diem.py`)
+
+| ô | câu | điểm | **mất** | R@1 |
+| --- | ---: | ---: | ---: | ---: |
+| KIS | 37 | 0,5838 | **0,2962** | 0,24 |
+| QA | 12 | 0,3500 | **0,1500** | 0,08 |
+| TRAKE | 3 | 0,4667 | 0,0308 | 0,00 |
+
+Hai điều bảng này nói mà 91 mục đo trước KHÔNG nói:
+
+* **R@1 mới là chỗ mất, không phải R@100.** KIS có đáp án trong top-100 ở 81%
+  số câu nhưng chỉ xếp hạng 1 ở 24%. Kênh truy hồi thứ sáu không chữa được điều
+  đó — **xếp lại hạng trong top-100 mới chữa được.**
+* **Q&A hỏng ở khâu TÌM KHUNG, không chỉ ở khâu đọc đáp án.** Con số 0,3500
+  trên chưa xét `answer` đúng hay sai; điểm nộp thật còn thấp hơn. A83/A88 tập
+  trung vào khâu đào đáp án là đúng nhưng chưa đủ.
+
+#### Việc còn mở, xếp theo `mất` chứ không theo độ thú vị
+
+| # | việc | vì sao |
+| --- | --- | --- |
+| 1 | **Xếp lại hạng top-100** | ô `mất` lớn nhất. Chưa có cách nào chạy được trên máy 7,7 GB không GPU — đây là câu hỏi mở thật sự, không phải việc chờ làm |
+| 2 | **Soi lại 14 nhãn `de_thi_thu` từ ẢNH GỐC** | A89: chưa có bằng chứng phản bác ≠ bằng chứng đúng. Phải soi theo mô tả, **không** chọn từ danh sách hệ thống trả về |
+| 3 | **LLM đọc `câu hỏi + văn bản khung` để ra `answer`** | A88: trần Q&A là 6/13, mọi phép chọn theo hình thức bề mặt đều ra xa hơn |
+| 4 | 8 gói `de_thi_thu` chưa có nhãn (`p1-3`, `p1-19`, `p1-21`, `p1-22`…) | thêm câu nhãn sạch là cách rẻ nhất để 🟡 thành ✅ |
+
+#### Thứ ĐÃ THỬ VÀ BỊ BÁC — đừng thử lại nếu không có cơ chế mới
+
+dedup (A11) · RRF thô (A14) · hợp nhất hai tầng (A14.1) · kênh 2 (A14.2) ·
+kênh 4 (A62) · làm mượt vector (A57) · gộp theo đoạn ASR (A70) · hợp nhất bằng
+điểm, 8 biến thể (A72) · caption ở mọi độ phủ (A73, A90) · NMS thời gian (A81) ·
+khuếch tán điểm (A82) · phạt bậc TRAKE (A83) · bảng tra ASR (A84) · đào cụm
+theo IDF (A88) · gộp văn bản VietOCR (A88, 🟡) · khuếch tán + gộp văn bản cùng
+lúc (A91, giẫm lên nhau).
+
 
 *Giai đoạn 0 đã đóng (873/873, 0 lệch chỉ số thật). Mọi việc dưới đây thuộc
 Giai đoạn 1.*

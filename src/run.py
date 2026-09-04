@@ -185,8 +185,25 @@ def tach_truy_van(cau: str, tran_tu: int = TRAN_TOKEN) -> list[str]:
 
 # ------------------------------------------------------------------ các kênh
 
+# Dấu hiệu mệnh đề HỎI tiếng Việt (A93). Dấu `?` là dấu hiệu mạnh nhất nhưng
+# không đủ: đề thật có câu hỏi viết dưới dạng mệnh lệnh ("Hãy cho biết...").
+TU_HOI = re.compile(
+    r"\b(bao nhiêu|mấy|là gì|màu gì|nào|thế nào|ra sao|tại sao|vì sao|"
+    r"khi nào|ở đâu|ai là|hãy cho biết|hỏi )\b", re.IGNORECASE)
+
+
+def la_menh_de_hoi(m: str) -> bool:
+    """Mệnh đề này hỏi về ĐÁP ÁN chứ không tả CẢNH?
+
+    Đo được (A93): bắn ở **11/12 câu Q&A** của đề thật và **0/37 câu KIS,
+    0/3 câu TRAKE** — tách sạch, nên bật cờ không đụng gì tới KIS.
+    """
+    return m.rstrip().endswith("?") or bool(TU_HOI.search(m))
+
+
 def quet_anh(index: Path, matrix: str, de: dict, k: int, mmap=True,
-            giu_kenh: bool = False, cache=None, rrf_menh_de: bool = True):
+            giu_kenh: bool = False, cache=None, rrf_menh_de: bool = True,
+            trong_so_hoi: float = 1.0):
     """Chạy kênh ảnh cho MỌI truy vấn rồi giải phóng model.
 
     TRAKE cần một danh sách riêng cho từng sự kiện con, nên giá trị trả về là
@@ -249,7 +266,19 @@ def quet_anh(index: Path, matrix: str, de: dict, k: int, mmap=True,
         md = tach_truy_van(noi_dung)
         if len(md) == 1 or not rrf_menh_de:
             return kenh.tim(md, k=sl)
-        return hop_nhat([kenh.tim(m, k=sl) for m in md])[:sl]
+        if trong_so_hoi == 1.0:
+            return hop_nhat([kenh.tim(m, k=sl) for m in md])[:sl]
+        # A93: mệnh đề HỎI nói về thứ cần TRẢ LỜI, không nói cảnh trông thế nào.
+        ta = [m for m in md if not la_menh_de_hoi(m)]
+        hoi_md = [m for m in md if la_menh_de_hoi(m)]
+        if not ta:                      # toàn mệnh đề hỏi -> giữ nguyên
+            ta, hoi_md = md, []
+        ds = [kenh.tim(m, k=sl) for m in ta]
+        ts = [1.0] * len(ds)
+        if trong_so_hoi > 0:
+            ds += [kenh.tim(m, k=sl) for m in hoi_md]
+            ts += [trong_so_hoi] * len(hoi_md)
+        return hop_nhat(ds, trong_so=ts)[:sl]
 
     ra = {}
     for ten, noi_dung in de.items():
@@ -791,6 +820,12 @@ def main():
                     help="quay lại gộp mệnh đề bằng MAX COSINE. A51 đo trên 52 "
                          "câu đề thật: RRF hạng + kênh 3 hơn max-cosine + kênh 3 "
                          "+0,0721/+0,0971 ✅ ỔN ĐỊNH. Chỉ tắt để tái lập số cũ")
+    ap.add_argument("--trong-so-hoi", type=float, default=1.0,
+                    help="trọng số của mệnh đề HỎI trong kênh 1. MẶC ĐỊNH 1,0 "
+                         "= không đổi gì. A93 đo 0,25 được +0,0154/+0,0154 "
+                         "(4-1-47) trên 52 câu đề thật, DƯƠNG ở mọi lát cắt "
+                         "nhưng 🟡 chưa vượt nhiễu — chỉ 11/52 câu bị ảnh "
+                         "hưởng nên hiệu bị pha loãng. 0 = bỏ hẳn mệnh đề hỏi")
     ap.add_argument("--trong-so-phu", type=float, default=0.5,
                     help="trọng số kênh phụ trong RRF. MẶC ĐỊNH 0,5 (A52). "
                          "0,5 hơn 0,75 ở CẢ BA nhóm câu, không nhóm nào phản "
@@ -878,10 +913,12 @@ def main():
     elif giu_kenh:
         kq1, master, kenh1_obj = quet_anh(a.index, a.matrix, de, a.k,
                                           rrf_menh_de=a.rrf_menh_de,
+                                          trong_so_hoi=a.trong_so_hoi,
                                           giu_kenh=True, cache=a.cache)
     else:
         kq1, master = quet_anh(a.index, a.matrix, de, a.k, cache=a.cache,
-                               rrf_menh_de=a.rrf_menh_de)
+                               rrf_menh_de=a.rrf_menh_de,
+                               trong_so_hoi=a.trong_so_hoi)
     phu = (quet_van_ban(master, de, a.k, a.index, a.bo_metadata)
            if a.hop_nhat else {})
 

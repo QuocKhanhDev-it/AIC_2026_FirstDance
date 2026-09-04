@@ -320,11 +320,22 @@ class KenhVanBan:
 def doc_van_ban_khung(index_dir, ten_cot: str = "text") -> pd.DataFrame:
     """`(row_id, text)` cho kênh 3 — GỘP `ocr_asr.parquet` + `ocr_vietocr.parquet`.
 
-    ⚠️ **MỘT CHỖ DUY NHẤT dựng văn bản kênh 3.** `run.py`, `web/server.py` và
-    mọi script đo đều gọi vào đây. Bốn lỗi im lặng vừa sửa (xem commit
-    `8a27e29`) lọt qua theo đúng một cách: **script đo không chạy cùng đường
-    với bài nộp**. Đường ghép văn bản là chỗ dễ tái phạm nhất, nên nó chỉ có
-    một bản.
+    ⚠️ **HÀM NÀY CHƯA ĐƯỢC NỐI VÀO BÀI NỘP, VÀ ĐÓ LÀ CỐ Ý.** `run.py` và
+    `web/server.py` đọc thẳng `ocr_asr.parquet`; chỉ `102_`, `103_`, `106_`
+    gọi vào đây. Lý do: A88/A91 đo văn bản gộp chỉ được **🟡 +0,0144** ở ±2s
+    và **+0,0000** ở ±15s — dưới ngưỡng nhiễu 0,0151, tức chưa thắng. Luật của
+    repo là *không tính năng nào bật mặc định trước khi thắng trên tập dev*.
+
+    Muốn bật thì phải làm ĐỦ hai việc, nếu không sẽ lệch đường đo — đúng loại
+    lỗi đã sinh ra bốn lỗi im lặng ở commit `8a27e29`:
+
+        1. `run.py` và `web/server.py` cùng chuyển sang gọi hàm này;
+        2. sửa lại docstring này và mục A88/A91.
+
+    ⚠️ Bản docstring trước ghi *"MỘT CHỖ DUY NHẤT dựng văn bản kênh 3, run.py
+    và web/server.py đều gọi vào đây"* — **sai**, chưa bao giờ đúng. Một câu
+    khẳng định bất biến mà không có gì kiểm chứng nó thì tệ hơn là không viết
+    gì: người đọc tin là kênh 3 đã dùng VietOCR rồi.
 
     GỘP CHỨ KHÔNG THAY, và lý do đo được (A76/A88): VietOCR đọc chuẩn dấu
     (`Tà Pứa`) nhưng **làm mất số** (`46`); OCR cũ đọc được số nhưng mất dấu.
