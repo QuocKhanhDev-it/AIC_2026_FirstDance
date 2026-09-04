@@ -17,22 +17,47 @@
 | Cài lại thư viện | **không ai** | ❌ đợt này không thêm phụ thuộc nào |
 | Encode lại gì đó | **không ai** | ❌ |
 
-### `index/` phải có những file nào
+### `index/` chỉ cần **6 file**, không cần cả thư mục
+
+`index/` trên máy dựng index là **13,24 GB** và Drive báo ~5 giờ. Phần lớn là
+**đầu vào của các bước đã xong** và **bản sao lưu**. Chạy:
 
 ```powershell
-.venv\Scripts\python.exe -c "
-from pathlib import Path
-can = ['master.parquet','clip_gopt.npy','clip_gopt.json',
-       'ocr_asr.parquet','truy_van_gopt.npz']
-tuy = ['ocr_vietocr.parquet','caption.parquet','objects.parquet',
-       'hubness_clip_gopt.npy']
-for f in can: print(('OK  ' if Path('index',f).exists() else 'THIEU'), f)
-for f in tuy: print(('OK  ' if Path('index',f).exists() else '(tuy chon)'), f)
-"
+.venv\Scripts\python.exe scripts\121_goi_index_toi_thieu.py
 ```
 
-Thiếu một trong năm file đầu thì **không chạy được**. `ocr_vietocr.parquet` chỉ
-cần nếu dùng `--van-ban-gop`.
+Nó liệt kê từng file cần / không cần **kèm lý do**, và không để file nào không
+có lý do.
+
+| | MB | |
+| --- | ---: | --- |
+| `master.parquet` | 3,5 | bảng cái |
+| `clip_gopt.npy` | 544,7 | kênh 1 |
+| `clip_gopt.json` | ~0 | **tên model** — thiếu là dùng SAI model |
+| `ocr_asr.parquet` | 26,7 | kênh 3 |
+| `truy_van_gopt.npz` | 13,6 | vector truy vấn — thiếu là kênh 1 TẮT |
+| `ocr_vietocr.parquet` | 5,7 | chỉ cho `--van-ban-gop` |
+| **CỘNG** | **594** | **đủ chạy `run.py`** = 4,5% |
+| `anh_nho/` | 541 | **chỉ** để xem ảnh trong UI |
+| **CỘNG + ảnh** | **1.135** | = **8,6%** |
+
+**Đã đo, không phải đoán:** dựng một thư mục chỉ chứa 6 file đó rồi chạy
+`run.py` — **24/24 file bài nộp giống hệt từng dòng** so với khi chạy trên
+`index/` đầy đủ.
+
+Dựng sẵn bộ tải lên:
+
+```powershell
+.venv\Scripts\python.exe scripts\121_goi_index_toi_thieu.py --ra D:\len_drive --co-anh
+```
+
+`--co-anh` nén `anh_nho` thành **một** file zip — 81.916 file nhỏ thì Drive tải
+chậm hơn hẳn một file lớn cùng dung lượng.
+
+Ai chỉ chạy `run.py` mà không mở UI thì **bỏ `--co-anh`**, còn 594 MB.
+
+⚠️ **Đừng xoá phần còn lại trên máy dựng index.** 15 file `clip_gopt_*.npy` là
+các phần đã gộp; giữ chúng thì gộp lại được nếu `clip_gopt.npy` hỏng.
 
 ### Đường dẫn trong `master.parquet` là TUYỆT ĐỐI của máy dựng index
 
