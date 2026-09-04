@@ -142,8 +142,23 @@ aside.nop{width:310px;flex:none;border-left:1px solid var(--divider);background:
 #lb[hidden]{display:none}
 #lb{position:fixed;inset:0;z-index:60;background:var(--lb-nen);
   display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:24px}
-#lb img{max-width:100%;max-height:calc(100vh - 150px);object-fit:contain;
+/* ⚠️ ẢNH PHẢI LẤP ĐẦY MÀN HÌNH, KỂ CẢ KHI ẢNH GỐC BÉ.
+   Bản đầu để `max-width:100%;max-height:...` — nghe thì đúng, nhưng `<img>`
+   KHÔNG BAO GIỜ tự phóng quá kích thước thật. Bản thu nhỏ chỉ **256×144**
+   (`scripts/49_sinh_anh_nho.py`), nên phóng to xong vẫn hiện đúng 256px giữa
+   màn hình 1920 — người soát không nhìn ra gì.
+   Cách chữa: một KHUNG có kích thước cố định theo viewport, ảnh `width/height
+   100%` + `object-fit:contain`. Nó phóng LÊN cho vừa khung mà không méo. */
+#lb .khung{width:min(96vw, 1800px);height:calc(100vh - 128px);
+  display:flex;align-items:center;justify-content:center}
+#lb img{width:100%;height:100%;object-fit:contain;
   border-radius:3px;background:var(--anh-nen);box-shadow:0 24px 70px -30px rgba(0,0,0,.9)}
+/* Bản thu nhỏ phóng lên thì mờ — đó là giới hạn của dữ liệu, không phải lỗi
+   hiển thị. Nói thẳng ra thay vì để người soát tưởng ảnh hỏng. */
+#lb .canh{font-family:var(--mono);font-size:10.5px;letter-spacing:.04em;
+  color:var(--n700);background:var(--surface);border:1px solid var(--divider);
+  border-radius:var(--radius);padding:3px 9px;margin-top:2px}
+#lb .canh[hidden]{display:none}
 #lb .thanh{display:flex;align-items:center;gap:14px;flex-wrap:wrap;justify-content:center;
   background:var(--surface);border:1px solid var(--divider);border-radius:var(--radius);
   padding:9px 14px;max-width:100%}
@@ -596,19 +611,28 @@ const LB = {
       ? `${this.i + 1} / ${this.ds.length} khung lân cận · ← → để lần` : "";
     $("#lbTruoc").disabled = this.i <= 0;
     $("#lbSau").disabled = this.i >= this.ds.length - 1;
+
+    // Ảnh gốc hay bản thu nhỏ? Bản thu nhỏ 256×144 phóng lên thì MỜ, và đó là
+    // hết mức máy này có — L26 (45% kho) không máy nào giữ ảnh gốc. Nói ra để
+    // người soát không mất thời gian tìm cách làm nó nét hơn.
+    const c = $("#lbCanh");
+    c.hidden = !n.ban_nho;
+    if (n.ban_nho) c.textContent =
+      "BẢN THU NHỎ 256×144 — phóng to nên mờ, máy này không có ảnh gốc cho khung này";
   },
   dung() {
     const d = document.createElement("div");
     d.id = "lb"; d.hidden = true;
     d.innerHTML = `
       <button class="dong" title="Đóng (Esc)">×</button>
-      <img alt="">
+      <div class="khung"><img alt=""></div>
       <div class="thanh">
         <button class="chuyen" id="lbTruoc" title="Khung trước (←)">←</button>
         <div>
           <div class="ten" id="lbTen"></div>
           <div class="phu" id="lbPhu"></div>
           <div class="goi" id="lbGoi"></div>
+          <div class="canh" id="lbCanh" hidden></div>
         </div>
         <button class="chuyen" id="lbSau" title="Khung sau (→)">→</button>
       </div>`;

@@ -284,6 +284,12 @@ class Kho:
             "diem": round(float(c.score), 4),
             "nguon": c.source,
             "co_anh": bool(self.co_anh[r]),
+            # Ảnh GỐC hay bản THU NHỎ 256x144? Giao diện cần biết để nói rõ
+            # vì sao ảnh mờ khi phóng to — L26 (79.590 dòng, 45% kho) không
+            # máy nào giữ ảnh gốc, nên bản thu nhỏ là hết mức có được.
+            "ban_nho": bool(self.co_anh[r]) and not (
+                isinstance(self.kf_path[r], str) and self.kf_path[r]
+                and Path(self.kf_path[r]).exists()),
             "van_ban": self.van_ban.get(r, ""),
         }
 
