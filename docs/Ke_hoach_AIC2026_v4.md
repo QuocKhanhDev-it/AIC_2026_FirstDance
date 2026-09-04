@@ -6065,6 +6065,162 @@ Khớp danh sách từ khoá **có dấu** (cộng dấu `?`). Câu vừa không
 `?` thì lọt. Cố ý giữ vậy: đổi sang khớp bản bỏ dấu sẽ đổi tập câu bị ảnh hưởng
 và làm A93 không tái lập được. Có test ghi rõ hạn chế này.
 
+### A94. TRAKE thiếu **VIDEO ứng viên**, không thiếu cách xếp hạng — hiệu lớn nhất kể từ A79
+
+Xuất phát từ một đề xuất bên ngoài: *xếp hạng video TRAKE bằng điểm chuỗi hợp
+lệ tốt nhất thay vì tổng-log-max*. Đã đo (`109_`), và phép đo đó **không tìm ra
+thứ nó nhắm tới, nhưng chẩn đoán kèm theo lại tìm ra thứ lớn hơn nhiều**.
+
+#### Chẩn đoán hạn ngạch dòng — con số làm đổi hướng cả đợt
+
+| | trung vị | min | max |
+| --- | ---: | ---: | ---: |
+| video có đủ ứng viên cho MỌI sự kiện | **11** | 4 | 40 |
+| trong 25 video được chia dòng, số video KHÔNG có chuỗi hợp lệ | 6 | 0 | 25 |
+| **dòng thực sự nộp được** | **46/100** | 0 | 81 |
+
+Hạn ngạch `40/25/15/12/8 + 20 dòng đuôi` được thiết kế cho **25 video**. Thực tế
+trung vị chỉ có **11**. **Hạn ngạch và bể chưa bao giờ khớp nhau** — suốt thời
+gian qua nó chia 100 dòng cho một danh sách 11 mục.
+
+#### Vì sao bể nhỏ
+
+Mỗi sự kiện lấy `--k = 100` ứng viên; một video chỉ vào danh sách khi có ứng
+viên cho **TẤT CẢ** N sự kiện. Giao của N tập nhỏ đi theo cấp số nhân, mà phân
+bố số sự kiện là 3-5 (trung vị **4**).
+
+> `--k` có **hai vai trò khác hẳn nhau** ở hai loại câu. Với KIS/Q&A nó là "số
+> dòng nộp", nới ra vô ích vì chỉ nộp được 100. Với TRAKE nó là **bể để GIAO**,
+> và cái nộp đi là chuỗi ghép từ giao đó. Cùng một tham số, và sự nhập nhằng ấy
+> đã ẩn nút thắt này suốt 93 mục đo.
+
+#### Nới bể (`110_`, 18 câu TRAKE, chấm ở tầng NỘP)
+
+| `--be` | video đủ ứng viên | dòng nộp được | ±2s | ±15s | T-B-H | |
+| ---: | ---: | ---: | ---: | ---: | :---: | :---: |
+| **100** (đang chạy) | 11 | 46/100 | 0,3578 | 0,5950 | — | |
+| 150 | 15 | 56/100 | 0,3561 | 0,5867 | 2-3-13 | 🟡 âm |
+| 200 | 18 | 62/100 | 0,3617 | 0,5894 | 2-2-14 | ❌ |
+| **300** | **25** | 67/100 | **0,4317** | **0,6483** | **7-3-8** | **🟡** |
+| 500 | 33 | 77/100 | 0,4250 | 0,6400 | 8-3-7 | 🟡 |
+| 1000 | 59 | 92/100 | 0,4011 | 0,5922 | 6-3-9 | ❌ |
+
+**+0,0739 ở ±2s / +0,0533 ở ±15s** — hiệu lớn nhất kể từ A79, gấp gần 5 lần
+phát hiện mệnh đề hỏi (A93). Vẫn 🟡: ngưỡng 0,0876, đạt 84%.
+
+Đường cong **không đơn điệu**: phẳng ở 150-200, nhảy ở 300, tụt lại ở 500, đảo
+dấu ở 1000. Có đỉnh thật, không phải "càng nhiều càng tốt" — bể lớn thả video
+nhiễu vào tranh hạn ngạch.
+
+Ở bể 300, số video vừa đúng **25** — đúng con số hạn ngạch được thiết kế cho.
+
+### A95. Hiệu ứng dồn vào hai câu, và một dự đoán của A79 được xác nhận tới từng số
+
+Trung bình +0,0739 che mất phân bố. Từng câu, ±2s:
+
+| câu | bể 100 | bể 300 | hiệu |
+| --- | ---: | ---: | ---: |
+| trake-L21-002 | 0,9500 | 0,7500 | **−0,2000** |
+| trake-L22-004 | 0,4500 | 0,3000 | −0,1500 |
+| trake-L21-004 | 0,6800 | 0,6000 | −0,0800 |
+| trake-L25-003 | 0,1600 | 0,2400 | +0,0800 |
+| trake-L22-003 · L22-002 · **DE2-08** | | | +0,1500 mỗi câu |
+| trake-L23-008 | 0,3000 | 0,5500 | +0,2500 |
+| **trake-L25-004** | **0,0000** | **0,4800** | **+0,4800** |
+| **trake-DE2-21** | **0,0000** | **0,5000** | **+0,5000** |
+
+**Hai câu chiếm 74% tổng hiệu**, và ba câu bị hại thật. Trung bình là thật
+nhưng mong manh.
+
+Nhưng một trong hai câu đó là bằng chứng chứ không phải cảnh báo. A79 đã chỉ
+đích danh: *"`trake-L25-004` rơi 0,4800 -> 0,0000 ở CẢ HAI mức dung sai dù
+oracle của nó là 0,8000"*. Nới bể đưa nó về **đúng 0,4800**. Một dự đoán ghi
+trước từ 15 mục trước, được xác nhận tới từng chữ số — và nó xác nhận đúng cơ
+chế: câu đó mất điểm ở khâu **video không có mặt trong danh sách**.
+
+#### Lưới 2×2 tách đầu/đuôi — và nó BÁC giả thuyết (`111_`)
+
+Giả thuyết: được là nhờ **đuôi** (video đúng lọt vào hạng 6-25), mất là do
+**đầu** (video nhiễu tranh hạn ngạch top-5). Nếu đúng thì nới riêng đuôi lấy
+được phần thắng mà không trả phần thua.
+
+| | ±2s | ±15s | T-B-H |
+| --- | ---: | ---: | :---: |
+| 1. đầu 100 / đuôi 100 | 0,3578 | 0,5950 | — |
+| 2. đầu 300 / đuôi 300 | **0,4317** | **0,6483** | 7-3-8 |
+| 3. chỉ nới ĐUÔI | 0,3844 | 0,6217 | **1-0-17** |
+| 4. chỉ nới ĐẦU | 0,4050 | 0,6217 | 6-3-9 |
+
+**Sai, và ngược hẳn.** Phần thắng nằm ở ĐẦU (6 câu đổi) chứ không ở đuôi (1
+câu). Và hai phần **cộng đúng khít**: `0,0267 + 0,0472 = 0,0739`, khớp tới bốn
+chữ số.
+
+> Đây là lần ĐẦU trong repo hai thay đổi cộng dồn chính xác. A91 đo hai cải
+> tiến 🟡 trên kênh 3 và chúng **huỷ nhau**; ở đây chúng cộng. Không suy được
+> cái nào sẽ xảy ra — phải đo, và đó chính là lý do lưới 2×2 phải có đủ bốn ô.
+
+Cơ chế thật: bể lớn cho mỗi sự kiện nhiều ứng viên hơn -> `max_e` chính xác
+hơn -> **thứ tự tổng-log-max tốt hơn**, và cái đó ăn vào top-5. Không có mẹo
+tách nào; muốn phần thắng thì nới cả hai.
+
+### A96. Ba đính chính cho bản rà soát ngoài — và một con số bị gán sai việc
+
+Bản rà soát đề xuất sáu thí nghiệm, ưu tiên 1 là *"xếp hạng video bằng best
+valid beam score, pool ≥100, giữ beam=64"*. Ba khẳng định trong đó kiểm được:
+
+**1. "Nên dùng 40 chuỗi beam khác nhau thay vì lặp 1 chuỗi 40 lần" — đã làm
+sẵn.** `chuoi(v, k)` gọi `beam_video(..., k_chuoi=k)`, trả về tối đa `k` chuỗi
+**khác nhau**, có bộ lọc đa dạng `cach_nhau = 3,0s` ở cuối. Không có chỗ nào
+spam một đáp án.
+
+**2. "37% ở ±2s" bị gán sai việc.** Đó là A63 — khoảng cách giữa chấm ở tầng
+KÊNH và tầng NỘP, một hiện vật của cách đo, và A79 đã cho thấy nó **sụp từ 48%
+xuống 4,3% ở ±15s**. Con số đúng cho khâu chọn video nằm ở A79 và nó **mạnh
+hơn** vì không sụp: khoảng cách tới oracle **0,1029 ở ±2s / 0,1230 ở ±15s**.
+
+**3. "Top-30 để rerank là quá hẹp, cần pool ≥100" — ngược hoàn toàn.** Bể sơ
+tuyển chưa bao giờ là ràng buộc: trung vị chỉ có **11 video tồn tại**. Đo thẳng:
+bể 150 và bể TOÀN BỘ cho kết quả **y hệt nhau**.
+
+#### Kết quả của chính ưu tiên 1 (`109_`)
+
+| | ±2s | ±15s | T-B-H | |
+| --- | ---: | ---: | :---: | :---: |
+| MỐC: tổng-log-max | 0,3578 | 0,5950 | — | |
+| chỉ LỌC video không có chuỗi hợp lệ | 0,3578 | 0,5950 | **0-0-18** | ⚪ |
+| XẾP LẠI theo điểm chuỗi (bể 150) | 0,3772 | 0,6228 | 1-0-17 | 🟡 |
+| XẾP LẠI theo điểm chuỗi (bể TOÀN BỘ) | 0,3772 | 0,6228 | 1-0-17 | 🟡 |
+
+Đúng chiều ở cả hai mức nhưng **một câu đổi**. Bản rẻ nhất — chỉ lọc video
+không có chuỗi hợp lệ, giữ nguyên thứ tự — **không đổi một câu nào**.
+
+Điểm chuỗi tốt nhất tính bằng **quy hoạch động chính xác**, không bằng beam:
+`D_i[j] = m_i[j] + max{D_{i−1}[k] : t_k < t_j}`. Với N ≤ 5 và 20 ứng viên mỗi
+sự kiện thì O(N·C²) = 2.000 phép — rẻ hơn beam và không có sai số xấp xỉ.
+
+#### Vì sao đây KHÔNG phải thứ A78 đã bác
+
+A78 dò bốn cách hợp điểm (tổng / tổng-log / điều hoà / min) và thấy nút này
+**trơ**. Nhưng cả bốn đều là hàm hợp của `max_e`, tức đều **mù với ràng buộc
+thời gian**. Điểm chuỗi hợp lệ không nằm trong họ đó. Nên phép đo là chính
+đáng — nó chỉ không thắng.
+
+#### Trạng thái: cài cờ, KHÔNG bật
+
+`--be-trake`, mặc định `None` = dùng `--k` = không đổi gì. Có ba test chốt:
+mặc định phải là None; bể riêng không được lọt sang nhánh KIS/Q&A; và tham số
+phải nối qua **cả hai** đường gọi `quet_anh` (quên một đường là cờ im lặng vô
+hiệu — đúng loại lỗi commit `8a27e29` đã sửa bốn lần).
+
+⚠️ **Cảnh báo cỡ mẫu, phải đọc kèm mọi con số trên: 15/18 câu TRAKE là TỰ
+SOẠN**, chỉ 3 câu là đề thật — đúng chỗ A39 ghi là yếu nhất của tập dev. Tín
+hiệu thuận duy nhất: hai câu đề thật có đổi (`DE2-08` +0,15 và `DE2-21` +0,50)
+**đều thắng**, và **cả ba câu bị hại đều là câu tự soạn**. n = 3 thì không kết
+luận được, nhưng nó không đi ngược.
+
+**Thứ sẽ giải quyết: câu TRAKE ĐỀ THẬT có nhãn sạch.** Đây là lần thứ ba liên
+tiếp (A88, A93, A96) mà thứ chặn kết luận là **thiếu nhãn, không thiếu ý tưởng**.
+
 ## PHẦN B — QUYẾT ĐỊNH HẠ TẦNG
 
 ### B1. Không dùng Supabase / Postgres / Milvus / Elasticsearch — ĐÃ KIỂM CHỨNG
@@ -6843,6 +6999,7 @@ Hai điều bảng này nói mà 91 mục đo trước KHÔNG nói:
 
 | # | việc | vì sao |
 | --- | --- | --- |
+| 0 | **`--be-trake 300`** (A94) | hiệu lớn nhất đang có: +0,0739/+0,0533, 🟡 ở 84% ngưỡng. Cần câu TRAKE **đề thật** để chốt — 15/18 câu hiện tại là tự soạn |
 | 1 | **Xếp lại hạng top-100** | ô `mất` lớn nhất. Chưa có cách nào chạy được trên máy 7,7 GB không GPU — đây là câu hỏi mở thật sự, không phải việc chờ làm |
 | 2 | **Soi lại 14 nhãn `de_thi_thu` từ ẢNH GỐC** | A89: chưa có bằng chứng phản bác ≠ bằng chứng đúng. Phải soi theo mô tả, **không** chọn từ danh sách hệ thống trả về |
 | 3 | **LLM đọc `câu hỏi + văn bản khung` để ra `answer`** | A88: trần Q&A là 6/13, mọi phép chọn theo hình thức bề mặt đều ra xa hơn |

@@ -203,7 +203,7 @@ def la_menh_de_hoi(m: str) -> bool:
 
 def quet_anh(index: Path, matrix: str, de: dict, k: int, mmap=True,
             giu_kenh: bool = False, cache=None, rrf_menh_de: bool = True,
-            trong_so_hoi: float = 1.0):
+            trong_so_hoi: float = 1.0, be_trake: int | None = None):
     """Chạy kênh ảnh cho MỌI truy vấn rồi giải phóng model.
 
     TRAKE cần một danh sách riêng cho từng sự kiện con, nên giá trị trả về là
@@ -283,7 +283,11 @@ def quet_anh(index: Path, matrix: str, de: dict, k: int, mmap=True,
     ra = {}
     for ten, noi_dung in de.items():
         if loai_cua(ten) == "trake":
-            ra[ten] = [hoi(sk, k) for sk in tach_su_kien(noi_dung)]
+            # A94: với TRAKE, `k` KHÔNG phải "số dòng nộp" mà là **bể để GIAO**.
+            # Một video chỉ vào danh sách khi có ứng viên cho TẤT CẢ N sự kiện,
+            # nên giao của N tập nhỏ đi theo cấp số nhân. Đo được ở k=100 chỉ
+            # còn trung vị 11 video, trong khi hạn ngạch dòng thiết kế cho 25.
+            ra[ten] = [hoi(sk, be_trake or k) for sk in tach_su_kien(noi_dung)]
         else:
             # Xin GAP DOI: hai row_id khac nhau co the ra cung mot dong nop
             # (A5.7 — 614 keyframe trung frame_idx), nen bo trung xong phai con
@@ -820,6 +824,13 @@ def main():
                     help="quay lại gộp mệnh đề bằng MAX COSINE. A51 đo trên 52 "
                          "câu đề thật: RRF hạng + kênh 3 hơn max-cosine + kênh 3 "
                          "+0,0721/+0,0971 ✅ ỔN ĐỊNH. Chỉ tắt để tái lập số cũ")
+    ap.add_argument("--be-trake", type=int, default=None,
+                    help="bể ứng viên MỖI SỰ KIỆN của câu TRAKE. Để trống = "
+                         "dùng --k (100), tức không đổi gì. A94 đo 300 được "
+                         "+0,0739/+0,0533 (7-3-8) trên 18 câu — hiệu lớn nhất "
+                         "kể từ A79 nhưng vẫn 🟡, và 15/18 câu là TỰ SOẠN. "
+                         "1000 thì ❌ đảo dấu, nên có đỉnh chứ không phải càng "
+                         "nhiều càng tốt")
     ap.add_argument("--trong-so-hoi", type=float, default=1.0,
                     help="trọng số của mệnh đề HỎI trong kênh 1. MẶC ĐỊNH 1,0 "
                          "= không đổi gì. A93 đo 0,25 được +0,0154/+0,0154 "
@@ -914,11 +925,13 @@ def main():
         kq1, master, kenh1_obj = quet_anh(a.index, a.matrix, de, a.k,
                                           rrf_menh_de=a.rrf_menh_de,
                                           trong_so_hoi=a.trong_so_hoi,
+                                          be_trake=a.be_trake,
                                           giu_kenh=True, cache=a.cache)
     else:
         kq1, master = quet_anh(a.index, a.matrix, de, a.k, cache=a.cache,
                                rrf_menh_de=a.rrf_menh_de,
-                               trong_so_hoi=a.trong_so_hoi)
+                               trong_so_hoi=a.trong_so_hoi,
+                               be_trake=a.be_trake)
     phu = (quet_van_ban(master, de, a.k, a.index, a.bo_metadata)
            if a.hop_nhat else {})
 
