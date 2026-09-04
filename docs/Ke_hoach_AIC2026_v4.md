@@ -6221,6 +6221,190 @@ luận được, nhưng nó không đi ngược.
 **Thứ sẽ giải quyết: câu TRAKE ĐỀ THẬT có nhãn sạch.** Đây là lần thứ ba liên
 tiếp (A88, A93, A96) mà thứ chặn kết luận là **thiếu nhãn, không thiếu ý tưởng**.
 
+### A97. CSLS (phạt hub) — cơ chế SAI, không phải bị pha loãng
+
+Ý: không gian nhúng nhiều chiều có **hub** — vài điểm nằm gần mọi thứ và được
+trả về cho mọi truy vấn. `s(q,d) = 2·cos(q,d) − λ·r_K(d)`.
+
+`112_tinh_hubness.py` tính `r_K` cho cả 177.321 vector (**849 giây**, ghi ra
+693 KB; online chỉ là một phép trừ). Hai sai lệch đã chặn trước khi đo:
+
+* **Loại toàn bộ láng giềng CÙNG VIDEO**, không chỉ loại chính nó. A5.6 đo được
+  11,83% keyframe có bản sao cùng video ở cos ≥ 0,99 (L25: 49,82%) — không loại
+  thì khung đáp án có năm bản sao sẽ bị phạt nặng nhất, tức hỏng ngược.
+* **Gọi đúng tên: đây là hub ẢNH–ẢNH, không phải CSLS gốc** (vốn đo hub xuyên
+  miền văn bản↔ảnh). Bản xuyên miền cần một tập truy vấn, mà tập duy nhất đang
+  có là chính 52 câu dùng để chấm — dựng chỉ mục từ đầu vào kiểm thử là **rò
+  rỉ**, không phải kỹ thuật.
+
+`r_K`: trung vị **0,9313**, độ lệch chuẩn **0,0576** — bằng ~38% biên độ cosine
+(0,25–0,40), tức KHÔNG phải hằng số. Nên tiền đề "có đủ biến thiên để đổi thứ
+hạng" là đúng; điều sai nằm ở chỗ khác.
+
+| λ | ±2s | ±15s | T-B-H | |
+| ---: | ---: | ---: | :---: | :---: |
+| **0 (mốc)** | **0,5173** | **0,6096** | — | |
+| 0,1 | 0,5212 | 0,6135 | 2-2-48 | 🟡 |
+| 0,25 | 0,5173 | 0,6135 | 3-4-45 | ❌ |
+| 0,5 | 0,5173 | 0,5904 | 4-6-42 | 🟡 |
+| 1,0 | 0,5096 | 0,5981 | 5-11-36 | 🟡 âm |
+
+**Hại đơn điệu theo λ.** Và hai dòng chẩn đoán trả lời câu quan trọng hơn: chỉ
+kênh 1, không CSLS = **0,4779 / 0,5712**; chỉ kênh 1, λ=1 = **0,4808 / 0,5644**
+— tức +0,0029 ở ±2s nhưng −0,0068 ở ±15s, **đảo dấu ngay cả khi không bị RRF và
+kênh 3 pha loãng**.
+
+> Đó là lý do phải có dòng chẩn đoán "chỉ kênh 1". Không có nó thì kết luận
+> đúng nhất có thể nói là *"có thể tốt nhưng bị pha loãng"* — một câu an ủi
+> không kiểm được. Có nó thì biết **cơ chế sai**, và đóng hướng lại được.
+
+Giữ `index/hubness_clip_gopt.npy` (693 KB) vì nó rẻ và là dữ liệu chẩn đoán
+thật: `r_K` trung vị 0,93 cho biết keyframe tin tức **giống nhau ở mức rất cao**
+trên toàn kho — một sự thật về dữ liệu, độc lập với việc CSLS thất bại.
+
+### A98. α-Query Expansion — bác dứt khoát, và dự đoán của tôi SAI ngược
+
+`q' = chuẩn_hoá(q + Σ cos(q,d_i)^α · v_{d_i})`, áp trên **từng mệnh đề trước
+RRF** (áp sau RRF là vô nghĩa: A51 hợp nhất bằng HẠNG, điểm gốc không còn).
+
+| k | α | ±2s | ±15s | T-B-H | |
+| ---: | ---: | ---: | ---: | :---: | :---: |
+| **mốc** | | **0,5173** | **0,6096** | — | |
+| 2 | 1 | 0,4394 | 0,5144 | 7-16-29 | **✅ TỆ HƠN** |
+| 2 | 3 | 0,4981 | 0,5904 | 1-2-49 | 🟡 âm |
+| 3 | 1 | 0,4125 | 0,4798 | 8-17-27 | **✅ TỆ HƠN** |
+| 3 | 3 | 0,4865 | 0,5712 | 1-4-47 | 🟡 âm |
+| 5 | 3 | 0,4750 | 0,5635 | 1-5-46 | 🟡 âm |
+
+**−0,1048 / −0,1298 ở cấu hình tệ nhất** — thiệt hại lớn nhất repo từng đo được
+từ một tính năng. Cơ chế đúng như ghi trước: α-QE là **phản hồi giả định**, nó
+tin top-k đúng, mà A92 đo `R@1 = 0,24` — hạng 1 **sai ở 76% số câu**. Cộng
+vector của ứng viên sai vào truy vấn là kéo nó đi xa hơn khỏi đích.
+
+#### Dự đoán ghi trước của tôi sai ngược, và lý do đáng ghi hơn kết quả
+
+Tôi ghi trước: *"α lớn sẽ TỆ hơn α nhỏ, vì α lớn = tin hạng 1 nhiều hơn"*. Số
+liệu đi **ngược**: α=3 hại ít hơn α=1 ở mọi k.
+
+Lý do là số học, và nó chỉ đúng ở ĐÂY:
+
+    cosine của kênh 1 nằm khoảng 0,25-0,40
+    cos = 0,30 -> α=1 cho trọng số 0,3000
+                  α=3 cho trọng số 0,0270      (bằng 9% của α=1)
+
+Với cosine **nhỏ hơn 1**, nâng lên mũ làm **mọi** trọng số co về 0. Nên α lớn
+không phải "tin hạng 1 hơn" mà là **mở rộng ÍT hơn**. Trong bài báo gốc
+(Radenović 2018) cosine của ảnh khớp gần 1, nên mũ chỉ làm *sắc* tương quan —
+ở đây nó làm *tắt* cả cơ chế.
+
+> **Đọc lại được toàn bộ bảng theo một trục duy nhất: mở rộng càng nhiều càng
+> hại, đơn điệu.** α=3 ít hại nhất vì nó gần như không mở rộng. Không có mức
+> nào có lợi.
+>
+> Bài học: **một siêu tham số mượn từ bài báo khác mang theo giả định về THANG
+> ĐO của bài báo đó.** Ở đây giả định "cosine gần 1" bị vi phạm, và tham số đổi
+> luôn ý nghĩa mà không có gì báo.
+
+### A99. n-gram ký tự cho kênh 3 — và bảng Jaccard bác tiền đề TRƯỚC khi chạy
+
+Ý: OCR sai một ký tự sinh ra token hapax (`HTV` -> `HIV`, 3.971 dòng ở L26), mà
+BM25 theo TỪ coi đó là từ hoàn toàn khác. n-gram ký tự thì chia sẻ được phần
+chung.
+
+**Đo Jaccard giữa hai tập n-gram trước khi viết phép đo** — và nó bác tiền đề:
+
+| ca | n=2 | n=3 | n=4 |
+| --- | ---: | ---: | ---: |
+| `HTV` vs `HIV` — sai 1 ký tự giữa từ NGẮN | 0,33 | **0,00** | **0,00** |
+| `Bapnep` vs `bap nep` — dính chữ, từ DÀI | 0,75 | 0,50 | 0,29 |
+| `Tà Pứa` vs `Ta Pua` — mất dấu | 1,00 | 1,00 | 1,00 |
+
+**Ca thúc đẩy cả ý tưởng lại là ca KHÔNG được cứu.** Ký tự sai nằm giữa một từ
+ba chữ nên với n ≥ 3 không n-gram nào sống sót. Ca ba thì n-gram thắng tuyệt
+đối — nhưng **nhánh bỏ dấu đã trị xong ca đó**. Còn lại đúng một ca có thật.
+
+Chạy `n = 3` (giữ 0,50 ở ca hai, n=4 chỉ còn 0,29):
+
+| | ±2s | ±15s | T-B-H |
+| --- | ---: | ---: | :---: |
+| **MỐC: từ, hai nhánh α=0,5** | **0,5173** | **0,6096** | — |
+| chỉ 3-gram ký tự | 0,5029 | 0,5904 | 3-7-42 |
+| từ + 3-gram (RRF) | 0,5096 | 0,5837 | 5-8-39 |
+| **chẩn đoán: chỉ nhánh CÓ DẤU** | 0,5096 | 0,6058 | **0-2-50** |
+
+Dòng chẩn đoán là câu trả lời: bỏ hẳn nhánh không dấu chỉ đổi **2/52 câu**
+(−0,0077). **Nhánh bỏ dấu gần như không gánh gì** — nên chỗ "chịu lỗi chính tả"
+không có gì để lấy thêm, và điều đó giải thích luôn vì sao `alpha` trơ ở A88.
+
+### A100. ĐIỂM CAO NHẤT hệ thống đạt được, và trần còn cách bao xa
+
+`116_do_diem_cao_nhat.py`, 52 câu đề thật nhãn sạch (37 KIS / 12 QA / 3 TRAKE).
+
+| cấu hình | ±2s | ±15s | hiệu ±2s | T-B-H | |
+| --- | ---: | ---: | ---: | :---: | :---: |
+| **1. ĐANG CHẠY (mặc định)** | **0,5173** | **0,6096** | — | — | |
+| 2. + mệnh đề hỏi w=0,25 (A93) | 0,5327 | 0,6250 | +0,0154 | 4-1-47 | 🟡 |
+| 3. + văn bản gộp VietOCR (A88) | 0,5317 | 0,6096 | +0,0144 | 4-1-47 | 🟡 |
+| **4. CAO NHẤT: cả hai** | **0,5433** | **0,6173** | **+0,0260** | **7-2-43** | **✅** |
+
+**Hai thay đổi 🟡 riêng lẻ, gộp lại thì VƯỢT ngưỡng** (0,0260 so với 0,0248) —
+✅ ỔN ĐỊNH theo đúng luật của repo (cùng dấu ở cả hai mức, vượt 2×SE ở ít nhất
+một mức), cùng luật đã dùng cho A79 và A87.
+
+Cộng gần khít: `0,0154 + 0,0144 = 0,0298` so với `+0,0260` đo được — hơi dưới
+tổng vì cả hai cùng chạm nhóm câu Q&A.
+
+Riêng TRAKE thì `--be-trake 300` (A94) được **+0,0739/+0,0533** trên 18 câu,
+nhưng tập 52 câu này chỉ có 3 câu TRAKE nên nó gần như không hiện ở bảng trên.
+
+#### ⚠️ Ba lý do KHÔNG bật ngay, dù ✅
+
+1. **Nhiều phép so.** Riêng đợt này đã chạy ~20 cấu hình. Ngưỡng 2×SE là
+   khoảng tin cậy cho MỘT phép so; chạy hai chục phép rồi báo cái vượt là bài
+   toán so sánh bội. Mà nó chỉ vượt **5%** (0,0260 so với 0,0248).
+2. **Không cái nào tự thắng.** Đây sẽ là lần đầu bật một thứ mà từng thành phần
+   đều 🟡. Nếu hiệu ứng thật thì thành phần phải thắng khi có đủ câu.
+3. **BTC tính LẦN NỘP CUỐI, không phải lần tốt nhất** (C7). Đổi cấu hình ở lần
+   nộp cuối bằng một thứ vượt ngưỡng 5% là đánh cược ở đúng chỗ không nên.
+
+**Nên: bật ở lần nộp 1 hoặc 2 để lấy số thật từ BTC, giữ cấu hình mặc định cho
+lần cuối** trừ khi số thật xác nhận.
+
+#### TRẦN — và nó nói bài toán còn lại là gì
+
+| dung sai | trần | đang đạt | **còn thiếu** |
+| --- | ---: | ---: | ---: |
+| ±2s | 0,7885 | 0,5231 | **0,2654** |
+| ±15s | 0,8654 | 0,6115 | **0,2538** |
+
+`trần` = tỷ lệ câu có đáp án nằm **đâu đó** trong 100 dòng nộp. Xếp hạng hoàn
+hảo thì mỗi câu đó được 1,0.
+
+**Hơn một phần tư tổng điểm đang nằm trong bể mà xếp sai chỗ.** Cộng với A92
+(KIS: R@100 = 0,81 nhưng R@1 = 0,24), kết luận không còn chỗ để tranh cãi:
+
+> **Bài toán còn lại là XẾP LẠI HẠNG, không phải TÌM KIẾM.** Sáu kênh truy hồi
+> đã thử từ A59 tới A99 và không cái nào bật được — vì cả sáu đều đi tìm thêm
+> ứng viên, trong khi ứng viên đã có sẵn ở 79% số câu.
+>
+> Và **đó cũng là hướng duy nhất chưa có cách làm được trên máy 7,7 GB không
+> GPU.** Đây là câu hỏi mở thật sự của dự án, không phải việc đang chờ ai làm.
+
+#### Đề xuất số 6 (dịch vi→en) — CHẶN bởi phần cứng, không phải bởi lựa chọn
+
+Cần nạp model dịch **và** nạp lại SigLIP2 để mã hoá câu đã dịch. Cả pipeline
+hiện chạy được trên máy này chính là nhờ `KenhAnhCache` — vector truy vấn mã
+hoá sẵn ở nơi khác. Không mã hoá được câu mới thì không đo được, và ràng buộc
+"đừng mở model" là ràng buộc cứng.
+
+Tiền đề của nó cũng chưa có gì đỡ: **kênh 6 BGE-M3 — một mô hình đa ngữ mạnh —
+đã thử và thua** (A59, 🟡, đang TẮT). "Thêm sức mạnh đa ngữ" không tự động
+thắng trong môi trường đo này.
+
+Muốn làm thì phải: dịch 52 câu trên máy khác -> mã hoá bằng SigLIP2 trên
+Kaggle -> đổ vào `truy_van_gopt.npz` -> đo trên máy này. Ba bước, không bước
+nào chạy được ở đây.
+
 ## PHẦN B — QUYẾT ĐỊNH HẠ TẦNG
 
 ### B1. Không dùng Supabase / Postgres / Milvus / Elasticsearch — ĐÃ KIỂM CHỨNG
@@ -6999,8 +7183,9 @@ Hai điều bảng này nói mà 91 mục đo trước KHÔNG nói:
 
 | # | việc | vì sao |
 | --- | --- | --- |
-| 0 | **`--be-trake 300`** (A94) | hiệu lớn nhất đang có: +0,0739/+0,0533, 🟡 ở 84% ngưỡng. Cần câu TRAKE **đề thật** để chốt — 15/18 câu hiện tại là tự soạn |
-| 1 | **Xếp lại hạng top-100** | ô `mất` lớn nhất. Chưa có cách nào chạy được trên máy 7,7 GB không GPU — đây là câu hỏi mở thật sự, không phải việc chờ làm |
+| 0a | **`--trong-so-hoi 0.25` + văn bản gộp** (A100) | gộp hai thứ 🟡 thì **✅ vượt ngưỡng**: 0,5433/0,6173 (+0,0260, 7-2-43). Nhưng chỉ vượt 5% sau ~20 phép so — bật ở lần nộp 1-2 để lấy số THẬT, đừng bật ở lần cuối |
+| 0b | **`--be-trake 300`** (A94) | hiệu lớn nhất đang có: +0,0739/+0,0533, 🟡 ở 84% ngưỡng. Cần câu TRAKE **đề thật** để chốt — 15/18 câu hiện tại là tự soạn |
+| 1 | **Xếp lại hạng top-100** | A100 đo trần: **0,7885/0,8654**, đang đạt 0,5231/0,6115 -> **hơn 1/4 tổng điểm nằm trong bể mà xếp sai chỗ**. Chưa có cách nào chạy được trên máy 7,7 GB không GPU — đây là câu hỏi mở thật sự, không phải việc chờ làm |
 | 2 | **Soi lại 14 nhãn `de_thi_thu` từ ẢNH GỐC** | A89: chưa có bằng chứng phản bác ≠ bằng chứng đúng. Phải soi theo mô tả, **không** chọn từ danh sách hệ thống trả về |
 | 3 | **LLM đọc `câu hỏi + văn bản khung` để ra `answer`** | A88: trần Q&A là 6/13, mọi phép chọn theo hình thức bề mặt đều ra xa hơn |
 | 4 | 8 gói `de_thi_thu` chưa có nhãn (`p1-3`, `p1-19`, `p1-21`, `p1-22`…) | thêm câu nhãn sạch là cách rẻ nhất để 🟡 thành ✅ |
