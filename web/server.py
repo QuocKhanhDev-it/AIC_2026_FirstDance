@@ -201,10 +201,28 @@ class Kho:
                 # tức giao diện chỉ dùng được cho câu đã nằm trong bộ đề. Nay bỏ
                 # riêng kênh đó và chạy tiếp bằng kênh còn lại, có báo rõ.
                 canh_bao = (
-                    "Kênh 1 (ảnh) BỊ BỎ: truy vấn này chưa có trong "
-                    "index/truy_van.npz. Kết quả dưới đây chỉ từ kênh văn bản "
-                    "và objects — yếu hơn hẳn. Mã hoá thêm: "
-                    'python scripts/25_ma_hoa_truy_van.py --them "…" --gop')
+                    "Kênh 1 (ảnh) BỊ BỎ: truy vấn này chưa có trong cache "
+                    "vector. Kết quả dưới đây chỉ từ kênh văn bản và objects "
+                    "— YẾU HƠN HẲN, đừng nộp kết quả này.")
+                # ⚠️ IN RA TERMINAL NỮA, kèm nguyên văn câu.
+                #
+                # Ở Sơ tuyển 2, `p2-22-kis` mất trắng đúng vì lỗi này: banner
+                # web hiện ra nhưng người chạy không kịp thấy giữa lúc lướt
+                # qua 30 gói. Terminal thì cuộn chậm hơn và đọc lại được.
+                # Kèm nguyên văn câu để dán thẳng, không phải gõ lại tiếng
+                # Việt có dấu — gõ lại là lệch một ký tự, là trượt tiếp.
+                vach = "!" * 70
+                print(f"\n{vach}", file=sys.stderr)
+                print("!! KÊNH 1 BỊ BỎ — truy vấn CHƯA MÃ HOÁ. Đừng nộp gói này.",
+                      file=sys.stderr)
+                print(f"!! {cau[:200]}", file=sys.stderr)
+                print("!! Vá:  python scripts/25_ma_hoa_truy_van.py "
+                      '--them "<câu trên>" --matrix clip_gopt.npy '
+                      "--ra index/truy_van_gopt.npz --gop", file=sys.stderr)
+                print("!! Tiền kiểm cả bộ đề TRƯỚC khi mở UI:", file=sys.stderr)
+                print("!!   python scripts/119_kiem_truy_van.py --de <thư mục đề>",
+                      file=sys.stderr)
+                print(f"{vach}\n", file=sys.stderr, flush=True)
             except Exception:
                 traceback.print_exc()
 

@@ -6502,6 +6502,129 @@ tới hai việc khác hẳn nhau:
 hai khung cách nhau vài chục giây trong cùng video -> (a). Chưa có dữ liệu để
 kết luận, nên **ghi lại giả thuyết chứ không hành động theo nó**.
 
+### A102. Bài nộp chạy TRAKE bằng **kênh 1 một mình** — mọi kết luận TRAKE đo trên cấu hình không tồn tại
+
+Phát hiện khi chuẩn bị bộ nộp cho đợt 3. `run.quet_van_ban()` sinh ứng viên
+kênh 2/3 **chỉ cho câu không phải TRAKE**:
+
+    for ten, nd in de.items():
+        if loai_cua(ten) != "trake":        # <- TRAKE bị loại ở đây
+            ra.setdefault(ten, []).append(k3.tim(...))
+
+và `phu[ten]` cũng chỉ được hợp nhất trong nhánh `else`. Nên bài nộp chạy TRAKE
+bằng **kênh 1 một mình**.
+
+Nhưng **mọi script đo TRAKE** — `78_` (A79 K-best), `89_` (A78 chấm video),
+`91_`/`92_` (A86 ngân sách, lại ghép), `110_`/`111_` (A94 bể) — đều dựng ứng
+viên bằng `hop_nhat([anh, k3.tim(sk)], trong_so=[1.0, 0.5])`.
+
+> **Toàn bộ dòng kết luận TRAKE của repo đo trên một cấu hình bài nộp không
+> chạy.** Đúng loại hỏng đã sinh ra bốn lỗi im lặng ở `8a27e29`: *"script đo
+> không chạy cùng đường với bài nộp"*. Lần đó bắt được bốn cái; cái này sống
+> sót thêm 23 mục đo nữa vì nó nằm ở **thứ bị BỎ QUA**, không ở thứ tính sai —
+> mà không có gì kiểm được một dòng code vắng mặt.
+
+#### Lưới 2×2 (`118_`, 18 câu TRAKE, chấm ở tầng NỘP)
+
+| cấu hình | ±2s | ±15s | hiệu ±2s | T-B-H | |
+| --- | ---: | ---: | ---: | :---: | :---: |
+| **kênh 1, bể 100 — BÀI NỘP đang chạy** | **0,2994** | **0,5139** | — | — | |
+| kênh 1+3, bể 100 — *mọi phép đo cũ giả định* | 0,3578 | 0,5950 | +0,0583 | 4-4-10 | 🟡 |
+| kênh 1, bể 300 | 0,4239 | 0,6139 | +0,1244 | 8-2-8 | **✅** |
+| **kênh 1+3, bể 300** | **0,4317** | **0,6483** | **+0,1322** | 8-6-4 | **✅** |
+
+**Bài nộp đang bỏ lại +0,1322 ở ±2s và +0,1344 ở ±15s** — khoảng cách lớn nhất
+repo từng đo, và nó tồn tại thuần tuý vì hai đường lệch nhau.
+
+Chẩn đoán số video đủ ứng viên cho mọi sự kiện (trung vị): bể 100 -> **11**,
+bể 300 -> **25**. Hạn ngạch dòng `40/25/15/12/8 + 20 đuôi` thiết kế cho 25.
+
+#### Hai bản vá, cả hai mặc định BẬT
+
+1. **TRAKE nay có kênh 3**, hợp nhất vào **từng sự kiện** với `w = 0,5` — đúng
+   như mọi script đo. Đây là **sửa lệch**, không phải thêm tính năng.
+2. **`--be-trake` mặc định 300** (trước None = 100). A94 để None vì đo được
+   +0,0739 🟡 — nhưng đo so với mốc `kênh 1+3, bể 100`, thứ bài nộp không chạy.
+   So với mốc THẬT thì +0,1244 ✅.
+
+Quay lại hành vi cũ: `--be-trake 100` và `--khong-hop-nhat`.
+
+⚠️ **15/18 câu TRAKE đo được là TỰ SOẠN**, chỉ 3 câu đề thật (A39 đã ghi đây là
+chỗ yếu nhất của tập dev). Nhưng cơ chế được xác nhận độc lập bằng mắt người ở
+**cả hai đợt sơ tuyển**: A101 (p1-16, p1-18 — "không tìm thấy đoạn video") và
+A103 (p2-21). Ba nguồn khác nhau, cùng một chỗ hỏng.
+
+Chạy thử đầu-cuối trên `THUNGHIEM-bo-de-thi` xác nhận đường nộp thật sự đổi:
+log in `query-p1-16-trake: kênh 3 hợp nhất vào 4 sự kiện (w=0.5)`, Frame ID
+tăng ngặt (`2736, 4977, 5472, 12768`).
+
+#### Bài học: thứ bị BỎ QUA khó bắt hơn thứ tính SAI
+
+Repo có 343 test và một bộ máy đo chống tự lừa mình, nhưng cả hai chỉ kiểm
+được **code đang chạy**. Một nhánh `if` loại bỏ cả một loại câu thì không có
+test nào đỏ, không có phép đo nào lệch — vì phép đo tự dựng lấy đường đi của
+nó. Chốt duy nhất chống được là **bắt script đo gọi vào đúng hàm mà bài nộp
+gọi**, và repo này chưa làm được điều đó cho TRAKE.
+
+Đã thêm `test_trake_duoc_hop_nhat_kenh_3` chốt hai dòng code cụ thể. Đó là
+chốt yếu (kiểm chuỗi trong mã nguồn), nhưng yếu vẫn hơn không có.
+
+### A103. Soát tay Sơ tuyển 2 (30 gói) — lỗi XẾP HẠNG nay nhiều hơn lỗi TÌM KIẾM
+
+Cùng cách soát như A101, trên đề Sơ tuyển 2.
+
+| | đạt | tỷ lệ |
+| --- | ---: | ---: |
+| **tổng (30 gói)** | **19,75/30** | **0,658** |
+| KIS | 12,75/19 | 0,671 |
+| Q&A | 6/9 | 0,667 |
+| TRAKE | 1/2 | 0,500 |
+
+#### Kiểu trượt — và nó lật tỷ lệ so với đợt 1
+
+| kiểu | đợt 1 | **đợt 2** | cộng |
+| --- | ---: | ---: | ---: |
+| đúng video, sai khung -> **XẾP HẠNG** | 3 | **7** | **10** |
+| không tìm thấy video -> TÌM KIẾM | 3 | 6 | 9 |
+| không đọc được đáp án -> ĐỌC | 1 | 0 | 1 |
+| **truy vấn CHƯA MÃ HOÁ -> VẬN HÀNH** | 0 | **1** | **1** |
+
+Trên **54 gói của hai đợt cộng lại**, lỗi xếp hạng (10) nhiều hơn lỗi tìm kiếm
+(9). A100 đo trần 0,7885 so với 0,5231 đang đạt và kết luận *"bài toán còn lại
+là xếp lại hạng"*; đây là xác nhận thứ ba, trên mẫu gấp đôi.
+
+#### `p2-22` — mất trắng một câu vì VẬN HÀNH, và nó phòng được 100%
+
+    Kênh 1 (ảnh) BỊ BỎ: truy vấn này chưa có trong index/truy_van.npz.
+    Kết quả dưới đây chỉ từ kênh văn bản và objects — yếu hơn hẳn.
+
+**Mất 1/30 = 3,3% bài thi.** `run.py` thì DỪNG HẲN khi thiếu cache (exit 1),
+nhưng UI thì xuống cấp rồi chạy tiếp — hành vi đúng cho câu gõ tay, sai cho
+ngày thi.
+
+Ba thứ đã dựng để chặn:
+
+* **`119_kiem_truy_van.py`** — tiền kiểm, chạy TRƯỚC khi mở UI. Chạy thử trên
+  đề Sơ tuyển 2 thì nó **bắt đúng `query-p2-22-kis`**, in ra 3 chuỗi thiếu kèm
+  lệnh vá dán chạy được. Chạy tiếp trên đợt 1 thì phát hiện **cũng thiếu 1
+  chuỗi** — tức lỗi này đã âm thầm có ở cả hai đợt.
+* **`120_gop_cache.py`** — gộp cache đợt mới vào cache chính, không cần model
+  (máy thi 7,7 GB không nạp nổi). Có chốt từ chối gộp hai không gian nhúng khác
+  nhau: cùng số chiều mà khác model thì `np.vstack` vẫn chạy trót lọt và mọi
+  kết quả sau đó vô nghĩa mà không có gì báo.
+* **UI in cảnh báo ra TERMINAL** kèm nguyên văn câu, vì banner web bị lướt qua
+  giữa 30 gói.
+
+#### Một chỗ chấm lệch, và nó có ý nghĩa
+
+    p2-12  hạng 32 -> soi tay cho 1
+    p2-9   hạng 31 -> soi tay cho 0
+
+Theo công thức BTC cả hai đều nằm trong `(21, 50]` -> `R@50` -> **đều được
+0,4**. Không phải lỗi của người soi — nó cho thấy thang "1 hay 0" không mô tả
+được cách chấm thật, và đó chính là lý do `cham_diem.py` không dùng thang nhị
+phân. Khi soi tay, **ghi HẠNG** thì dùng được nhiều hơn nhiều so với ghi 1/0.
+
 ## PHẦN B — QUYẾT ĐỊNH HẠ TẦNG
 
 ### B1. Không dùng Supabase / Postgres / Milvus / Elasticsearch — ĐÃ KIỂM CHỨNG
@@ -7280,6 +7403,8 @@ Hai điều bảng này nói mà 91 mục đo trước KHÔNG nói:
 
 | # | việc | vì sao |
 | --- | --- | --- |
+| ✅ | **ĐÃ BẬT: TRAKE có kênh 3 + `--be-trake 300`** (A102) | sửa lệch đường đo/đường nộp. TRAKE 0,2994 -> **0,4317** ở ±2s, 0,5139 -> **0,6483** ở ±15s, ✅ ổn định |
+| 🔴 | **Tiền kiểm cache TRƯỚC mọi lần nộp** (A103) | `119_kiem_truy_van.py`. `p2-22` mất trắng vì thiếu chuỗi trong cache = 3,3% bài thi. Xem `docs/09_ngay_thi.md` |
 | 0a | **`--trong-so-hoi 0.25` + văn bản gộp** (A100) | gộp hai thứ 🟡 thì **✅ vượt ngưỡng**: 0,5433/0,6173 (+0,0260, 7-2-43). Nhưng chỉ vượt 5% sau ~20 phép so — bật ở lần nộp 1-2 để lấy số THẬT, đừng bật ở lần cuối |
 | 0b | **`--be-trake 300`** (A94) | hiệu lớn nhất đang có: +0,0739/+0,0533, 🟡 ở 84% ngưỡng. Cần câu TRAKE **đề thật** để chốt — 15/18 câu hiện tại là tự soạn |
 | 1 | **Xếp lại hạng top-100** | A100 đo trần: **0,7885/0,8654**, đang đạt 0,5231/0,6115 -> **hơn 1/4 tổng điểm nằm trong bể mà xếp sai chỗ**. Chưa có cách nào chạy được trên máy 7,7 GB không GPU — đây là câu hỏi mở thật sự, không phải việc chờ làm |

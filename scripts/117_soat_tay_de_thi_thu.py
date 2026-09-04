@@ -53,6 +53,45 @@ SOAT = {
     "p1-25": (1, "kis",   "",     ""),
 }
 
+# Soát tay Sơ tuyển 2 (A103) — cùng cách, 30 gói. Ghi riêng vì đây là ĐỀ KHÁC,
+# gộp chung vào SOAT là trộn hai bộ đề khác nhau.
+SOAT2 = {
+    "p2-1":  (1,    "kis",   ""),
+    "p2-2":  (1,    "kis",   ""),
+    "p2-3":  (0,    "kis",   "tim"),
+    "p2-4":  (1,    "kis",   ""),
+    "p2-5":  (0,    "kis",   "?"),
+    "p2-6":  (1,    "kis",   ""),
+    "p2-7":  (1,    "qa",    ""),
+    "p2-8":  (1,    "trake", "hang"),
+    "p2-9":  (0,    "qa",    "hang"),      # hạng 31
+    "p2-10": (0.75, "kis",   "hang"),
+    "p2-11": (0,    "kis",   "tim"),
+    "p2-12": (1,    "qa",    "hang"),      # hạng 32
+    "p2-13": (1,    "kis",   ""),
+    "p2-14": (1,    "kis",   ""),
+    "p2-15": (0,    "kis",   "tim"),
+    "p2-16": (1,    "kis",   "hang"),      # hạng 24
+    "p2-17": (1,    "kis",   ""),
+    "p2-18": (1,    "kis",   ""),
+    "p2-19": (1,    "qa",    ""),
+    "p2-20": (1,    "kis",   ""),
+    "p2-21": (0,    "trake", "hang"),
+    "p2-22": (0,    "kis",   "LOI"),       # truy vấn CHƯA MÃ HOÁ
+    "p2-23": (1,    "qa",    ""),
+    "p2-24": (0,    "kis",   "tim"),
+    "p2-25": (1,    "kis",   ""),
+    "p2-26": (1,    "kis",   ""),
+    "p2-27": (1,    "qa",    "hang"),
+    "p2-28": (1,    "qa",    ""),
+    "p2-29": (0,    "qa",    "tim"),
+    "p2-30": (0,    "qa",    "tim"),
+}
+
+# ⚠️ p2-9 (hạng 31) bị chấm 0 còn p2-12 (hạng 32) được chấm 1. Theo công thức
+# BTC cả hai đều trong (21,50] -> R@50 -> ĐỀU được 0,4. Thang "1 hay 0" không
+# mô tả được cách chấm thật; khi soi tay thì GHI HẠNG dùng được hơn nhiều.
+
 # Điểm THẬT của BTC ở Sơ tuyển 1 cho những gói đã biết (A89). Đây MỚI là nhãn
 # vàng duy nhất repo có.
 BTC = {"p1-6": 1, "p1-11": 0, "p1-12": 0, "p1-13": 0,
@@ -121,6 +160,36 @@ def main():
           "     BTC, mà cả nhãn tự soi (hạng 152, A89) lẫn mắt người đều\n"
           "     không nhận ra. Nghĩa là thứ ta tin là đáp án KHÔNG phải đáp\n"
           "     án của BTC.")
+
+    # ------------------------------------------------ Sơ tuyển 2 (A103)
+    n2 = len(SOAT2)
+    t2 = sum(v[0] for v in SOAT2.values())
+    print(f"\n{'=' * 68}\nSƠ TUYỂN 2 — {n2} gói\n{'=' * 68}")
+    print(f"\nĐạt: {t2}/{n2} = {t2 / n2:.3f}\n")
+    for loai in ("kis", "qa", "trake"):
+        ds = [v for v in SOAT2.values() if v[1] == loai]
+        d = sum(v[0] for v in ds)
+        print(f"  {loai.upper():<8}{f'{d}/{len(ds)}':>10}{d / len(ds):>9.3f}")
+
+    print(f"\n{'-' * 68}\nKIỂU TRƯỢT — CỘNG hai đợt (54 gói)\n{'-' * 68}")
+    ten2 = {**TEN_KIEU, "LOI": "truy vấn CHƯA MÃ HOÁ         -> lỗi VẬN HÀNH",
+            "?": "không chắc về nội dung        -> không phân loại được"}
+    k1 = Counter(v[2] for v in SOAT.values() if v[2])
+    k2 = Counter(v[2] for v in SOAT2.values() if v[2])
+    print(f"  {'kiểu':<46}{'đợt1':>6}{'đợt2':>6}{'cộng':>6}")
+    print("  " + "-" * 64)
+    for k, ten in ten2.items():
+        a, b = k1.get(k, 0), k2.get(k, 0)
+        if a or b:
+            print(f"  {ten:<46}{a:>6}{b:>6}{a + b:>6}")
+    print(f"\n  -> Trên 54 gói, lỗi XẾP HẠNG ({k1.get('hang', 0) + k2.get('hang', 0)})"
+          f" nhiều hơn lỗi TÌM KIẾM ({k1.get('tim', 0) + k2.get('tim', 0)}).")
+    print("     A100 đo trần 0,7885 với 0,5231 đang đạt và kết luận 'bài toán")
+    print("     còn lại là xếp lại hạng'. Đây là xác nhận thứ ba, mẫu gấp đôi.")
+    if k2.get("LOI"):
+        print(f"\n  🔴 {k2['LOI']} gói mất vì VẬN HÀNH (truy vấn chưa mã hoá) —")
+        print("     phòng được 100%. Chạy scripts/119_kiem_truy_van.py TRƯỚC")
+        print("     mỗi lần nộp. Xem docs/09_ngay_thi.md.")
 
 
 if __name__ == "__main__":

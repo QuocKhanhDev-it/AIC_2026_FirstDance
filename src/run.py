@@ -395,8 +395,14 @@ def loc_cung(de: dict, bang, master, k: int) -> dict:
 
 
 def quet_van_ban(master, de: dict, k: int, index: Path,
-                 bo_metadata: bool = False) -> dict:
-    """Kênh 2 (metadata) + kênh 3 (OCR/ASR nếu có file). Nhẹ, không cần model."""
+                 bo_metadata: bool = False,
+                 van_ban_gop: bool = False) -> dict:
+    """Kênh 2 (metadata) + kênh 3 (OCR/ASR nếu có file). Nhẹ, không cần model.
+
+    `van_ban_gop=True` -> kênh 3 đọc văn bản GỘP (ocr cũ + VietOCR) qua
+    `bm25.doc_van_ban_khung`. MẶC ĐỊNH TẮT: A88/A91 đo được +0,0144 ở ±2s
+    nhưng +0,0000 ở ±15s, dưới ngưỡng nhiễu 0,0151 — chưa thắng.
+    """
     from bm25 import KenhVanBan
     ra = {}
 
@@ -424,11 +430,26 @@ def quet_van_ban(master, de: dict, k: int, index: Path,
             if b.get("text", pd.Series(dtype=str)).fillna("").str.strip().eq("").all():
                 print(f"  kênh 3: {p} KHÔNG có dòng nào có chữ — bỏ qua")
                 continue
+            if van_ban_gop:
+                from bm25 import doc_van_ban_khung
+                b = doc_van_ban_khung(index)
             k3 = KenhVanBan.tu_bang_khung(master, b, cot="text", ten="ocr_asr")
-            print(f"  kênh 3: OCR/ASR, {len(k3):,} khung có chữ ({p.name})")
+            print(f"  kênh 3: OCR/ASR, {len(k3):,} khung có chữ "
+                  f"({'GỘP ocr+VietOCR' if van_ban_gop else p.name})")
             for ten, nd in de.items():
                 if loai_cua(ten) != "trake":
                     ra.setdefault(ten, []).append(k3.tim(tach_truy_van(nd), k=k))
+                else:
+                    # ⚠️ A102. TRƯỚC ĐÂY TRAKE BỊ BỎ QUA Ở ĐÂY, và `phu[ten]`
+                    # chỉ được hợp nhất ở nhánh không-TRAKE — nên bài nộp chạy
+                    # TRAKE bằng kênh 1 một mình, trong khi MỌI script đo TRAKE
+                    # (78_/89_/91_/92_/110_/111_) đều dựng ứng viên bằng
+                    # `hop_nhat([anh, k3.tim(sk)], trong_so=[1.0, 0.5])`.
+                    # Đo được khoảng cách: 0,2994 -> 0,4317 ở ±2s.
+                    #
+                    # Hình dạng ở đây KHÁC nhánh trên: list MỘT DANH SÁCH MỖI
+                    # SỰ KIỆN, không phải list theo kênh. Chỗ dùng phải biết.
+                    ra[ten] = [k3.tim(sk, k=k) for sk in tach_su_kien(nd)]
             del k3
             gc.collect()
             break
@@ -824,13 +845,21 @@ def main():
                     help="quay lại gộp mệnh đề bằng MAX COSINE. A51 đo trên 52 "
                          "câu đề thật: RRF hạng + kênh 3 hơn max-cosine + kênh 3 "
                          "+0,0721/+0,0971 ✅ ỔN ĐỊNH. Chỉ tắt để tái lập số cũ")
-    ap.add_argument("--be-trake", type=int, default=None,
-                    help="bể ứng viên MỖI SỰ KIỆN của câu TRAKE. Để trống = "
-                         "dùng --k (100), tức không đổi gì. A94 đo 300 được "
-                         "+0,0739/+0,0533 (7-3-8) trên 18 câu — hiệu lớn nhất "
-                         "kể từ A79 nhưng vẫn 🟡, và 15/18 câu là TỰ SOẠN. "
-                         "1000 thì ❌ đảo dấu, nên có đỉnh chứ không phải càng "
-                         "nhiều càng tốt")
+    ap.add_argument("--van-ban-gop", action="store_true",
+                    help="kênh 3 đọc văn bản GỘP ocr cũ + VietOCR. MẶC "
+                         "ĐỊNH TẮT — A88/A91 đo +0,0144 ở ±2s nhưng "
+                         "+0,0000 ở ±15s, 🟡 chưa vượt nhiễu. Gộp với "
+                         "--trong-so-hoi 0.25 thì A100 đo được ✅ "
+                         "+0,0260 (7-2-43)")
+    ap.add_argument("--be-trake", type=int, default=300,
+                    help="bể ứng viên MỖI SỰ KIỆN của câu TRAKE. MẶC ĐỊNH 300 "
+                         "(A102): so với mốc nền THẬT của bài nộp được "
+                         "+0,1244/+0,1000 ✅ ỔN ĐỊNH. Với TRAKE, `--k` không "
+                         "phải 'số dòng nộp' mà là BỂ ĐỂ GIAO — video chỉ vào "
+                         "danh sách khi có ứng viên cho MỌI sự kiện, nên giao "
+                         "nhỏ đi theo cấp số nhân. Ở 100 chỉ còn trung vị 11 "
+                         "video, ở 300 là 25 — đúng con số hạn ngạch dòng cần. "
+                         "1000 thì ❌ đảo dấu. Đặt 100 để quay lại hành vi cũ")
     ap.add_argument("--trong-so-hoi", type=float, default=1.0,
                     help="trọng số của mệnh đề HỎI trong kênh 1. MẶC ĐỊNH 1,0 "
                          "= không đổi gì. A93 đo 0,25 được +0,0154/+0,0154 "
@@ -932,7 +961,8 @@ def main():
                                rrf_menh_de=a.rrf_menh_de,
                                trong_so_hoi=a.trong_so_hoi,
                                be_trake=a.be_trake)
-    phu = (quet_van_ban(master, de, a.k, a.index, a.bo_metadata)
+    phu = (quet_van_ban(master, de, a.k, a.index, a.bo_metadata,
+                        van_ban_gop=a.van_ban_gop)
            if a.hop_nhat else {})
 
     lc = {}
@@ -973,6 +1003,13 @@ def main():
         if loai == "trake":
             ds = kq1[ten]
             sk = tach_su_kien(de[ten])
+            # A102: hợp nhất kênh 3 vào TỪNG sự kiện, đúng như các script đo.
+            p3 = phu.get(ten)
+            if a.hop_nhat and p3 and len(p3) == len(ds):
+                ds = [hop_nhat([d, v], trong_so=[1.0, a.trong_so_phu])
+                      for d, v in zip(ds, p3)]
+                print(f"     {ten}: kênh 3 hợp nhất vào {len(ds)} sự kiện "
+                      f"(w={a.trong_so_phu:g})")
             if a.so_su_kien and len(ds) != a.so_su_kien:
                 ds = (ds + [ds[-1]] * a.so_su_kien)[:a.so_su_kien]
                 sk = (sk + [sk[-1]] * a.so_su_kien)[:a.so_su_kien]
