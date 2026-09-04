@@ -72,12 +72,38 @@ và nó **không báo lỗi**, chỉ hiện ô trống.
 
 ---
 
-## 1. Trình tự ngày thi — sáu bước
+## 1. Trình tự ngày thi — bảy bước
 
-### Bước 1. Có đề → mở Kaggle
+### Bước 0. Có đề → giải nén vào thư mục RIÊNG
 
-Theo `notebooks/kaggle_ma_hoa_dot3.md`. **Cell 1 chạy TRƯỚC khi có đề** (nạp sẵn
-trọng số, ~2 phút). Cell 2 chạy khi đã dán đề vào.
+```powershell
+Expand-Archive SOTUYEN3-bo-de-thi.zip -DestinationPath dev\SOTUYEN3-bo-de-thi
+```
+
+⚠️ **Thư mục riêng, không đè lên đợt trước.** Đề đợt 3 dùng lại tiền tố `p2-`:
+**16 tên file trùng đợt 2 nhưng nội dung khác hẳn**. Giải nén đè là mất đề cũ,
+và tệ hơn là dễ nộp nhầm bộ.
+
+⚠️ **Giữ nguyên tên file BTC đặt.** `run.py` đọc loại câu từ tên
+(`-kis`/`-qa`/`-trake`), và tên gói cũng là tên file nộp.
+
+### Bước 1. Sinh cell Kaggle — KHÔNG dán tay câu nào
+
+```powershell
+.venv\Scripts\python.exe scripts\122_sinh_cell_kaggle.py --de dev\SOTUYEN3-bo-de-thi
+```
+
+Ra `dev\SOTUYEN3-bo-de-thi\_cell_kaggle.py`. Mở Kaggle, chạy **cell 1** trong
+`notebooks/kaggle_ma_hoa_dot3.md` (nạp sẵn trọng số, ~2 phút — làm được từ
+trước khi có đề), rồi **copy toàn bộ file vừa sinh, dán vào cell 2, chạy**.
+
+Cell tự mã hoá, tự tiền kiểm, tự đóng gói. Nó `assert` ở hai chỗ nên **hỏng là
+dừng**, không im lặng chạy tiếp.
+
+> Vì sao không dán tay: 36 gói tiếng Việt có dấu, mỗi lần dán là một lần có thể
+> lệch một ký tự — mà lệch một ký tự là **một chuỗi khác**, là trượt cache, là
+> đúng lỗi làm mất trắng `p2-22` ở Sơ tuyển 2. Script nhúng nội dung dưới dạng
+> JSON và đã kiểm: **36/36 gói đi qua nguyên vẹn**.
 
 Kết quả: `dot3.zip` chứa `index/truy_van_dot3.npz` + thư mục đề.
 
