@@ -41,6 +41,17 @@ MAU = '''# ==================================================================
 # ==================================================================
 import json, pathlib, subprocess, sys
 
+# CHỐT PHIÊN BẢN — hỏng sớm và nói rõ, thay vì chết ở tokenizer sau khi đã
+# tải xong trọng số. transformers 5.x bỏ `batch_encode_plus` mà open_clip
+# 2.32 gọi; đã cắn thật ở đợt 3.
+import transformers
+_v = int(transformers.__version__.split(".")[0])
+assert _v < 5, (
+    f"transformers {{transformers.__version__}} KHÔNG chạy được với open_clip"
+    f" 2.32 (bỏ batch_encode_plus)."
+    f"  ->  chạy  !pip -q install 'transformers<5'  RỒI  Run > Restart"
+    f" Session, rồi chạy lại cell 1 và cell này.")
+
 DE = json.loads(r"""{de_json}""")
 
 d = pathlib.Path("/kaggle/working/aic/dev/{ten}")
