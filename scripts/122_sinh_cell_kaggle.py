@@ -67,10 +67,17 @@ kt = chay("scripts/119_kiem_truy_van.py",
           "--cache", "index/truy_van_dot3.npz")
 assert kt == 0, "TIỀN KIỂM BÁO THIẾU — đừng tải về, đọc log ở trên"
 
-subprocess.run(["zip", "-qr", "/kaggle/working/dot3.zip",
-                "index/truy_van_dot3.npz", "dev/{ten}"],
-               cwd="/kaggle/working/aic", check=True)
-print("\\n📦 /kaggle/working/dot3.zip — bấm Output ở cột phải để tải về")
+# Đóng gói bằng Python thuần, KHÔNG gọi lệnh `zip` của hệ thống — một phụ
+# thuộc nữa là một chỗ nữa có thể hỏng lúc đang tính từng phút.
+import zipfile
+goc = pathlib.Path("/kaggle/working/aic")
+with zipfile.ZipFile("/kaggle/working/dot3.zip", "w",
+                     zipfile.ZIP_DEFLATED) as z:
+    z.write(goc / "index/truy_van_dot3.npz", "index/truy_van_dot3.npz")
+    for f in sorted((goc / "dev/{ten}").glob("query-*.txt")):
+        z.write(f, "dev/{ten}/" + f.name)
+kb = pathlib.Path("/kaggle/working/dot3.zip").stat().st_size / 1024
+print(f"\\n📦 /kaggle/working/dot3.zip ({{kb:.0f}} KB) — bấm Output ở cột phải để tải về")
 '''
 
 
