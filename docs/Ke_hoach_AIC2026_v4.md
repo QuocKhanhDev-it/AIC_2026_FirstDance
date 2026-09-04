@@ -6405,6 +6405,103 @@ Muốn làm thì phải: dịch 52 câu trên máy khác -> mã hoá bằng SigL
 Kaggle -> đổ vào `truy_van_gopt.npz` -> đo trên máy này. Ba bước, không bước
 nào chạy được ở đây.
 
+### A101. Soát tay 24/25 gói đề thử nghiệm — xác nhận thước đo, xác nhận A94 và A100, nhưng KHÔNG dùng làm nhãn
+
+Người trong nhóm mở UI + dataset, tự chấm từng gói: **1 = đáp án nằm trong
+top-20**, kèm ghi chú vì sao trượt. Lưu ở `117_soat_tay_de_thi_thu.py`.
+
+| | đạt | tỷ lệ |
+| --- | ---: | ---: |
+| **tổng (24 gói, thiếu p1-3)** | **17/24** | **0,708** |
+| KIS | 15/18 | 0,833 |
+| Q&A | 1/3 | 0,333 |
+| TRAKE | 1/3 | 0,333 |
+
+#### 1. Thước đo đoán đúng — lần kiểm độc lập THỨ HAI
+
+| | R@20 |
+| --- | ---: |
+| dự đoán từ A92, trọng số theo 18 KIS / 3 QA / 3 TRAKE | 0,646 |
+| **quan sát khi soi tay** | **0,708** |
+
+Lệch **+0,062**, ngưỡng nhiễu 2×SE = 0,186 -> **trong nhiễu**. A89 (bảng điểm
+BTC) kiểm được **nhãn** và bắt lỗi; lần này kiểm được **tỷ lệ tổng** và nó
+khớp. Hai phép kiểm khác nhau, và thước đo qua được cả hai theo đúng nghĩa của
+từng cái.
+
+#### 2. KIỂU trượt — thứ không bảng điểm nào cho, và nó xác nhận A100
+
+| kiểu | số câu | gói |
+| --- | ---: | --- |
+| **đúng video, sai khung/đáp án -> lỗi XẾP HẠNG** | **3** | p1-6, p1-7, p1-22 |
+| không tìm thấy video -> lỗi TÌM KIẾM | 3 | p1-16, p1-18, p1-21 |
+| không đọc được đáp án -> lỗi ĐỌC | 1 | p1-19 |
+
+**3/7 câu trượt đã có đúng video trong tay.** A100 đo trần 0,7885 so với 0,5231
+đang đạt và kết luận *"bài toán còn lại là xếp lại hạng, không phải tìm kiếm"*.
+Đây là **cùng một sự thật, nhìn bằng mắt người thay vì bằng thước đo** — và hai
+cách nhìn hoàn toàn độc lập với nhau.
+
+#### 3. TRAKE: cả hai câu trượt đều là "không tìm thấy video" — xác nhận A94
+
+TRAKE đạt 1/3, và **cả hai câu hỏng đều ghi đúng một lý do: không tìm ra video**.
+A94 đo được ở `--be` mặc định chỉ có **trung vị 11 video** đủ ứng viên cho mọi
+sự kiện, trong khi hạn ngạch dòng thiết kế cho 25 — tức video đúng thường
+**không có mặt trong danh sách để mà xếp hạng**.
+
+Đây là xác nhận độc lập bằng mắt người cho một cơ chế trước đó chỉ có số đo
+gián tiếp. Nó **không** làm A94 hết 🟡 (vẫn cần câu TRAKE đề thật có nhãn
+sạch), nhưng nó loại được cách đọc "hiệu ứng chỉ là ngẫu nhiên hai câu".
+
+#### 4. ⚠️ Vì sao KHÔNG được dùng bảng này làm nhãn
+
+Đối chiếu với **điểm thật của BTC** trên 7 gói có dữ liệu (A89):
+
+| gói | BTC | soi tay | |
+| --- | ---: | ---: | :---: |
+| p1-11 | 0 | 1 | ✗ |
+| p1-12 | 0 | 1 | ✗ |
+| p1-13 | 0 | 1 | ✗ |
+| p1-16 | 0 | 0 | ✓ |
+| p1-18 | 0 | 0 | ✓ |
+| p1-23 | 0 | 1 | ✗ |
+| **p1-6** | **1** | **0** | ✗ |
+
+**Khớp 2/7.** Và lệch **có hệ thống**, không ngẫu nhiên: bốn câu BTC cho 0 thì
+soi tay cho 1, còn p1-6 thì ngược lại.
+
+`p1-6` là ca sắc nhất trong cả dự án. **BTC cho 1 điểm** — tức bài nộp CÓ một
+khung rơi trong cửa sổ đáp án. Nhưng nhãn tự soi xếp "đáp án" ở hạng **152**
+(A89), và mắt người soi lại cũng kết luận *"không tìm được đúng keyframe"*. Ba
+nguồn, hai nguồn của ta cùng sai theo cùng một hướng.
+
+> **Suy ra: thứ cả nhóm tin là đáp án của p1-6 KHÔNG phải đáp án của BTC.** Và
+> vì soi tay dùng đúng quy trình đã sinh ra nhãn tự soi — nhìn đầu ra hệ thống
+> rồi phán "cái này trông đúng" — nó đo lại **cùng một đại lượng**, nên không
+> kiểm chéo được. Hai phép đo cùng thiên vị thì trùng nhau không phải bằng
+> chứng.
+
+**Kết luận vận hành:** dùng cột `ghi_chu` (kiểu trượt) — nó là dữ liệu thật và
+đã xác nhận hai kết luận lớn. **Đừng** dùng cột điểm làm đáp án đúng, và đừng
+nạp vào tập dev. Điều này đã được cài vào docstring của `117_`.
+
+#### 5. Một giả thuyết mới, và cách bác nó
+
+Bốn câu "BTC cho 0 mà mắt người thấy đúng" có hai cách giải thích, và chúng dẫn
+tới hai việc khác hẳn nhau:
+
+* **(a) Cảnh đúng nhưng SAI THỜI ĐIỂM** — khung trông giống cảnh mô tả nhưng
+  nằm ngoài cửa sổ của BTC (cảnh lặp lại ở chỗ khác trong video). Nếu đúng thì
+  **cửa sổ hẹp**, và **±2s mới là mức dung sai đáng tin**, còn ±15s là lạc
+  quan — điều này ảnh hưởng tới cách đọc *mọi* kết luận trong tài liệu.
+* **(b) Cảnh SAI, chỉ trông giống.** Nếu đúng thì vấn đề là mô tả của đề khớp
+  nhiều cảnh, và hướng chữa là phân biệt cảnh gần giống.
+
+**Cách phân biệt, rẻ:** với 4 gói đó, lấy `pts_time` của khung nhóm đã chọn và
+`pts_time` của khung đã NỘP, rồi xin BTC cửa sổ đáp án (hoặc đợi công bố). Nếu
+hai khung cách nhau vài chục giây trong cùng video -> (a). Chưa có dữ liệu để
+kết luận, nên **ghi lại giả thuyết chứ không hành động theo nó**.
+
 ## PHẦN B — QUYẾT ĐỊNH HẠ TẦNG
 
 ### B1. Không dùng Supabase / Postgres / Milvus / Elasticsearch — ĐÃ KIỂM CHỨNG
