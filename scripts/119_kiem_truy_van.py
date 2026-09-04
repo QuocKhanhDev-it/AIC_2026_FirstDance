@@ -35,8 +35,11 @@ chốt.
 
 import argparse
 import importlib.util
+import json
 import sys
 from pathlib import Path
+
+import numpy as np
 
 GOC = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(GOC / "src"))
@@ -70,11 +73,34 @@ def main():
         raise SystemExit("Chưa chọn nguồn: --de / --tap / --tap-dev")
 
     can = thu_thap(a.de, a.tap_dev, [], a.tap)
-    k1 = KenhAnhCache(str(a.index), str(cache), matrix=a.matrix)
-    thieu = k1.co_du(can)
+
+    # ⚠️ HAI MỨC KIỂM, và mức nhẹ phải chạy được KHI KHÔNG CÓ `index/`.
+    #
+    # Bản đầu dựng thẳng `KenhAnhCache`, mà hàm khởi tạo của nó đọc
+    # `master.parquet` để kiểm số dòng khớp ma trận. Trên Kaggle thì `index/`
+    # chỉ có mỗi `clip_gopt.json`, nên chốt này chết bằng FileNotFoundError
+    # NGAY SAU KHI mã hoá xong — tức đúng lúc nó đáng lẽ phải trấn an rằng
+    # mọi thứ ổn. Đã cắn thật ở đợt 3.
+    #
+    # Việc thật của chốt này là so TẬP CHUỖI, và việc đó chỉ cần file `.npz`.
+    day_du = (a.index / "master.parquet").exists() and \
+             (a.index / a.matrix).exists()
+    if day_du:
+        k1 = KenhAnhCache(str(a.index), str(cache), matrix=a.matrix)
+        thieu = k1.co_du(can)
+        ghi_chu = "đủ index — có kiểm cả khớp model/số chiều"
+    else:
+        z = np.load(cache, allow_pickle=False)
+        co = {str(c) for c in z["cau"]}
+        thieu = [c for c in can if c not in co]
+        gc = json.loads(str(z["ghi_chu"]))
+        ghi_chu = (f"KHÔNG có index/ — chỉ so tập chuỗi. Cache ghi model "
+                   f"{gc.get('model')}, {gc.get('chieu')} chiều; kiểm khớp ma "
+                   f"trận thì chạy lại trên máy có index/")
 
     print(f"\ncache : {cache}")
     print(f"nguồn : {a.de or a.tap or 'tập dev'}")
+    print(f"mức   : {ghi_chu}")
     print(f"cần   : {len(can)} chuỗi (câu gốc + mệnh đề + sự kiện TRAKE)")
     print(f"thiếu : {len(thieu)}\n")
 
