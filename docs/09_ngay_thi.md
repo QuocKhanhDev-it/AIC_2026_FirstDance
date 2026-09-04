@@ -12,10 +12,51 @@
 | việc | ai | bắt buộc? |
 | --- | --- | --- |
 | `git pull` nhánh `giai-doan-0` | tất cả | ✅ |
-| Đồng bộ `index/` từ Google Drive | tất cả | ✅ **nếu muốn chạy** |
+| **Giải nén `CHO_NHOM_dot3.zip`** (9,2 MB) | tất cả | ✅ **mở khoá kênh 1 cho đề đợt 3** |
+| Đồng bộ `index/` từ Google Drive | ai chưa có | ✅ **nếu muốn chạy** |
 | Chạy `scripts/12_va_duong_dan.py` | ai vừa tải `index/` mới | ✅ |
 | Cài lại thư viện | **không ai** | ❌ đợt này không thêm phụ thuộc nào |
-| Encode lại gì đó | **không ai** | ❌ |
+| Encode lại gì đó | **không ai** | ❌ **đã mã hoá xong, dùng chung** |
+
+### 🔴 Mở khoá kênh 1 cho đề đợt 3 — hai file, một lệnh kiểm
+
+Kênh 1 (ảnh, SigLIP2 gopt) là **kênh mạnh nhất** và nó chạy từ **vector truy
+vấn mã hoá sẵn**. Truy vấn nào không có trong cache thì kênh 1 **im lặng bị
+bỏ** cho gói đó — `p2-22` ở Sơ tuyển 2 mất trắng đúng vì vậy.
+
+`git pull` **KHÔNG** mang hai thứ này về, vì `.gitignore` chặn cả `index/` lẫn
+`*-bo-de-thi/`. Phải nhận qua Drive/Zalo:
+
+```powershell
+Expand-Archive CHO_NHOM_dot3.zip -DestinationPath C:\Code\aic2026 -Force
+```
+
+Gói gồm đúng hai thứ:
+
+| | |
+| --- | --- |
+| `index/truy_van_gopt.npz` | cache **đã gộp** 1.591 chuỗi (1.468 cũ + 123 của đợt 3) |
+| `dev/SOTUYEN3-bo-de-thi/` | 36 file `.txt` |
+
+⚠️ **Phải lấy đúng 36 file `.txt` này, đừng gõ lại hay chép từ chỗ khác.** Cache
+tra theo **chuỗi chính xác** — lệch một dấu cách là một chuỗi khác, là kênh 1
+tắt cho gói đó.
+
+⚠️ **Ai đã tự mã hoá thêm truy vấn riêng** thì đừng ghi đè; gộp thay vì thay:
+
+```powershell
+.venv\Scripts\python.exe scripts\120_gop_cache.py `
+    index\truy_van_gopt.npz <cache vừa nhận>.npz
+```
+
+**Rồi bắt buộc kiểm — một lệnh:**
+
+```powershell
+.venv\Scripts\python.exe scripts\119_kiem_truy_van.py --de dev\SOTUYEN3-bo-de-thi
+```
+
+Phải thấy `thiếu : 0` và `✅ ĐỦ — kênh 1 sẽ chạy cho MỌI truy vấn`. Thấy `❌`
+thì **đừng nộp**, nó in sẵn lệnh vá.
 
 ### `index/` chỉ cần **6 file**, không cần cả thư mục
 
