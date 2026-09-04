@@ -54,6 +54,21 @@ assert _v < 5, (
 
 DE = json.loads(r"""{de_json}""")
 
+# ⚠️ CHECKSUM TỪNG GÓI. Cell này có thể đi qua chat, email, hay một lần
+# copy-paste hụt. Mất một ký tự trong câu hỏi = MỘT CHUỖI KHÁC = mã hoá ra
+# vector của câu khác, và KHÔNG có gì báo — bài nộp vẫn ra 100 dòng trông
+# hoàn toàn hợp lệ. Đúng cơ chế đã làm mất trắng `p2-22` ở Sơ tuyển 2.
+KIEM = json.loads(r"""{kiem_json}""")
+import hashlib
+_thieu = set(KIEM) ^ set(DE)
+assert not _thieu, f"thiếu/thừa gói: {{_thieu}}"
+_hong = [k for k, v in DE.items()
+         if hashlib.sha256(v.encode()).hexdigest()[:16] != KIEM[k]]
+assert not _hong, (
+    f"{{len(_hong)}} GÓI SAI NỘI DUNG sau khi copy: {{_hong}}"
+    f"  ->  ĐỪNG chạy tiếp. Lấy lại file _cell_kaggle.py bản gốc.")
+print(f"✅ checksum {{len(DE)}} gói khớp — nội dung nguyên vẹn")
+
 d = pathlib.Path("/kaggle/working/aic/dev/{ten}")
 d.mkdir(parents=True, exist_ok=True)
 for ten, nd in DE.items():
@@ -118,8 +133,13 @@ def main():
     if '"""' in js or "\\" in js.replace('\\"', "").replace("\\n", ""):
         raise SystemExit("❌ nội dung đề chứa ký tự phá chuỗi raw — sửa tay")
 
+    import hashlib
+    kiem = {k: hashlib.sha256(v.encode()).hexdigest()[:16]
+            for k, v in de.items()}
+
     ra = a.ra or (a.de / "_cell_kaggle.py")
-    ra.write_text(MAU.format(n=len(de), ten=a.de.name, de_json=js),
+    ra.write_text(MAU.format(n=len(de), ten=a.de.name, de_json=js,
+                             kiem_json=json.dumps(kiem, indent=1)),
                   encoding="utf-8", newline="\n")
 
     loai = Counter(k.rsplit("-", 1)[1] for k in de)
