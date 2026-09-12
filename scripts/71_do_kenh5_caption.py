@@ -3,33 +3,34 @@
 
     python scripts/71_do_kenh5_caption.py
 
-⚠️ VÌ SAO KHÔNG ĐO THẲNG NHƯ CÁC KÊNH KHÁC
+A90 — ĐÃ ĐỦ 12/12 PHẦN: caption phủ 177.321 ảnh / 873 video = 100,0% kho.
+Từ đây bể ứng viên KHÔNG còn bị khoá nhỏ nữa, nên điểm tuyệt đối so được với
+các mục khác. Script tự đọc độ phủ thật từ `caption.parquet` và chỉ in cảnh báo
+"khoá bể" khi độ phủ dưới 99,9%.
 
-`caption.parquet` hiện chỉ phủ **47 video mà tập đề thật đụng tới** (10.488 ảnh
-= 5,9% kho) — cố ý, để biết kênh này có đáng 103 giờ GPU cho cả kho không.
-Nay đã có 9/12 phần (**134.708 ảnh / 663 video = 76% kho**); script tự đọc
-độ phủ thật từ `caption.parquet`.
+⚠️ VÌ SAO PHẢI ĐO LẠI DÙ A73 ĐÃ BÁC
 
-⚠️ A73: độ phủ tăng 13 lần thì đóng góp của kênh 5 **biến mất** (+0,0106 ->
-+0,0022 rồi đảo dấu). Con số cũ đẹp là vì bể quá nhỏ, không phải vì kênh tốt.
+A73 kết luận ❌ đảo dấu, nhưng đo ở độ phủ 76% VÀ trên 68 câu có 16 câu nhãn
+hái từ chính hệ thống (A89). Cả hai điều kiện nay đã đổi, nên phải chạy lại
+trên `--file dev/tap_de_that.jsonl` (52 câu nhãn sạch).
 
-Nhưng dựng BM25 trên đúng ngần ấy thì kênh 5 **chỉ có thể đề xuất khung từ
-chính những video chứa đáp án**. Nó sẽ cho ra con số đẹp rực rỡ và hoàn toàn vô
-nghĩa — đúng cơ chế A21 đo được mức tăng ẢO 0,400 → 0,840.
+KẾT QUẢ (A90): KHÔNG LẬT, VÀ MẠNH HƠN. w=1,0 đi từ 🟡 sang ✅ ổn định TỆ HƠN
+(−0,0596, thua 24/52). Dãy ba điểm đo của kênh 5 đứng một mình:
 
-CÁCH ĐO ĐÚNG: KHOÁ BỂ ỨNG VIÊN
+    độ phủ  5,9% -> 0,3904   (A59)
+    độ phủ 76,0% -> 0,2625   (A73)
+    độ phủ  100% -> 0,1615   (A90)
 
-Ép **mọi kênh** chỉ được đề xuất trong 47 video đó. Tất cả cùng nhìn một vũ trụ,
-nên so sánh công bằng. Câu hỏi trở thành:
+Càng phủ đủ càng thấp, ĐƠN ĐIỆU, ba trên ba. Đây là cơ chế A21 ở dạng thuần
+khiết: bể càng nhỏ so với kho, con số càng nói về BỂ chứ không về KÊNH. Ở 5,9%
+thì bể gần như chỉ gồm video CHỨA đáp án, nên kênh 5 chỉ phải chọn khung trong
+một tập đã được lọc sẵn hộ.
 
-    "Khi video đúng đã nằm trong bể, caption có kéo đáp án lên hạng cao hơn
-     không?"
+CÁCH ĐO KHI ĐỘ PHỦ CHƯA ĐỦ: KHOÁ BỂ ỨNG VIÊN
 
-Hợp lệ, và trả lời đúng vấn đề A54: R@20 = 0,61 nhưng R@1 = 0,20.
-
-⚠️ ĐIỂM Ở ĐÂY KHÔNG SO ĐƯỢC VỚI ĐIỂM Ở CÁC MỤC KHÁC. Bể bị khoá nhỏ hơn kho nên
-mọi cấu hình đều cao vọt. Chỉ đọc HIỆU giữa các dòng, đừng trích con số tuyệt
-đối ra ngoài script này.
+Ép MỌI kênh chỉ được đề xuất trong các video có caption. Tất cả cùng nhìn một
+vũ trụ nên so sánh công bằng — nhưng công bằng KHÔNG có nghĩa là đại diện, và
+dãy ba số ở trên là bằng chứng cho đúng câu đó.
 """
 
 import argparse
@@ -56,9 +57,10 @@ W5 = (0.25, 0.5, 1.0)
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[1])
     ap.add_argument("--index", default=GOC / "index", type=Path)
+    # A89: bỏ `tap_de_thi_thu` khỏi mặc định — 20 câu đó mang nhãn hái từ
+    # chính đầu ra hệ thống, thiên vị CÓ CHIỀU chống lại mọi cấu hình mới.
     ap.add_argument("--file", nargs="*", type=Path, default=[
-        GOC / "dev" / "tap_de_that.jsonl",
-        GOC / "dev" / "tap_de_thi_thu.jsonl"])
+        GOC / "dev" / "tap_de_that.jsonl"])
     ap.add_argument("--caption", default=GOC / "index" / "caption.parquet",
                     type=Path)
     ap.add_argument("--be", type=int, default=100)
@@ -122,8 +124,14 @@ def main():
         lambda c: hop_nhat([nen(c)[0], nen(c)[2]], trong_so=[1.0, W3]))
 
     print(bao_cao_do_nhay(giu, cau_hinh, master))
-    print("\n⚠️ Điểm tuyệt đối ở đây KHÔNG so được với các mục khác — bể chỉ "
-          f"còn {be.mean() * 100:.1f}% kho. Chỉ đọc HIỆU giữa các dòng.")
+    # Ở 100% độ phủ thì cảnh báo "bể bị khoá" thành vô nghĩa — và một cảnh báo
+    # luôn hiện là một cảnh báo không ai còn đọc.
+    if be.mean() < 0.999:
+        print("\n⚠️ Điểm tuyệt đối ở đây KHÔNG so được với các mục khác — bể "
+              f"chỉ còn {be.mean() * 100:.1f}% kho. Chỉ đọc HIỆU giữa các dòng.")
+    else:
+        print("\n✅ Bể phủ TRỌN kho — điểm tuyệt đối ở đây so được với các mục "
+              "khác dùng cùng cỡ bể.")
 
 
 if __name__ == "__main__":

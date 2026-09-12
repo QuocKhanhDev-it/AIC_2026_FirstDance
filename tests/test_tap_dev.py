@@ -131,3 +131,52 @@ def test_id_ghi_sai_nhom_thi_bi_bat(master):
                        row_id_dung=[r])
     loi = tap_dev.kiem([c])
     assert any("đặt nhầm file" in x for x in loi), loi
+
+
+def _viet(f, *cau):
+    import json
+    f.write_text("\n".join(json.dumps(c, ensure_ascii=False) for c in cau) + "\n",
+                 encoding="utf-8")
+
+
+def _cau(ma, ghi_chu=""):
+    return {"id": ma, "cau_hoi": "x", "loai": "KIS", "row_id_dung": [1],
+            "ghi_chu": ghi_chu}
+
+
+def test_doc_bo_nhan_sai_nhung_gop_thi_KHONG_bo(tmp_path):
+    """`doc()` lọc nhãn sai cho phép ĐO; `gop()` phải giữ, vì nó GHI ĐÈ file.
+
+    Chốt cho đúng cái bẫy A89 suýt tạo ra: bật lọc mặc định trong `doc()` mà
+    quên đường đọc-rồi-ghi thì `--gop` lần sau XOÁ VĨNH VIỄN mọi câu bị hạ
+    nhãn khỏi đĩa — im lặng, và chỉ lộ ra ở một con số nhỏ đi.
+    """
+    import tap_dev
+    f = tmp_path / "t.jsonl"
+    _viet(f, _cau("kis-L21-001"),
+          _cau("kis-L21-002", "do_chac: sai — BTC chấm 0 điểm"))
+
+    assert [c.id for c in tap_dev.doc(f)] == ["kis-L21-001"]
+    assert len(tap_dev.doc(f, giu_nhan_sai=True)) == 2
+
+    gop, loi = tap_dev.gop([f])
+    assert not loi, loi
+    assert {c.id for c in gop} == {"kis-L21-001", "kis-L21-002"}, \
+        "gop() nuốt mất câu bị hạ nhãn — lần `--gop` sau là mất khỏi đĩa"
+
+
+def test_chan_ro_tap_test_van_dung_khi_cau_test_bi_ha_nhan(tmp_path,
+                                                           monkeypatch):
+    """Câu test bị hạ nhãn vẫn phải chặn được, không thì nó LỌT NGƯỢC vào dev."""
+    import tap_dev
+    kin = tmp_path / "test.jsonl"
+    _viet(kin, _cau("kis-L21-009", "do_chac: sai"))
+    monkeypatch.setattr(tap_dev, "MAC_DINH_TEST", kin)
+
+    f = tmp_path / "tv.jsonl"
+    _viet(f, _cau("kis-L21-001"), _cau("kis-L21-009", "do_chac: sai"))
+
+    gop, loi = tap_dev.gop([f])
+    assert not loi, loi
+    assert {c.id for c in gop} == {"kis-L21-001"}, \
+        "câu test bị hạ nhãn đã lọt về tập dev"

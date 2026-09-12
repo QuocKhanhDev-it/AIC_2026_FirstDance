@@ -47,6 +47,7 @@ sys.path.insert(0, str(GOC / "src"))
 
 from nop_bai import (TOI_DA_DONG, dong_goi, ghi_goi,          # noqa: E402
                      tu_ung_vien)
+from rrf import hop_nhat                                      # noqa: E402
 from schema import AnswerTRAKE                                # noqa: E402
 
 # Tên file đề. Tài liệu BTC ví dụ `query-1-kis`, nhưng bộ đề mẫu thật dùng
@@ -184,8 +185,25 @@ def tach_truy_van(cau: str, tran_tu: int = TRAN_TOKEN) -> list[str]:
 
 # ------------------------------------------------------------------ các kênh
 
+# Dấu hiệu mệnh đề HỎI tiếng Việt (A93). Dấu `?` là dấu hiệu mạnh nhất nhưng
+# không đủ: đề thật có câu hỏi viết dưới dạng mệnh lệnh ("Hãy cho biết...").
+TU_HOI = re.compile(
+    r"\b(bao nhiêu|mấy|là gì|màu gì|nào|thế nào|ra sao|tại sao|vì sao|"
+    r"khi nào|ở đâu|ai là|hãy cho biết|hỏi )\b", re.IGNORECASE)
+
+
+def la_menh_de_hoi(m: str) -> bool:
+    """Mệnh đề này hỏi về ĐÁP ÁN chứ không tả CẢNH?
+
+    Đo được (A93): bắn ở **11/12 câu Q&A** của đề thật và **0/37 câu KIS,
+    0/3 câu TRAKE** — tách sạch, nên bật cờ không đụng gì tới KIS.
+    """
+    return m.rstrip().endswith("?") or bool(TU_HOI.search(m))
+
+
 def quet_anh(index: Path, matrix: str, de: dict, k: int, mmap=True,
-            giu_kenh: bool = False, cache=None, rrf_menh_de: bool = True):
+            giu_kenh: bool = False, cache=None, rrf_menh_de: bool = True,
+            trong_so_hoi: float = 1.0, be_trake: int | None = None):
     """Chạy kênh ảnh cho MỌI truy vấn rồi giải phóng model.
 
     TRAKE cần một danh sách riêng cho từng sự kiện con, nên giá trị trả về là
@@ -248,12 +266,28 @@ def quet_anh(index: Path, matrix: str, de: dict, k: int, mmap=True,
         md = tach_truy_van(noi_dung)
         if len(md) == 1 or not rrf_menh_de:
             return kenh.tim(md, k=sl)
-        return hop_nhat([kenh.tim(m, k=sl) for m in md])[:sl]
+        if trong_so_hoi == 1.0:
+            return hop_nhat([kenh.tim(m, k=sl) for m in md])[:sl]
+        # A93: mệnh đề HỎI nói về thứ cần TRẢ LỜI, không nói cảnh trông thế nào.
+        ta = [m for m in md if not la_menh_de_hoi(m)]
+        hoi_md = [m for m in md if la_menh_de_hoi(m)]
+        if not ta:                      # toàn mệnh đề hỏi -> giữ nguyên
+            ta, hoi_md = md, []
+        ds = [kenh.tim(m, k=sl) for m in ta]
+        ts = [1.0] * len(ds)
+        if trong_so_hoi > 0:
+            ds += [kenh.tim(m, k=sl) for m in hoi_md]
+            ts += [trong_so_hoi] * len(hoi_md)
+        return hop_nhat(ds, trong_so=ts)[:sl]
 
     ra = {}
     for ten, noi_dung in de.items():
         if loai_cua(ten) == "trake":
-            ra[ten] = [hoi(sk, k) for sk in tach_su_kien(noi_dung)]
+            # A94: với TRAKE, `k` KHÔNG phải "số dòng nộp" mà là **bể để GIAO**.
+            # Một video chỉ vào danh sách khi có ứng viên cho TẤT CẢ N sự kiện,
+            # nên giao của N tập nhỏ đi theo cấp số nhân. Đo được ở k=100 chỉ
+            # còn trung vị 11 video, trong khi hạn ngạch dòng thiết kế cho 25.
+            ra[ten] = [hoi(sk, be_trake or k) for sk in tach_su_kien(noi_dung)]
         else:
             # Xin GAP DOI: hai row_id khac nhau co the ra cung mot dong nop
             # (A5.7 — 614 keyframe trung frame_idx), nen bo trung xong phai con
@@ -361,8 +395,14 @@ def loc_cung(de: dict, bang, master, k: int) -> dict:
 
 
 def quet_van_ban(master, de: dict, k: int, index: Path,
-                 bo_metadata: bool = False) -> dict:
-    """Kênh 2 (metadata) + kênh 3 (OCR/ASR nếu có file). Nhẹ, không cần model."""
+                 bo_metadata: bool = False,
+                 van_ban_gop: bool = False) -> dict:
+    """Kênh 2 (metadata) + kênh 3 (OCR/ASR nếu có file). Nhẹ, không cần model.
+
+    `van_ban_gop=True` -> kênh 3 đọc văn bản GỘP (ocr cũ + VietOCR) qua
+    `bm25.doc_van_ban_khung`. MẶC ĐỊNH TẮT: A88/A91 đo được +0,0144 ở ±2s
+    nhưng +0,0000 ở ±15s, dưới ngưỡng nhiễu 0,0151 — chưa thắng.
+    """
     from bm25 import KenhVanBan
     ra = {}
 
@@ -390,11 +430,26 @@ def quet_van_ban(master, de: dict, k: int, index: Path,
             if b.get("text", pd.Series(dtype=str)).fillna("").str.strip().eq("").all():
                 print(f"  kênh 3: {p} KHÔNG có dòng nào có chữ — bỏ qua")
                 continue
+            if van_ban_gop:
+                from bm25 import doc_van_ban_khung
+                b = doc_van_ban_khung(index)
             k3 = KenhVanBan.tu_bang_khung(master, b, cot="text", ten="ocr_asr")
-            print(f"  kênh 3: OCR/ASR, {len(k3):,} khung có chữ ({p.name})")
+            print(f"  kênh 3: OCR/ASR, {len(k3):,} khung có chữ "
+                  f"({'GỘP ocr+VietOCR' if van_ban_gop else p.name})")
             for ten, nd in de.items():
                 if loai_cua(ten) != "trake":
                     ra.setdefault(ten, []).append(k3.tim(tach_truy_van(nd), k=k))
+                else:
+                    # ⚠️ A102. TRƯỚC ĐÂY TRAKE BỊ BỎ QUA Ở ĐÂY, và `phu[ten]`
+                    # chỉ được hợp nhất ở nhánh không-TRAKE — nên bài nộp chạy
+                    # TRAKE bằng kênh 1 một mình, trong khi MỌI script đo TRAKE
+                    # (78_/89_/91_/92_/110_/111_) đều dựng ứng viên bằng
+                    # `hop_nhat([anh, k3.tim(sk)], trong_so=[1.0, 0.5])`.
+                    # Đo được khoảng cách: 0,2994 -> 0,4317 ở ±2s.
+                    #
+                    # Hình dạng ở đây KHÁC nhánh trên: list MỘT DANH SÁCH MỖI
+                    # SỰ KIỆN, không phải list theo kênh. Chỗ dùng phải biết.
+                    ra[ten] = [k3.tim(sk, k=k) for sk in tach_su_kien(nd)]
             del k3
             gc.collect()
             break
@@ -790,6 +845,27 @@ def main():
                     help="quay lại gộp mệnh đề bằng MAX COSINE. A51 đo trên 52 "
                          "câu đề thật: RRF hạng + kênh 3 hơn max-cosine + kênh 3 "
                          "+0,0721/+0,0971 ✅ ỔN ĐỊNH. Chỉ tắt để tái lập số cũ")
+    ap.add_argument("--van-ban-gop", action="store_true",
+                    help="kênh 3 đọc văn bản GỘP ocr cũ + VietOCR. MẶC "
+                         "ĐỊNH TẮT — A88/A91 đo +0,0144 ở ±2s nhưng "
+                         "+0,0000 ở ±15s, 🟡 chưa vượt nhiễu. Gộp với "
+                         "--trong-so-hoi 0.25 thì A100 đo được ✅ "
+                         "+0,0260 (7-2-43)")
+    ap.add_argument("--be-trake", type=int, default=300,
+                    help="bể ứng viên MỖI SỰ KIỆN của câu TRAKE. MẶC ĐỊNH 300 "
+                         "(A102): so với mốc nền THẬT của bài nộp được "
+                         "+0,1244/+0,1000 ✅ ỔN ĐỊNH. Với TRAKE, `--k` không "
+                         "phải 'số dòng nộp' mà là BỂ ĐỂ GIAO — video chỉ vào "
+                         "danh sách khi có ứng viên cho MỌI sự kiện, nên giao "
+                         "nhỏ đi theo cấp số nhân. Ở 100 chỉ còn trung vị 11 "
+                         "video, ở 300 là 25 — đúng con số hạn ngạch dòng cần. "
+                         "1000 thì ❌ đảo dấu. Đặt 100 để quay lại hành vi cũ")
+    ap.add_argument("--trong-so-hoi", type=float, default=1.0,
+                    help="trọng số của mệnh đề HỎI trong kênh 1. MẶC ĐỊNH 1,0 "
+                         "= không đổi gì. A93 đo 0,25 được +0,0154/+0,0154 "
+                         "(4-1-47) trên 52 câu đề thật, DƯƠNG ở mọi lát cắt "
+                         "nhưng 🟡 chưa vượt nhiễu — chỉ 11/52 câu bị ảnh "
+                         "hưởng nên hiệu bị pha loãng. 0 = bỏ hẳn mệnh đề hỏi")
     ap.add_argument("--trong-so-phu", type=float, default=0.5,
                     help="trọng số kênh phụ trong RRF. MẶC ĐỊNH 0,5 (A52). "
                          "0,5 hơn 0,75 ở CẢ BA nhóm câu, không nhóm nào phản "
@@ -877,11 +953,16 @@ def main():
     elif giu_kenh:
         kq1, master, kenh1_obj = quet_anh(a.index, a.matrix, de, a.k,
                                           rrf_menh_de=a.rrf_menh_de,
+                                          trong_so_hoi=a.trong_so_hoi,
+                                          be_trake=a.be_trake,
                                           giu_kenh=True, cache=a.cache)
     else:
         kq1, master = quet_anh(a.index, a.matrix, de, a.k, cache=a.cache,
-                               rrf_menh_de=a.rrf_menh_de)
-    phu = (quet_van_ban(master, de, a.k, a.index, a.bo_metadata)
+                               rrf_menh_de=a.rrf_menh_de,
+                               trong_so_hoi=a.trong_so_hoi,
+                               be_trake=a.be_trake)
+    phu = (quet_van_ban(master, de, a.k, a.index, a.bo_metadata,
+                        van_ban_gop=a.van_ban_gop)
            if a.hop_nhat else {})
 
     lc = {}
@@ -922,6 +1003,13 @@ def main():
         if loai == "trake":
             ds = kq1[ten]
             sk = tach_su_kien(de[ten])
+            # A102: hợp nhất kênh 3 vào TỪNG sự kiện, đúng như các script đo.
+            p3 = phu.get(ten)
+            if a.hop_nhat and p3 and len(p3) == len(ds):
+                ds = [hop_nhat([d, v], trong_so=[1.0, a.trong_so_phu])
+                      for d, v in zip(ds, p3)]
+                print(f"     {ten}: kênh 3 hợp nhất vào {len(ds)} sự kiện "
+                      f"(w={a.trong_so_phu:g})")
             if a.so_su_kien and len(ds) != a.so_su_kien:
                 ds = (ds + [ds[-1]] * a.so_su_kien)[:a.so_su_kien]
                 sk = (sk + [sk[-1]] * a.so_su_kien)[:a.so_su_kien]
@@ -986,10 +1074,28 @@ def main():
             if loai == "qa" and not a.khong_dao_dap_an:
                 from dap_an import gan_cho_moi_dong
                 if "van_qa" not in locals():
+                    # ⚠️ CÙNG MỘT FILE, HAI LƯỢC ĐỒ. `quet_van_ban` ở trên đọc
+                    # cột `text` và docstring của nó ghi "TV4 sinh ra
+                    # ocr_asr.parquet với cột row_id + text". Chỗ này lại đòi
+                    # `ocr_text` + `asr_text`. File hiện có cả ba cột nên chạy
+                    # được — nhưng ai sinh lại ĐÚNG NHƯ TÀI LIỆU GHI thì mọi
+                    # gói Q&A chết bằng AttributeError. Test khói bắt được.
+                    #
+                    # Tách hai cột khi có (đào đáp án cần biết đâu là chữ trên
+                    # màn hình, đâu là lời nói — A84), lùi về `text` khi không.
                     _b = pd.read_parquet(a.index / "ocr_asr.parquet")
-                    van_qa = {int(r): f"{o} {s}".strip() for r, o, s in zip(
-                        _b.row_id.values, _b.ocr_text.fillna("").values,
-                        _b.asr_text.fillna("").values)}
+
+                    def _cot(ten):
+                        return (_b[ten].fillna("").astype(str).values
+                                if ten in _b.columns else [""] * len(_b))
+
+                    if "ocr_text" in _b.columns or "asr_text" in _b.columns:
+                        van_qa = {int(r): f"{o} {s}".strip() for r, o, s
+                                  in zip(_b.row_id.values, _cot("ocr_text"),
+                                         _cot("asr_text"))}
+                    else:
+                        van_qa = {int(r): t.strip() for r, t
+                                  in zip(_b.row_id.values, _cot("text"))}
                 if a.rai_bien_the > 1:
                     from dap_an import rai_bien_the
                     uv, n_dao = rai_bien_the(

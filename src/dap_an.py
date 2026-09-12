@@ -253,3 +253,86 @@ def rai_bien_the(ung_vien: list, cau_hoi: str, van_theo_row: dict,
             if len(ra) >= gioi_han:
                 return ra, n
     return ra, n
+
+
+TU = re.compile(r"[^\W\d_]+|\d+(?:[.,]\d+)?\s?(?:g|kg|ml|l|%)?", re.UNICODE)
+
+
+def dao_cum(van: str, cau_hoi: str, idf: dict, k: int = 5,
+            n_toi_da: int = 4) -> list[str]:
+    """Trích đáp án bằng CHẤM ĐIỂM CỤM, không đòi cụm phải viết hoa.
+
+    VÌ SAO PHẢI BỎ ĐIỀU KIỆN CHỮ HOA (A84)
+
+    `TEN`/`TEN_RONG` chỉ khớp cụm bắt đầu bằng chữ HOA. Nhưng đáp án Q&A của
+    kho này phần lớn là **danh từ thường nằm giữa câu**:
+
+        'NGUYEN LIEU Thit ca loc 300g Gao deo 100g …'
+        '… Online Nguyên Liệu Thịt cá lóc 300g Gạo dẻo …'   <- VietOCR
+
+    A84 đo được **3/5 câu có sẵn chuỗi đúng trong văn bản mà bộ đào không bao
+    giờ chọn**. Nới regex không cứu được vì điều kiện chữ hoa ở từ ĐẦU vẫn còn.
+
+    CÁCH CHẤM, và vì sao IDF là tiêu chí đúng
+
+    Sinh MỌI cụm 1–`n_toi_da` từ rồi xếp hạng — bài toán thành **xếp hạng cụm**
+    chứ không phải trích cụm. Điểm một cụm:
+
+        điểm = max(IDF của các token)  −  phạt theo khoảng cách tới từ khoá
+
+    IDF vì đáp án Q&A gần như luôn là **thực thể hiếm** (`Tà Pứa`, `cá lóc`,
+    `1204`), còn cụm rác là từ phổ biến (`của`, `trong`, `Online`). Đây đúng
+    tiêu chí `objects.py` đã dùng và đo được ở A62.
+
+    ⚠️ `idf` phải là bảng của CHÍNH kho này (`bm25.BM25.idf`), không phải bảng
+    tiếng Việt chung: `HTV Online` hiếm trong tiếng Việt nhưng xuất hiện ở
+    19.656 khung L26 (A88), nên chỉ bảng của kho mới hạ được nó.
+
+    ⚠️⚠️ **ĐO RỒI: 0/13, TỆ HƠN CẢ REGEX CŨ (3/13).** Giữ hàm này lại để lần
+    sau ai nghĩ ra ý "xếp hạng cụm bằng IDF" thì thấy nó đã được thử.
+
+    Cơ chế hỏng, và nó là một bài học chung: **OCR sinh ra rác duy nhất**. Mỗi
+    lần đọc sai một ký tự là một token chỉ xuất hiện MỘT lần trong cả kho — tức
+    IDF cực đại. Nên xếp theo IDF là xếp rác OCR lên đầu, còn đáp án thật
+    (`cá lóc`, `1204`) là từ có thật nên phổ biến hơn rác.
+
+    IDF là tiêu chí "hiếm thì đáng chú ý", đúng cho nhãn vật thể (A62) nơi từ
+    vựng đóng và sạch. Trên văn bản OCR nó đo nhầm: **hiếm ở đây nghĩa là SAI**,
+    không phải đặc trưng.
+    """
+    if not van or k <= 0:
+        return []
+    q = bo_dau(cau_hoi)
+    tu = [(m.group(), m.start()) for m in TU.finditer(van)]
+    if not tu:
+        return []
+
+    v = bo_dau(van)
+    khoa = [w for w in q.split() if len(w) > 2 and w not in DUNG]
+    vi_tri = [m.start() for w in khoa for m in re.finditer(re.escape(w), v)]
+
+    diem = {}
+    for n in range(1, n_toi_da + 1):
+        for i in range(len(tu) - n + 1):
+            cum = " ".join(x for x, _ in tu[i:i + n])
+            if len(cum) < 2 or bo_dau(cum) in q:
+                continue
+            hiem = max((idf.get(bo_dau(x), 0.0) for x, _ in tu[i:i + n]),
+                       default=0.0)
+            if vi_tri:
+                gan = min(abs(tu[i][1] - p) for p in vi_tri)
+                hiem -= gan / 500.0          # xa từ khoá thì hạ nhẹ
+            # Cùng một cụm xuất hiện nhiều chỗ -> giữ lần GẦN từ khoá nhất.
+            if hiem > diem.get(cum, float("-inf")):
+                diem[cum] = hiem
+
+    ra, da = [], set()
+    for cum in sorted(diem, key=lambda x: -diem[x]):
+        g = bo_dau(cum)
+        if g in da:
+            continue
+        da.add(g)
+        ra.append(cum)
+        if len(ra) >= k:
+            break
+    return ra

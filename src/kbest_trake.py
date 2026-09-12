@@ -221,7 +221,19 @@ def lap_trake(cac_su_kien: list, master, so_dong: int = 100, **k) -> list:
     fx = master.frame_idx.values
     ra = []
     for dong in lap_dong(cac_su_kien, master, so_dong, **k):
-        if dong:
-            ra.append(AnswerTRAKE(str(vid[dong[0]]),
-                                  [int(fx[r]) for r in dong]))
+        if not dong:
+            continue
+        # ⚠️ `beam_video` ép tăng dần theo `pts_time`, KHÔNG theo `frame_idx` —
+        # và hai thứ đó không cùng nhịp: A5.7 đo được **614 cặp** cùng video có
+        # `pts_time` tăng nhưng `frame_idx` BẰNG NHAU (không cặp nào giảm).
+        # Nộp hai sự kiện khác nhau ở cùng một Frame ID là chắc chắn phí một
+        # trong hai — hai sự kiện là hai khoảnh khắc khác nhau. `run.dung_trake`
+        # đã chốt chỗ này ("phải TĂNG THẬT, không bằng nhau"); K-best thì chưa,
+        # và `nop_bai.soat` không bắt được vì nó so với `sorted()`, mà
+        # `[0, 0, 519]` thì đã sorted rồi.
+        khung = [int(fx[r]) for r in dong]
+        for i in range(1, len(khung)):
+            if khung[i] <= khung[i - 1]:
+                khung[i] = khung[i - 1] + 1
+        ra.append(AnswerTRAKE(str(vid[dong[0]]), khung))
     return ra

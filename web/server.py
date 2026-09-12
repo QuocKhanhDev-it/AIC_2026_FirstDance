@@ -193,7 +193,7 @@ class Kho:
         for ten in dung_kenh:
             kn = self.kenh[ten]
             try:
-                cac.append(self._hoi(kn, cau, k))
+                cac.append(self._hoi(kn, cau, k, ten))
                 da_dung.append(ten)
             except KeyError:
                 # Kênh 1 chạy từ cache vector, nên câu GÕ TAY gần như chắc chắn
@@ -201,10 +201,28 @@ class Kho:
                 # tức giao diện chỉ dùng được cho câu đã nằm trong bộ đề. Nay bỏ
                 # riêng kênh đó và chạy tiếp bằng kênh còn lại, có báo rõ.
                 canh_bao = (
-                    "Kênh 1 (ảnh) BỊ BỎ: truy vấn này chưa có trong "
-                    "index/truy_van.npz. Kết quả dưới đây chỉ từ kênh văn bản "
-                    "và objects — yếu hơn hẳn. Mã hoá thêm: "
-                    'python scripts/25_ma_hoa_truy_van.py --them "…" --gop')
+                    "Kênh 1 (ảnh) BỊ BỎ: truy vấn này chưa có trong cache "
+                    "vector. Kết quả dưới đây chỉ từ kênh văn bản và objects "
+                    "— YẾU HƠN HẲN, đừng nộp kết quả này.")
+                # ⚠️ IN RA TERMINAL NỮA, kèm nguyên văn câu.
+                #
+                # Ở Sơ tuyển 2, `p2-22-kis` mất trắng đúng vì lỗi này: banner
+                # web hiện ra nhưng người chạy không kịp thấy giữa lúc lướt
+                # qua 30 gói. Terminal thì cuộn chậm hơn và đọc lại được.
+                # Kèm nguyên văn câu để dán thẳng, không phải gõ lại tiếng
+                # Việt có dấu — gõ lại là lệch một ký tự, là trượt tiếp.
+                vach = "!" * 70
+                print(f"\n{vach}", file=sys.stderr)
+                print("!! KÊNH 1 BỊ BỎ — truy vấn CHƯA MÃ HOÁ. Đừng nộp gói này.",
+                      file=sys.stderr)
+                print(f"!! {cau[:200]}", file=sys.stderr)
+                print("!! Vá:  python scripts/25_ma_hoa_truy_van.py "
+                      '--them "<câu trên>" --matrix clip_gopt.npy '
+                      "--ra index/truy_van_gopt.npz --gop", file=sys.stderr)
+                print("!! Tiền kiểm cả bộ đề TRƯỚC khi mở UI:", file=sys.stderr)
+                print("!!   python scripts/119_kiem_truy_van.py --de <thư mục đề>",
+                      file=sys.stderr)
+                print(f"{vach}\n", file=sys.stderr, flush=True)
             except Exception:
                 traceback.print_exc()
 
@@ -225,19 +243,30 @@ class Kho:
         return {"ung_vien": [self._the(c, i) for i, c in enumerate(ket[:k])],
                 "tho": ket[:k], "kenh": da_dung, "canh_bao": canh_bao}
 
-    def _hoi(self, kenh, cau: str, sl: int):
-        """Một truy vấn -> ứng viên, hợp nhất mệnh đề bằng **RRF HẠNG**.
+    # Kênh nào gộp mệnh đề bằng RRF HẠNG, kênh nào bằng MAX điểm. Xem `_hoi`.
+    RRF_MENH_DE = {"anh", "bge"}
 
-        ⚠️ KHÔNG gọi `kenh.tim(danh_sách_mệnh_đề)`. Hàm đó lấy **max cosine**
-        trên từng keyframe qua các mệnh đề, mà A51 đo được cách đó THUA RRF
-        hạng **−0,0721 / −0,0971, ✅ ổn định**: cosine của hai mệnh đề khác nhau
-        không so được với nhau, nên mệnh đề dễ nuốt mệnh đề đặc trưng.
+    def _hoi(self, kenh, cau: str, sl: int, ten: str = "anh"):
+        """Một truy vấn -> ứng viên, gộp mệnh đề theo ĐÚNG cách `run.py` gộp.
 
-        Giao diện trước đây gọi đúng cách đã bị bác, tức nó vẽ ra một bể ứng
-        viên **yếu hơn bài nộp thật**. Đây là bản sao đúng của `run.hoi()`.
+        ⚠️ **HAI KÊNH, HAI CÁCH GỘP — và đây là chỗ đã lệch.**
+
+        *Kênh vector (kênh 1, 6): RRF HẠNG.* A51 đo `kenh.tim(danh_sách)` —
+        max **cosine** qua mệnh đề — THUA RRF hạng **−0,0721 / −0,0971 ✅ ổn
+        định**: cosine của hai mệnh đề khác nhau không so được với nhau, nên
+        mệnh đề dễ nuốt mệnh đề đặc trưng.
+
+        *Kênh BM25 (kênh 3, 5): MAX ĐIỂM.* Lập luận trên **không chuyển sang
+        được**, vì điểm BM25 của hai mệnh đề CÙNG THANG (cùng công thức, cùng
+        kho) — không có chuyện "không so được với nhau". Đo trên 49 câu đề
+        thật (A85): áp RRF hạng cho kênh 3 được **−0,0082 / −0,0163, 0-2-47 và
+        1-4-44** — cùng dấu ÂM ở cả hai mức.
+
+        Giao diện trước đây áp RRF cho MỌI kênh, nên nó vẽ ra một bể ứng viên
+        **khác bài nộp thật** — đúng thứ hàm này sinh ra để chặn.
         """
         md = R.tach_truy_van(cau)
-        if len(md) == 1:
+        if len(md) == 1 or ten not in self.RRF_MENH_DE:
             return kenh.tim(md, k=sl)
         return hop_nhat([kenh.tim(m, k=sl) for m in md])[:sl]
 
@@ -255,6 +284,12 @@ class Kho:
             "diem": round(float(c.score), 4),
             "nguon": c.source,
             "co_anh": bool(self.co_anh[r]),
+            # Ảnh GỐC hay bản THU NHỎ 256x144? Giao diện cần biết để nói rõ
+            # vì sao ảnh mờ khi phóng to — L26 (79.590 dòng, 45% kho) không
+            # máy nào giữ ảnh gốc, nên bản thu nhỏ là hết mức có được.
+            "ban_nho": bool(self.co_anh[r]) and not (
+                isinstance(self.kf_path[r], str) and self.kf_path[r]
+                and Path(self.kf_path[r]).exists()),
             "van_ban": self.van_ban.get(r, ""),
         }
 
@@ -488,8 +523,9 @@ def main():
                     help="bật kênh 4 (objects). MẶC ĐỊNH TẮT — A62 đo là làm "
                          "TỆ ĐI khi hợp nhất, dù đã sửa hai lỗi công thức")
     ap.add_argument("--co-caption", action="store_true",
-                    help="bật kênh 5 (caption). MẶC ĐỊNH TẮT — A73 đo là "
-                         "❌ ĐẢO DẤU ở độ phủ 76%%")
+                    help="bật kênh 5 (caption). MẶC ĐỊNH TẮT — A90 đo lại ở "
+                         "ĐỦ 100%% độ phủ trên nhãn sạch: vẫn không thắng, và "
+                         "w=1,0 nay là ✅ ổn định TỆ HƠN (-0,0596)")
     ap.add_argument("--co-bge", action="store_true",
                     help="bật kênh 6 (BGE-M3). MẶC ĐỊNH TẮT — A59 đo "
                          "+0,0140 nhưng 🟡. Tốn ~360 MB RAM")
