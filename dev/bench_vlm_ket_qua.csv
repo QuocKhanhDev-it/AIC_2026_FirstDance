@@ -1,0 +1,170 @@
+﻿model,temp,lan,row_id,video_id,kf_name,label,detector,tra_loi,khop_detector,format,giay,raw
+gemini-3.1-flash-lite,1.0,1,6141,L21_V025,272.jpg,Flower,3,0.0,0,1,3.12,0
+gemini-3.1-flash-lite,1.0,1,3923,L21_V016,144.jpg,Bottle,2,6.0,0,1,1.69,6
+gemini-3.1-flash-lite,1.0,1,2323,L21_V010,176.jpg,Car,2,3.0,0,1,1.39,3
+gemini-3.1-flash-lite,1.0,1,72,L21_V001,073.jpg,Person,1,4.0,0,1,3.64,4
+gemini-3.1-flash-lite,1.0,1,7549,L21_V031,035.jpg,Airplane,1,0.0,0,1,1.28,0
+gemini-3.1-flash-lite,1.0,1,7600,L21_V031,086.jpg,Man,4,12.0,0,1,2.85,12
+gemini-3.1-flash-lite,1.0,1,5903,L21_V025,034.jpg,Chair,2,7.0,0,1,2.86,7
+gemini-3.1-flash-lite,1.0,1,4217,L21_V017,169.jpg,Person,4,7.0,0,1,4.67,7
+gemini-3.1-flash-lite,1.0,1,1729,L21_V008,186.jpg,Motorcycle,1,13.0,0,1,7.17,13
+gemini-3.1-flash-lite,1.0,1,3454,L21_V014,275.jpg,Bicycle,3,14.0,0,1,2.8,14
+gemini-3.1-flash-lite,1.0,2,6141,L21_V025,272.jpg,Flower,3,11.0,0,1,3.61,11
+gemini-3.1-flash-lite,1.0,2,3923,L21_V016,144.jpg,Bottle,2,6.0,0,1,3.78,6
+gemini-3.1-flash-lite,1.0,2,2323,L21_V010,176.jpg,Car,2,3.0,0,1,4.19,3
+gemini-3.1-flash-lite,1.0,2,72,L21_V001,073.jpg,Person,1,4.0,0,1,2.04,4
+gemini-3.1-flash-lite,1.0,2,7549,L21_V031,035.jpg,Airplane,1,0.0,0,1,1.87,0
+gemini-3.1-flash-lite,1.0,2,7600,L21_V031,086.jpg,Man,4,12.0,0,1,1.52,12
+gemini-3.1-flash-lite,1.0,2,5903,L21_V025,034.jpg,Chair,2,8.0,0,1,1.29,8
+gemini-3.1-flash-lite,1.0,2,4217,L21_V017,169.jpg,Person,4,8.0,0,1,1.2,8
+gemini-3.1-flash-lite,1.0,2,1729,L21_V008,186.jpg,Motorcycle,1,13.0,0,1,5.43,13
+gemini-3.1-flash-lite,1.0,2,3454,L21_V014,275.jpg,Bicycle,3,13.0,0,1,1.12,13
+gemini-3.1-flash-lite,1.0,3,6141,L21_V025,272.jpg,Flower,3,0.0,0,1,1.36,0
+gemini-3.1-flash-lite,1.0,3,3923,L21_V016,144.jpg,Bottle,2,6.0,0,1,3.12,6
+gemini-3.1-flash-lite,1.0,3,2323,L21_V010,176.jpg,Car,2,3.0,0,1,2.68,3
+gemini-3.1-flash-lite,1.0,3,72,L21_V001,073.jpg,Person,1,4.0,0,1,5.14,4
+gemini-3.1-flash-lite,1.0,3,7549,L21_V031,035.jpg,Airplane,1,0.0,0,1,2.12,0
+gemini-3.1-flash-lite,1.0,3,7600,L21_V031,086.jpg,Man,4,14.0,0,1,4.67,14
+gemini-3.1-flash-lite,1.0,3,5903,L21_V025,034.jpg,Chair,2,9.0,0,1,3.06,9
+gemini-3.1-flash-lite,1.0,3,4217,L21_V017,169.jpg,Person,4,7.0,0,1,1.3,7
+gemini-3.1-flash-lite,1.0,3,1729,L21_V008,186.jpg,Motorcycle,1,13.0,0,1,1.41,13
+gemini-3.1-flash-lite,1.0,3,3454,L21_V014,275.jpg,Bicycle,3,12.0,0,1,6.78,12
+gemini-3.5-flash-lite,1.0,1,6141,L21_V025,272.jpg,Flower,3,0.0,0,1,1.3,0
+gemini-3.5-flash-lite,1.0,1,3923,L21_V016,144.jpg,Bottle,2,6.0,0,1,1.2,6
+gemini-3.5-flash-lite,1.0,1,2323,L21_V010,176.jpg,Car,2,4.0,0,1,1.37,4
+gemini-3.5-flash-lite,1.0,1,72,L21_V001,073.jpg,Person,1,4.0,0,1,1.35,4
+gemini-3.5-flash-lite,1.0,1,7549,L21_V031,035.jpg,Airplane,1,0.0,0,1,1.73,0
+gemini-3.5-flash-lite,1.0,1,7600,L21_V031,086.jpg,Man,4,15.0,0,1,1.6,15
+gemini-3.5-flash-lite,1.0,1,5903,L21_V025,034.jpg,Chair,2,12.0,0,1,1.28,12
+gemini-3.5-flash-lite,1.0,1,4217,L21_V017,169.jpg,Person,4,8.0,0,1,1.38,8
+gemini-3.5-flash-lite,1.0,1,1729,L21_V008,186.jpg,Motorcycle,1,16.0,0,1,1.44,16
+gemini-3.5-flash-lite,1.0,1,3454,L21_V014,275.jpg,Bicycle,3,11.0,0,1,1.44,11
+gemini-3.5-flash-lite,1.0,2,6141,L21_V025,272.jpg,Flower,3,0.0,0,1,1.44,0
+gemini-3.5-flash-lite,1.0,2,3923,L21_V016,144.jpg,Bottle,2,6.0,0,1,1.13,6
+gemini-3.5-flash-lite,1.0,2,2323,L21_V010,176.jpg,Car,2,4.0,0,1,1.11,4
+gemini-3.5-flash-lite,1.0,2,72,L21_V001,073.jpg,Person,1,5.0,0,1,1.19,5
+gemini-3.5-flash-lite,1.0,2,7549,L21_V031,035.jpg,Airplane,1,0.0,0,1,1.29,0
+gemini-3.5-flash-lite,1.0,2,7600,L21_V031,086.jpg,Man,4,13.0,0,1,1.37,13
+gemini-3.5-flash-lite,1.0,2,5903,L21_V025,034.jpg,Chair,2,12.0,0,1,1.53,12
+gemini-3.5-flash-lite,1.0,2,4217,L21_V017,169.jpg,Person,4,9.0,0,1,1.37,9
+gemini-3.5-flash-lite,1.0,2,1729,L21_V008,186.jpg,Motorcycle,1,18.0,0,1,1.65,18
+gemini-3.5-flash-lite,1.0,2,3454,L21_V014,275.jpg,Bicycle,3,12.0,0,1,1.54,12
+gemini-3.5-flash-lite,1.0,3,6141,L21_V025,272.jpg,Flower,3,0.0,0,1,1.66,0
+gemini-3.5-flash-lite,1.0,3,3923,L21_V016,144.jpg,Bottle,2,6.0,0,1,1.43,6
+gemini-3.5-flash-lite,1.0,3,2323,L21_V010,176.jpg,Car,2,4.0,0,1,1.09,4
+gemini-3.5-flash-lite,1.0,3,72,L21_V001,073.jpg,Person,1,4.0,0,1,1.4,4
+gemini-3.5-flash-lite,1.0,3,7549,L21_V031,035.jpg,Airplane,1,0.0,0,1,1.4,0
+gemini-3.5-flash-lite,1.0,3,7600,L21_V031,086.jpg,Man,4,15.0,0,1,1.21,15
+gemini-3.5-flash-lite,1.0,3,5903,L21_V025,034.jpg,Chair,2,14.0,0,1,1.27,14
+gemini-3.5-flash-lite,1.0,3,4217,L21_V017,169.jpg,Person,4,9.0,0,1,1.28,9
+gemini-3.5-flash-lite,1.0,3,1729,L21_V008,186.jpg,Motorcycle,1,19.0,0,1,1.26,19
+gemini-3.5-flash-lite,1.0,3,3454,L21_V014,275.jpg,Bicycle,3,13.0,0,1,1.38,13
+gemini-3.6-flash,1.0,1,6141,L21_V025,272.jpg,Flower,3,5.0,0,1,11.24,5
+gemini-3.6-flash,1.0,1,3923,L21_V016,144.jpg,Bottle,2,6.0,0,1,2.29,6
+gemini-3.6-flash,1.0,1,2323,L21_V010,176.jpg,Car,2,3.0,0,1,7.01,3
+gemini-3.6-flash,1.0,1,72,L21_V001,073.jpg,Person,1,4.0,0,1,2.95,4
+gemini-3.6-flash,1.0,1,7549,L21_V031,035.jpg,Airplane,1,4.0,0,1,10.35,4
+gemini-3.6-flash,1.0,1,7600,L21_V031,086.jpg,Man,4,12.0,0,1,6.88,12
+gemini-3.6-flash,1.0,1,5903,L21_V025,034.jpg,Chair,2,11.0,0,1,7.72,11
+gemini-3.6-flash,1.0,1,4217,L21_V017,169.jpg,Person,4,8.0,0,1,4.33,8
+gemini-3.6-flash,1.0,1,1729,L21_V008,186.jpg,Motorcycle,1,18.0,0,1,9.76,18
+gemini-3.6-flash,1.0,1,3454,L21_V014,275.jpg,Bicycle,3,12.0,0,1,5.58,12
+gemini-3.6-flash,1.0,2,6141,L21_V025,272.jpg,Flower,3,3.0,1,0,11.01,mid-left) - looks like a flower/fan. 3. Purple (mid-left) - circular flower with petals. 4. Red (mid) - circular/semi-ci
+gemini-3.6-flash,1.0,2,3923,L21_V016,144.jpg,Bottle,2,6.0,0,1,4.11,6
+gemini-3.6-flash,1.0,2,2323,L21_V010,176.jpg,Car,2,4.0,0,1,12.68,4
+gemini-3.6-flash,1.0,2,72,L21_V001,073.jpg,Person,1,4.0,0,1,3.4,4
+gemini-3.6-flash,1.0,2,7549,L21_V031,035.jpg,Airplane,1,0.0,0,1,10.04,0
+gemini-3.6-flash,1.0,2,7600,L21_V031,086.jpg,Man,4,12.0,0,1,5.85,12
+gemini-3.6-flash,1.0,2,5903,L21_V025,034.jpg,Chair,2,11.0,0,1,8.02,11
+gemini-3.6-flash,1.0,2,4217,L21_V017,169.jpg,Person,4,8.0,0,1,4.23,8
+gemini-3.6-flash,1.0,3,6141,L21_V025,272.jpg,Flower,3,0.0,0,1,10.91,0
+gemini-3.5-flash-lite,0.0,1,6141,L21_V025,272.jpg,Flower,3,0.0,0,1,1.93,0
+gemini-3.5-flash-lite,0.0,1,3923,L21_V016,144.jpg,Bottle,2,6.0,0,1,1.4,6
+gemini-3.5-flash-lite,0.0,1,2323,L21_V010,176.jpg,Car,2,3.0,0,1,1.23,3
+gemini-3.5-flash-lite,0.0,1,72,L21_V001,073.jpg,Person,1,4.0,0,1,1.43,4
+gemini-3.5-flash-lite,0.0,1,7549,L21_V031,035.jpg,Airplane,1,0.0,0,1,1.62,0
+gemini-3.5-flash-lite,0.0,1,7600,L21_V031,086.jpg,Man,4,10.0,0,1,1.52,10
+gemini-3.5-flash-lite,0.0,1,5903,L21_V025,034.jpg,Chair,2,14.0,0,1,1.32,14
+gemini-3.5-flash-lite,0.0,1,4217,L21_V017,169.jpg,Person,4,9.0,0,1,1.42,9
+gemini-3.5-flash-lite,0.0,1,1729,L21_V008,186.jpg,Motorcycle,1,16.0,0,1,1.22,16
+gemini-3.5-flash-lite,0.0,1,3454,L21_V014,275.jpg,Bicycle,3,10.0,0,1,1.23,10
+gemini-3.5-flash-lite,0.0,2,6141,L21_V025,272.jpg,Flower,3,0.0,0,1,1.9,0
+gemini-3.5-flash-lite,0.0,2,3923,L21_V016,144.jpg,Bottle,2,6.0,0,1,1.23,6
+gemini-3.5-flash-lite,0.0,2,2323,L21_V010,176.jpg,Car,2,3.0,0,1,1.24,3
+gemini-3.5-flash-lite,0.0,2,72,L21_V001,073.jpg,Person,1,5.0,0,1,1.32,5
+gemini-3.5-flash-lite,0.0,2,7549,L21_V031,035.jpg,Airplane,1,0.0,0,1,1.33,0
+gemini-3.5-flash-lite,0.0,2,7600,L21_V031,086.jpg,Man,4,13.0,0,1,1.23,13
+gemini-3.5-flash-lite,0.0,2,5903,L21_V025,034.jpg,Chair,2,14.0,0,1,1.53,14
+gemini-3.5-flash-lite,0.0,2,4217,L21_V017,169.jpg,Person,4,9.0,0,1,1.32,9
+gemini-3.5-flash-lite,0.0,2,1729,L21_V008,186.jpg,Motorcycle,1,15.0,0,1,1.23,15
+gemini-3.5-flash-lite,0.0,2,3454,L21_V014,275.jpg,Bicycle,3,12.0,0,1,1.13,12
+gemini-3.5-flash-lite,0.0,3,6141,L21_V025,272.jpg,Flower,3,1.0,0,1,2.48,1
+gemini-3.5-flash-lite,0.0,3,3923,L21_V016,144.jpg,Bottle,2,6.0,0,1,1.24,6
+gemini-3.5-flash-lite,0.0,3,2323,L21_V010,176.jpg,Car,2,4.0,0,1,1.42,4
+gemini-3.5-flash-lite,0.0,3,72,L21_V001,073.jpg,Person,1,4.0,0,1,1.42,4
+gemini-3.5-flash-lite,0.0,3,7549,L21_V031,035.jpg,Airplane,1,0.0,0,1,1.8,0
+gemini-3.5-flash-lite,0.0,3,7600,L21_V031,086.jpg,Man,4,13.0,0,1,1.45,13
+gemini-3.5-flash-lite,0.0,3,5903,L21_V025,034.jpg,Chair,2,11.0,0,1,1.54,11
+gemini-3.5-flash-lite,0.0,3,4217,L21_V017,169.jpg,Person,4,9.0,0,1,1.32,9
+gemini-3.5-flash-lite,0.0,3,1729,L21_V008,186.jpg,Motorcycle,1,17.0,0,1,1.33,17
+gemini-3.5-flash-lite,0.0,3,3454,L21_V014,275.jpg,Bicycle,3,11.0,0,1,1.32,11
+gemini-3.1-flash-lite,0.0,1,6141,L21_V025,272.jpg,Flower,3,0.0,0,1,1.82,0
+gemini-3.1-flash-lite,0.0,1,3923,L21_V016,144.jpg,Bottle,2,6.0,0,1,1.71,6
+gemini-3.1-flash-lite,0.0,1,2323,L21_V010,176.jpg,Car,2,3.0,0,1,1.62,3
+gemini-3.1-flash-lite,0.0,1,72,L21_V001,073.jpg,Person,1,4.0,0,1,1.41,4
+gemini-3.1-flash-lite,0.0,1,7549,L21_V031,035.jpg,Airplane,1,0.0,0,1,3.35,0
+gemini-3.1-flash-lite,0.0,1,7600,L21_V031,086.jpg,Man,4,13.0,0,1,1.7,13
+gemini-3.1-flash-lite,0.0,1,5903,L21_V025,034.jpg,Chair,2,8.0,0,1,2.01,8
+gemini-3.1-flash-lite,0.0,1,4217,L21_V017,169.jpg,Person,4,8.0,0,1,1.89,8
+gemini-3.1-flash-lite,0.0,1,1729,L21_V008,186.jpg,Motorcycle,1,13.0,0,1,2.27,13
+gemini-3.1-flash-lite,0.0,1,3454,L21_V014,275.jpg,Bicycle,3,12.0,0,1,1.72,12
+gemini-3.1-flash-lite,0.0,2,6141,L21_V025,272.jpg,Flower,3,0.0,0,1,1.9,0
+gemini-3.1-flash-lite,0.0,2,3923,L21_V016,144.jpg,Bottle,2,6.0,0,1,1.61,6
+gemini-3.1-flash-lite,0.0,2,2323,L21_V010,176.jpg,Car,2,3.0,0,1,1.6,3
+gemini-3.1-flash-lite,0.0,2,72,L21_V001,073.jpg,Person,1,4.0,0,1,2.57,4
+gemini-3.1-flash-lite,0.0,2,7549,L21_V031,035.jpg,Airplane,1,0.0,0,1,4.01,0
+gemini-3.1-flash-lite,0.0,2,7600,L21_V031,086.jpg,Man,4,13.0,0,1,2.76,13
+gemini-3.1-flash-lite,0.0,2,5903,L21_V025,034.jpg,Chair,2,8.0,0,1,1.15,8
+gemini-3.1-flash-lite,0.0,2,4217,L21_V017,169.jpg,Person,4,8.0,0,1,2.47,8
+gemini-3.1-flash-lite,0.0,2,1729,L21_V008,186.jpg,Motorcycle,1,13.0,0,1,1.41,13
+gemini-3.1-flash-lite,0.0,2,3454,L21_V014,275.jpg,Bicycle,3,12.0,0,1,1.33,12
+gemini-3.1-flash-lite,0.0,3,6141,L21_V025,272.jpg,Flower,3,0.0,0,1,2.82,0
+gemini-3.1-flash-lite,0.0,3,3923,L21_V016,144.jpg,Bottle,2,6.0,0,1,1.52,6
+gemini-3.1-flash-lite,0.0,3,2323,L21_V010,176.jpg,Car,2,3.0,0,1,1.42,3
+gemini-3.1-flash-lite,0.0,3,72,L21_V001,073.jpg,Person,1,4.0,0,1,1.42,4
+gemini-3.1-flash-lite,0.0,3,7549,L21_V031,035.jpg,Airplane,1,0.0,0,1,5.66,0
+gemini-3.1-flash-lite,0.0,3,7600,L21_V031,086.jpg,Man,4,13.0,0,1,1.32,13
+gemini-3.1-flash-lite,0.0,3,5903,L21_V025,034.jpg,Chair,2,8.0,0,1,1.71,8
+gemini-3.1-flash-lite,0.0,3,4217,L21_V017,169.jpg,Person,4,8.0,0,1,1.41,8
+gemini-3.1-flash-lite,0.0,3,1729,L21_V008,186.jpg,Motorcycle,1,13.0,0,1,2.19,13
+gemini-3.1-flash-lite,0.0,3,3454,L21_V014,275.jpg,Bicycle,3,12.0,0,1,1.53,12
+gemma-4-31b-it,0.0,1,6141,L21_V025,272.jpg,Flower,3,16.0,0,0,19.29,"Okay, let's count the flower-like shapes in this image. I'll scan from top to bottom, left to right.  1.  Starting at th"
+gemma-4-31b-it,0.0,1,3923,L21_V016,144.jpg,Bottle,2,6.0,0,0,8.23,"Okay, let's count the bottles on the table.  1.  Starting from the left, there's a white rectangular bottle: `{""point"": "
+gemma-4-31b-it,0.0,1,2323,L21_V010,176.jpg,Car,2,4.0,0,0,6.63,"Okay, let's count the cars in the image.  1.  Starting from the left, there's a white car further down the road: `{""poin"
+gemma-4-31b-it,0.0,1,72,L21_V001,073.jpg,Person,1,4.0,0,0,6.98,"Okay, let's count the people in the image.  1.  Starting from the left, there's a person in green scrubs and a cap: `{""p"
+gemma-4-31b-it,0.0,1,7549,L21_V031,035.jpg,Airplane,1,,0,0,4.78,"Okay, let's scan the image for any airplanes.  1.  Looking at the sky: clear blue, no planes. 2.  Looking at the buildin"
+gemma-4-31b-it,0.0,1,7600,L21_V031,086.jpg,Man,4,14.0,0,0,19.77,"Okay, let's count the men in the image.  1.  Starting from the left, there's a man in a dark suit walking towards the le"
+gemma-4-31b-it,0.0,1,5903,L21_V025,034.jpg,Chair,2,10.0,0,0,18.53,"Okay, let's count the chairs in the image.  1.  Starting from the left, there's a chair at the far left edge: `{""point"":"
+gemma-4-31b-it,0.0,1,4217,L21_V017,169.jpg,Person,4,8.0,0,0,11.87,"Okay, let's count the people in the image.  1.  Starting from the front right, there's a person in dark clothing walking"
+gemma-4-31b-it,0.0,1,1729,L21_V008,186.jpg,Motorcycle,1,14.0,0,0,17.04,"Okay, let's count the motorcycles in the image.  1.  Starting from the left, there's a person on a scooter/motorcycle fa"
+gemma-4-31b-it,0.0,1,3454,L21_V014,275.jpg,Bicycle,3,10.0,0,0,14.18,"Okay, let's count the bicycles in the image.  1.  Starting from the front left, there's a cyclist in a green jersey: `{"""
+gemma-4-31b-it,0.0,2,6141,L21_V025,272.jpg,Flower,3,16.0,0,0,19.31,"Okay, let's count the flower-like shapes in this image. I'll scan from top to bottom, left to right.  1.  Starting at th"
+gemma-4-31b-it,0.0,2,3923,L21_V016,144.jpg,Bottle,2,6.0,0,0,8.4,"Okay, let's count the bottles on the table.  1.  Starting from the left, there's a white rectangular bottle: `{""point"": "
+gemma-4-31b-it,0.0,2,2323,L21_V010,176.jpg,Car,2,4.0,0,0,8.71,"Okay, let's count the cars in the image.  1.  Starting from the left, there's a white car further down the road: `{""poin"
+gemma-4-31b-it,0.0,2,72,L21_V001,073.jpg,Person,1,4.0,0,0,9.88,"Okay, let's count the people in the image.  1.  Starting from the left, there's a person in green scrubs and a cap: `{""p"
+gemma-4-31b-it,0.0,2,7549,L21_V031,035.jpg,Airplane,1,,0,0,4.77,"Okay, let's scan the image for any airplanes.  1.  Looking at the sky: clear blue, no planes. 2.  Looking at the buildin"
+gemma-4-31b-it,0.0,2,7600,L21_V031,086.jpg,Man,4,14.0,0,0,19.87,"Okay, let's count the men in the image.  1.  Starting from the left, there's a man in a dark suit walking towards the le"
+gemma-4-31b-it,0.0,2,5903,L21_V025,034.jpg,Chair,2,10.0,0,0,12.48,"Okay, let's count the chairs in the image.  1.  Starting from the left, there's a chair at the far left edge: `{""point"":"
+gemma-4-31b-it,0.0,2,4217,L21_V017,169.jpg,Person,4,8.0,0,0,11.78,"Okay, let's count the people in the image.  1.  Starting from the front right, there's a person in dark clothing walking"
+gemma-4-31b-it,0.0,2,1729,L21_V008,186.jpg,Motorcycle,1,14.0,0,0,16.6,"Okay, let's count the motorcycles in the image.  1.  Starting from the left, there's a person on a scooter/motorcycle fa"
+gemma-4-31b-it,0.0,2,3454,L21_V014,275.jpg,Bicycle,3,10.0,0,0,14.18,"Okay, let's count the bicycles in the image.  1.  Starting from the front left, there's a cyclist in a green jersey: `{"""
+gemma-4-31b-it,0.0,3,6141,L21_V025,272.jpg,Flower,3,16.0,0,0,19.0,"Okay, let's count the flower-like shapes in this image. I'll scan from top to bottom, left to right.  1.  Starting at th"
+gemma-4-31b-it,0.0,3,3923,L21_V016,144.jpg,Bottle,2,6.0,0,0,8.73,"Okay, let's count the bottles on the table.  1.  Starting from the left, there's a white rectangular bottle: `{""point"": "
+gemma-4-31b-it,0.0,3,2323,L21_V010,176.jpg,Car,2,4.0,0,0,6.31,"Okay, let's count the cars in the image.  1.  Starting from the left, there's a white car further down the road: `{""poin"
+gemma-4-31b-it,0.0,3,72,L21_V001,073.jpg,Person,1,4.0,0,0,7.39,"Okay, let's count the people in the image.  1.  Starting from the left, there's a person in green scrubs and a cap: `{""p"
+gemma-4-31b-it,0.0,3,7549,L21_V031,035.jpg,Airplane,1,,0,0,4.86,"Okay, let's scan the image for any airplanes.  1.  Looking at the sky: clear blue, no planes. 2.  Looking at the buildin"
+gemma-4-31b-it,0.0,3,7600,L21_V031,086.jpg,Man,4,14.0,0,0,20.15,"Okay, let's count the men in the image.  1.  Starting from the left, there's a man in a dark suit walking towards the le"
+gemma-4-31b-it,0.0,3,5903,L21_V025,034.jpg,Chair,2,10.0,0,0,12.85,"Okay, let's count the chairs in the image.  1.  Starting from the left, there's a chair at the far left edge: `{""point"":"
+gemma-4-31b-it,0.0,3,4217,L21_V017,169.jpg,Person,4,8.0,0,0,12.21,"Okay, let's count the people in the image.  1.  Starting from the front right, there's a person in dark clothing walking"
+gemma-4-31b-it,0.0,3,1729,L21_V008,186.jpg,Motorcycle,1,14.0,0,0,18.51,"Okay, let's count the motorcycles in the image.  1.  Starting from the left, there's a person on a scooter/motorcycle fa"
+gemma-4-31b-it,0.0,3,3454,L21_V014,275.jpg,Bicycle,3,10.0,0,0,14.27,"Okay, let's count the bicycles in the image.  1.  Starting from the front left, there's a cyclist in a green jersey: `{"""
